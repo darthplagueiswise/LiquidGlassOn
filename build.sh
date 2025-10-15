@@ -1,25 +1,12 @@
 #!/usr/bin/env bash
-
-# Exit immediately on error and treat unset variables as an error
 set -euo pipefail
-
-# Determine the path to the iOS SDK for compiling against the iPhoneOS platform
-SDK="$(xcrun --sdk iphoneos --show-sdk-path)"
-
-# Name of the output dynamic library
-OUT="LiquidGlassOn.dylib"
-
-# Compile the Objective‑C source file into a dynamic library for arm64
-clang -arch arm64 \
-  -isysroot "$SDK" \
-  -miphoneos-version-min=14.0 \
-  -dynamiclib -fobjc-arc \
-  -install_name "@rpath/LiquidGlassOn.dylib" \
-  -current_version 1.0 \
-  -compatibility_version 1.0 \
-  -framework Foundation \
-  -framework UIKit \
-  src/LiquidGlassOn.m \
-  -o "$OUT"
-
-echo "Built $OUT"
+SDK=$(xcrun --sdk iphoneos --show-sdk-path)
+mkdir -p build
+xcrun --sdk iphoneos clang \
+  -arch arm64 -miphoneos-version-min=14.0 -fobjc-arc -isysroot "$SDK" \
+  -dynamiclib -install_name @rpath/LiquidGlassOn.dylib \
+  -framework Foundation -framework UIKit \
+  -o build/LiquidGlassOn.dylib src/LiquidGlassOn.m
+strip -S build/LiquidGlassOn.dylib
+otool -l build/LiquidGlassOn.dylib | sed -n '/LC_ID_DYLIB/,/name/p'
+echo "Built build/LiquidGlassOn.dylib"
