@@ -1,0 +1,18 @@
+name: build-liquidglasson
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Build dylib (iOS arm64)
+        run: |
+          bash build.sh
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: LiquidGlassOn
+          path: LiquidGlassOn.dylib
