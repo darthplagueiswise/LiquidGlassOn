@@ -1,38 +1,55 @@
 #import <Foundation/Foundation.h>
 #import <objc/runtime.h>
+#import <UIKit/UIKit.h>
 
+// Replacement implementation for -[WDSLiquidGlass isEnabled]
 static BOOL LG_isEnabled(id self, SEL _cmd) {
+    // Always report that Liquid Glass is enabled
     return YES;
 }
 
-__attribute__((constructor))
-static void lg_boot(void) {
-    @autoreleasepool {
-        // 1) Semeia a override nos possíveis suites (WhatsApp normal e Business)
-        NSArray<NSString *> *suites = @[@"group.net.whatsapp.WhatsApp.shared",
-                                        @"group.net.whatsapp.WhatsApp.private",
-                                        @"group.net.whatsapp.WhatsAppSMB.shared",
-                                        @"group.net.whatsapp.WhatsAppSMB.private"];
-        for (NSString *suite in suites) {
-            NSUserDefaults *ud = [[NSUserDefaults alloc] initWithSuiteName:suite];
-            if (ud) {
-                [ud setBool:YES forKey:@"WAOverrideLiquidGlassEnabled"];
-                [ud synchronize];
-            }
-        }
-        // fallback: domínio padrão também
-        [[NSUserDefaults standardUserDefaults] setBool:YES forKey:@"WAOverrideLiquidGlassEnabled"];
-        [[NSUserDefaults standardUserDefaults] synchronize];
+// Replacement implementation for -[UIWindow setWindowLevel:]
+static void LG_setWindowLevel(UIWindow *self, SEL _cmd, CGFloat level) {
+    // Clamp any window level above normal back to normal so overlays can't hide Liquid Glass
+    if (level > 0.0) {
+        level = 0.0;
+    }
+    // Call original implementation
+    void (*orig)(id, SEL, CGFloat) = (void (*)(id, SEL, CGFloat))objc_getAssociatedObject(self, _cmd);
+    if (orig) {
+        orig(self, _cmd, level);
+    }
+}
 
-        // 2) Swizzle suave: +[WDSLiquidGlass isEnabled] -> sempre YES
-        Class cls = objc_getClass("WDSLiquidGlass");
-        if (cls) {
-            SEL sel = sel_registerName("isEnabled");
-            Method m = class_getClassMethod(cls, sel);
-            if (m) {
-                IMP newImp = (IMP)LG_isEnabled;
-                method_setImplementation(m, newImp);
-            }
-        }
+// Constructor runs when the dylib is loaded
+__attribute__((constructor))
+static void LG_initialize(void) {
+    // Persistently set the preferences to enable Liquid Glass
+    NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+    [defaults setObject:@"UserDefaults" forKey:@"WALiquidGlassOverrideMethod"];
+    [defaults setBool:YES forKey:@"WAOverrideLiquidGlassEnabled"];
+    [defaults setBool:YES forKey:@"LiquidGlassEnabled"];
+    [defaults synchronize];
+
+    // Swizzle +[WDSLiquidGlass isEnabled] to always return YES
+    Class lgClass = NSClassFromString(@"WDSLiquidGlass");
+    SEL enabledSel = @selector(isEnabled);
+    Method enabledMethod = class_getClassMethod(lgClass, enabledSel);
+    if (enabledMethod) {
+        IMP originalIMP = method_getImplementation(enabledMethod);
+        // Associate original IMP to retrieve in replacement if needed
+        objc_setAssociatedObject(lgClass, enabledSel, (id)originalIMP, OBJC_ASSOCIATION_ASSIGN);
+        method_setImplementation(enabledMethod, (IMP)LG_isEnabled);
+    }
+
+    // Swizzle -[UIWindow setWindowLevel:] to clamp overlay levels
+    Class windowClass = [UIWindow class];
+    SEL setLevelSel = @selector(setWindowLevel:);
+    Method setLevelMethod = class_getInstanceMethod(windowClass, setLevelSel);
+    if (setLevelMethod) {
+        IMP originalSetLevel = method_getImplementation(setLevelMethod);
+        // Store original implementation so our replacement can call through
+        objc_setAssociatedObject(windowClass, setLevelSel, (id)originalSetLevel, OBJC_ASSOCIATION_ASSIGN);
+        method_setImplementation(setLevelMethod, (IMP)LG_setWindowLevel);
     }
 }
