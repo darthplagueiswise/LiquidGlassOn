@@ -1,28 +1,31 @@
-# Workflow for building the LiquidGlassOn dynamic library.
-
-name: build-LiquidGlassOn
-
+name: build-dylib
 on:
-  # Build on demand via the workflow_dispatch event and on pushes to the main branch
-  workflow_dispatch:
   push:
-    branches:
-      - main
+    branches: [ "main", "master" ]
+  pull_request:
+  workflow_dispatch:
 
 jobs:
   build:
-    runs-on: macos-latest
+    runs-on: macos-14
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Build dylib
+      - uses: actions/checkout@v4
+      - name: Xcode & SDK info
         run: |
-          # The build script compiles the Objective‑C source into a dynamic library
-          bash build.sh
-
-      - name: Upload build artifact
+          xcodebuild -version
+          xcodebuild -showsdks
+          xcrun --sdk iphoneos --show-sdk-path
+      - name: Build LiquidGlassOn.dylib (arm64)
+        shell: bash
+        run: |
+          set -euxo pipefail
+          SDK=$(xcrun --sdk iphoneos --show-sdk-path)
+          mkdir -p build
+          xcrun --sdk iphoneos clang -arch arm64 -miphoneos-version-min=14.0 -fobjc-arc -isysroot "$SDK" -dynamiclib -install_name @rpath/LiquidGlassOn.dylib -framework Foundation -framework UIKit -o build/LiquidGlassOn.dylib src/LiquidGlassOn.m
+          strip -S build/LiquidGlassOn.dylib
+          otool -l build/LiquidGlassOn.dylib | sed -n '/LC_ID_DYLIB/,/name/p'
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: LiquidGlassOn.dylib
-          path: LiquidGlassOn.dylib
+          name: LiquidGlassOn-${{ github.sha }}
+          path: build/LiquidGlassOn.dylib
