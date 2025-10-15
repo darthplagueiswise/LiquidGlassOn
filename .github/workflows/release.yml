@@ -1,39 +1,27 @@
-# Workflow for creating a tagged release with the built LiquidGlassOn.dylib
-
-name: release-LiquidGlassOn
-
+name: release-dylib
 on:
   push:
-    # Trigger the release workflow on version tags like v1.0.0, v2.3.4, etc.
     tags:
       - 'v*'
 
 jobs:
-  release:
-    runs-on: macos-latest
+  build-and-release:
+    runs-on: macos-14
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
+      - uses: actions/checkout@v4
       - name: Build dylib
+        shell: bash
         run: |
-          # Compile the dynamic library
-          bash build.sh
-
+          set -euxo pipefail
+          SDK=$(xcrun --sdk iphoneos --show-sdk-path)
+          mkdir -p build
+          xcrun --sdk iphoneos clang -arch arm64 -miphoneos-version-min=14.0 -fobjc-arc -isysroot "$SDK" -dynamiclib -install_name @rpath/LiquidGlassOn.dylib -framework Foundation -framework UIKit -o build/LiquidGlassOn.dylib src/LiquidGlassOn.m
+          strip -S build/LiquidGlassOn.dylib
+          otool -l build/LiquidGlassOn.dylib | sed -n '/LC_ID_DYLIB/,/name/p'
       - name: Create GitHub Release
-        # Uses the softprops action to create a release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
-          name: Release ${{ github.ref }}
-          tag_name: ${{ github.ref }}
-          draft: false
-          prerelease: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Upload release asset
-        uses: softprops/action-gh-release@v1
-        with:
-          files: LiquidGlassOn.dylib
+          files: build/LiquidGlassOn.dylib
+          generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
