@@ -1,18 +1,28 @@
-name: build-liquidglasson
+# Workflow for building the LiquidGlassOn dynamic library.
+
+name: build-LiquidGlassOn
+
 on:
+  # Build on demand via the workflow_dispatch event and on pushes to the main branch
   workflow_dispatch:
+  push:
+    branches:
+      - main
 
 jobs:
   build:
     runs-on: macos-latest
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
-      - name: Build dylib (iOS arm64)
+
+      - name: Build dylib
         run: |
+          # The build script compiles the Objective‑C source into a dynamic library
           bash build.sh
-      - name: Upload artifact
+
+      - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
-          name: LiquidGlassOn
+          name: LiquidGlassOn.dylib
           path: LiquidGlassOn.dylib
