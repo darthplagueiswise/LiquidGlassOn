@@ -35,23 +35,28 @@ jobs:
         run: |
           set -euo pipefail
           make
+
           echo 'Searching for built dylib...'
-          DY="$(find . -type f -name 'EnableLiquidGlass*.dylib' | head -n1 || true)"
+          DY="$(find . -path './.theos/obj/*/EnableLiquidGlass.dylib' -print -quit || true)"
           if [[ -z "${DY}" ]]; then
-            DY="$(find . -type f -name '*.dylib' | grep -v '/\.theos/obj/' | head -n1 || true)"
+            DY="$(find . -type f -name 'EnableLiquidGlass*.dylib' | head -n1 || true)"
           fi
-          if [[ -z "${DY}" ]]; then
-            DY="$(find . -type f -name '*.dylib' | head -n1 || true)"
-          fi
-          echo "Found: ${DY}"
           test -n "${DY}"
+          echo "Found: ${DY}"
+
           mkdir -p app-out
           cp "${DY}" app-out/EnableLiquidGlass.dylib
-          # hard-set install name
-          install_name_tool -id @executable_path/Frameworks/EnableLiquidGlass.dylib app-out/EnableLiquidGlass.dylib
-          # verify MH_DYLIB and install name
-          otool -hv  app-out/EnableLiquidGlass.dylib | grep -q 'MH_DYLIB'
-          otool -D   app-out/EnableLiquidGlass.dylib | tail -n +2 | grep -qx '@executable_path/Frameworks/EnableLiquidGlass.dylib'
+
+          EXPECTED='@executable_path/Frameworks/EnableLiquidGlass.dylib'
+          ACTUAL="$(otool -D app-out/EnableLiquidGlass.dylib | tail -n +2 | tr -d '\r\n')"
+          echo "Install name: ${ACTUAL}"
+          if [[ "$ACTUAL" != "$EXPECTED" ]]; then
+            echo 'install_name mismatch'
+            echo "  expected: $EXPECTED"
+            echo "  actual:   $ACTUAL"
+            exit 1
+          fi
+
           shasum -a 256 app-out/EnableLiquidGlass.dylib > SHA256SUMS.txt
           wc -c app-out/EnableLiquidGlass.dylib > SIZES.txt
       - uses: actions/upload-artifact@v4
@@ -89,13 +94,14 @@ jobs:
         run: |
           set -euo pipefail
           make
-          DY="$(find . -type f -name 'EnableLiquidGlass*.dylib' | head -n1 || true)"
-          if [[ -z "${DY}" ]]; then DY="$(find . -type f -name '*.dylib' | head -n1 || true)"; fi
+          DY="$(find . -path './.theos/obj/*/EnableLiquidGlass.dylib' -print -quit || true)"
+          if [[ -z "${DY}" ]]; then DY="$(find . -type f -name 'EnableLiquidGlass*.dylib' | head -n1 || true)"; fi
+          test -n "${DY}"
           mkdir -p app-out
           cp "${DY}" app-out/EnableLiquidGlass.dylib
-          install_name_tool -id @executable_path/Frameworks/EnableLiquidGlass.dylib app-out/EnableLiquidGlass.dylib
-          otool -hv  app-out/EnableLiquidGlass.dylib | grep -q 'MH_DYLIB'
-          otool -D   app-out/EnableLiquidGlass.dylib | tail -n +2 | grep -qx '@executable_path/Frameworks/EnableLiquidGlass.dylib'
+          EXPECTED='@executable_path/Frameworks/EnableLiquidGlass.dylib'
+          ACTUAL="$(otool -D app-out/EnableLiquidGlass.dylib | tail -n +2 | tr -d '\r\n')"
+          if [[ "$ACTUAL" != "$EXPECTED" ]]; then echo 'install_name mismatch'; exit 1; fi
           shasum -a 256 app-out/EnableLiquidGlass.dylib > SHA256SUMS.txt
           wc -c app-out/EnableLiquidGlass.dylib > SIZES.txt
       - uses: actions/upload-artifact@v4
