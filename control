@@ -1,7 +1,0 @@
-Package: com.vader.enableliquidglass
-Name: EnableLiquidGlass
-Architecture: iphoneos-arm
-Depends: mobilesubstrate
-Version: 1.0
-Maintainer: Vader <you@example.com>
-Description: Test build for CI (.deb + .dylib)
