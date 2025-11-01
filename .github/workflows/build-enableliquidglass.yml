@@ -126,10 +126,22 @@ jobs:
           pattern: EnableLiquidGlass-*
           merge-multiple: true
           path: dist
+      - name: Compute tag
+        run: |
+          if [ -f VERSION ] && [ -s VERSION ]; then
+            echo "REL_TAG=$(cat VERSION | tr -d ' 
+')" >> $GITHUB_ENV
+          elif [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ inputs.tag }}" ]; then
+            echo "REL_TAG=${{ inputs.tag }}" >> $GITHUB_ENV
+          elif [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            echo "REL_TAG=${{ github.ref_name }}" >> $GITHUB_ENV
+          else
+            echo "REL_TAG=nightly-${GITHUB_RUN_ID}" >> $GITHUB_ENV
+          fi
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.event_name == 'workflow_dispatch' && inputs.tag != '' && inputs.tag || format('nightly-{0}', github.run_id) }}
+          tag_name: ${{ env.REL_TAG }}
           files: |
             dist/**/*.deb
             dist/**/*.dylib
