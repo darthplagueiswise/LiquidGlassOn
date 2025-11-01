@@ -1,18 +1,20 @@
-name: Build EnableLiquidGlass (deb + app-inject dylib)
+name: Build EnableLiquidGlass (app-inject dylib only)
 permissions:
   contents: write
 on:
   push:
-    branches: ['**']
+    branches: ['main']
+    tags: ['v*']
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Optional release tag (e.g. v0.2.0). Leave empty to skip release.'
+        description: 'Release tag (e.g. v0.3.0). Leave empty to nightly.'
         required: false
         default: ''
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
+
 jobs:
   build26:
     name: Build on macOS 26 (Xcode 26.0.1)
@@ -28,26 +30,39 @@ jobs:
         with:
           theos-src: theos/theos
           sdks-src: theos/sdks
-      - name: Build tweak (.deb)
-        run: make package FINALPACKAGE=1
-      - name: Make app-inject .dylib (install_name @executable_path/Frameworks)
+      - name: Build tweak (dylib only)
         run: |
-          set -e
-          DY=$(find . -name '*.dylib' -print -quit)
-          echo "Found dylib: $DY"
+          make
+          echo 'Searching for built dylib...'
+          DY=$(
+            find . -type f -name '*.dylib' \ 
+                 -not -path '*/.theos/obj/*/*/*.dylib' \ 
+                 -print -quit
+          ) || true
+          if [ -z \"$DY\" ]; then
+            # fallback: pick the largest dylib from .theos/obj
+            DY=$(find . -path '*/.theos/obj/*/*.dylib' -exec ls -S {} + | head -n 1)
+          fi
+          echo "Found: $DY"
           mkdir -p app-out
           cp "$DY" app-out/EnableLiquidGlass.dylib
           install_name_tool -id @executable_path/Frameworks/EnableLiquidGlass.dylib app-out/EnableLiquidGlass.dylib
-      - uses: actions/upload-artifact@v4
-        with:
-          name: EnableLiquidGlass-deb
-          path: packages/*.deb
-          if-no-files-found: error
+          shasum -a 256 app-out/EnableLiquidGlass.dylib > SHA256SUMS.txt
+          wc -c app-out/EnableLiquidGlass.dylib > SIZES.txt
       - uses: actions/upload-artifact@v4
         with:
           name: EnableLiquidGlass-dylib
           path: app-out/EnableLiquidGlass.dylib
           if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: checksums
+          path: SHA256SUMS.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sizes
+          path: SIZES.txt
+
   build15:
     name: Fallback on macOS 15 (Xcode 26.0.1)
     needs: build26
@@ -64,43 +79,55 @@ jobs:
         with:
           theos-src: theos/theos
           sdks-src: theos/sdks
-      - name: Build tweak (.deb)
-        run: make package FINALPACKAGE=1
-      - name: Make app-inject .dylib (install_name @executable_path/Frameworks)
+      - name: Build tweak (dylib only)
         run: |
-          set -e
-          DY=$(find . -name '*.dylib' -print -quit)
-          echo "Found dylib: $DY"
+          make
+          DY=$(find . -type f -name '*.dylib' -print -quit)
           mkdir -p app-out
           cp "$DY" app-out/EnableLiquidGlass.dylib
           install_name_tool -id @executable_path/Frameworks/EnableLiquidGlass.dylib app-out/EnableLiquidGlass.dylib
-      - uses: actions/upload-artifact@v4
-        with:
-          name: EnableLiquidGlass-deb
-          path: packages/*.deb
-          if-no-files-found: error
+          shasum -a 256 app-out/EnableLiquidGlass.dylib > SHA256SUMS.txt
+          wc -c app-out/EnableLiquidGlass.dylib > SIZES.txt
       - uses: actions/upload-artifact@v4
         with:
           name: EnableLiquidGlass-dylib
           path: app-out/EnableLiquidGlass.dylib
           if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: checksums
+          path: SHA256SUMS.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sizes
+          path: SIZES.txt
+
   release:
-    name: Release (optional)
+    name: Release dylib
     needs: [build26, build15]
-    if: ${{ always() && (needs.build26.result == 'success' || needs.build15.result == 'success') && github.event_name == 'workflow_dispatch' && inputs.tag != '' }}
+    if: ${{ always() && (needs.build26.result == 'success' || needs.build15.result == 'success') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
         with:
-          pattern: EnableLiquidGlass-*
+          pattern: EnableLiquidGlass-dylib
           merge-multiple: true
+          path: dist
+      - uses: actions/download-artifact@v4
+        with:
+          name: checksums
+          path: dist
+      - uses: actions/download-artifact@v4
+        with:
+          name: sizes
           path: dist
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ inputs.tag }}
+          tag_name: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || (github.event_name == 'workflow_dispatch' && inputs.tag != '' && inputs.tag) || format('nightly-{0}', github.run_id) }}
           files: |
-            dist/**/*.deb
-            dist/**/EnableLiquidGlass.dylib
+            dist/EnableLiquidGlass.dylib
+            dist/SHA256SUMS.txt
+            dist/SIZES.txt
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
