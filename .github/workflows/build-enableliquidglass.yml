@@ -1,8 +1,11 @@
 name: Build EnableLiquidGlass
+
 on:
+  workflow_dispatch:
   push:
     branches: [main]
   pull_request:
+
 jobs:
   build:
     name: Compile EnableLiquidGlass dylib
@@ -12,20 +15,20 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
       - name: Install dependencies (Homebrew)
         run: |
           brew update
           brew install ldid radare2
+
       - name: Clone Theos
         run: git clone --depth=1 https://github.com/theos/theos.git $THEOS
-      - name: Ensure toolchain
-        run: |
-          sudo xcode-select -switch /Applications/Xcode.app
-          sudo xcodebuild -license accept
+
       - name: Build dylib package
         run: |
           export PATH="$THEOS/bin:$PATH"
           make package THEOS_DEVICE_IP=ignore
+
       - name: Upload built dylib
         uses: actions/upload-artifact@v4
         with:
