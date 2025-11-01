@@ -31,21 +31,22 @@ jobs:
           theos-src: theos/theos
           sdks-src: theos/sdks
       - name: Build tweak (dylib only)
+        shell: bash
         run: |
+          set -euo pipefail
           make
           echo 'Searching for built dylib...'
-          DY=$(
-            find . -type f -name '*.dylib' \ 
-                 -not -path '*/.theos/obj/*/*/*.dylib' \ 
-                 -print -quit
-          ) || true
-          if [ -z \"$DY\" ]; then
-            # fallback: pick the largest dylib from .theos/obj
-            DY=$(find . -path '*/.theos/obj/*/*.dylib' -exec ls -S {} + | head -n 1)
+          DY="$(find . -type f -name 'EnableLiquidGlass*.dylib' | head -n1 || true)"
+          if [[ -z "${DY}" ]]; then
+            DY="$(find . -type f -name '*.dylib' | grep -v '/\.theos/obj/' | head -n1 || true)"
           fi
-          echo "Found: $DY"
+          if [[ -z "${DY}" ]]; then
+            DY="$(find . -type f -name '*.dylib' | head -n1 || true)"
+          fi
+          echo "Found: ${DY}"
+          test -n "${DY}"
           mkdir -p app-out
-          cp "$DY" app-out/EnableLiquidGlass.dylib
+          cp "${DY}" app-out/EnableLiquidGlass.dylib
           install_name_tool -id @executable_path/Frameworks/EnableLiquidGlass.dylib app-out/EnableLiquidGlass.dylib
           shasum -a 256 app-out/EnableLiquidGlass.dylib > SHA256SUMS.txt
           wc -c app-out/EnableLiquidGlass.dylib > SIZES.txt
@@ -80,11 +81,14 @@ jobs:
           theos-src: theos/theos
           sdks-src: theos/sdks
       - name: Build tweak (dylib only)
+        shell: bash
         run: |
+          set -euo pipefail
           make
-          DY=$(find . -type f -name '*.dylib' -print -quit)
+          DY="$(find . -type f -name 'EnableLiquidGlass*.dylib' | head -n1 || true)"
+          if [[ -z "${DY}" ]]; then DY="$(find . -type f -name '*.dylib' | head -n1 || true)"; fi
           mkdir -p app-out
-          cp "$DY" app-out/EnableLiquidGlass.dylib
+          cp "${DY}" app-out/EnableLiquidGlass.dylib
           install_name_tool -id @executable_path/Frameworks/EnableLiquidGlass.dylib app-out/EnableLiquidGlass.dylib
           shasum -a 256 app-out/EnableLiquidGlass.dylib > SHA256SUMS.txt
           wc -c app-out/EnableLiquidGlass.dylib > SIZES.txt
