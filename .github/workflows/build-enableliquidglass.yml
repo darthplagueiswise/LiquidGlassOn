@@ -1,4 +1,4 @@
-name: Build EnableLiquidGlass (app-inject dylib only)
+name: Build EnableLiquidGlass (dylib-only, strict)
 permissions:
   contents: write
 on:
@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Release tag (e.g. v0.3.2). Leave empty to nightly.'
+        description: 'Release tag (e.g. v0.3.3). Leave empty to nightly.'
         required: false
         default: ''
 concurrency:
@@ -16,7 +16,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build26:
+  build:
     name: Build on macOS 26 (Xcode 26.0.1)
     runs-on: macos-26
     steps:
@@ -30,26 +30,22 @@ jobs:
         with:
           theos-src: theos/theos
           sdks-src: theos/sdks
-      - name: Build tweak (dylib only)
+      - name: Build tweak (dylib only, verify MH_DYLIB + LC_ID_DYLIB)
         shell: bash
         run: |
           set -euo pipefail
-          make
-          echo 'Searching for built dylib...'
-          DY="$(find . -path './.theos/obj/*/EnableLiquidGlass.dylib' -print -quit || true)"
-          if [[ -z "${DY}" ]]; then
-            DY="$(find . -type f -name 'EnableLiquidGlass*.dylib' | head -n1 || true)"
-          fi
-          test -n "${DY}"
-          echo "Found: ${DY}"
+          make clean all
+          DY="$(/usr/bin/find . -path './.theos/obj/*/EnableLiquidGlass.dylib' -print -quit || true)"
+          [[ -n "$DY" ]] || { echo 'not found'; exit 1; }
           mkdir -p app-out
-          cp "${DY}" app-out/EnableLiquidGlass.dylib
-          EXPECTED='@executable_path/Frameworks/EnableLiquidGlass.dylib'
-          ACTUAL="$(otool -D app-out/EnableLiquidGlass.dylib | tail -n +2 | tr -d '\r\n')"
-          echo "Install name: ${ACTUAL}"
-          [[ "$ACTUAL" == "$EXPECTED" ]]
+          cp "$DY" app-out/EnableLiquidGlass.dylib
+          FILETYPE=$(otool -hv app-out/EnableLiquidGlass.dylib | awk 'NR==2{print $5}')
+          [[ "$FILETYPE" == "MH_DYLIB" ]]
+          ID=$(otool -l app-out/EnableLiquidGlass.dylib | awk '/LC_ID_DYLIB/{f=1} f&&/name/{print $2; exit}')
+          EXP='@executable_path/Frameworks/EnableLiquidGlass.dylib'
+          [[ "$ID" == "$EXP" ]]
           shasum -a 256 app-out/EnableLiquidGlass.dylib > SHA256SUMS.txt
-          wc -c app-out/EnableLiquidGlass.dylib > SIZES.txt
+          wc -c       app-out/EnableLiquidGlass.dylib > SIZES.txt
       - uses: actions/upload-artifact@v4
         with:
           name: EnableLiquidGlass-dylib
@@ -65,15 +61,14 @@ jobs:
           path: SIZES.txt
 
   release:
-    name: Release dylib
-    needs: build26
+    name: Release dylib only
+    needs: build
     if: ${{ success() }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
         with:
-          pattern: EnableLiquidGlass-dylib
-          merge-multiple: true
+          name: EnableLiquidGlass-dylib
           path: dist
       - uses: actions/download-artifact@v4
         with:
@@ -83,7 +78,7 @@ jobs:
         with:
           name: sizes
           path: dist
-      - name: Create GitHub Release
+      - name: Create GitHub Release (dylib only)
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || (github.event_name == 'workflow_dispatch' && inputs.tag != '' && inputs.tag) || format('nightly-{0}', github.run_id) }}
