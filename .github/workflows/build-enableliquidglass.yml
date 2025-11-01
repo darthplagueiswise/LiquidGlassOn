@@ -1,4 +1,4 @@
-name: Build EnableLiquidGlass (Xcode 26.0.1; dual-run)
+name: Build EnableLiquidGlass (Xcode 26.0.1; dual-run + app-inject dylib)
 
 permissions:
   contents: write
@@ -10,9 +10,13 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Optional: tag to release (e.g. v0.1.2). Leave blank to skip release.'
+        description: 'Optional: tag to release (e.g. v0.1.3). Leave blank to skip release.'
         required: false
         default: ''
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build26:
@@ -31,16 +35,36 @@ jobs:
         with:
           theos-src: theos/theos
           sdks-src: theos/sdks
-      - run: make package FINALPACKAGE=1
-      - run: mkdir -p build-out && DY=$(find . -name '*.dylib' -print -quit) && [ -n "$DY" ] && cp "$DY" build-out/EnableLiquidGlass.dylib || true
+      - name: Build (package)
+        run: make package FINALPACKAGE=1
+      - name: Collect substrate .dylib
+        run: |
+          mkdir -p build-out
+          DY=$(find . -name '*.dylib' -print -quit || true)
+          [ -n "$DY" ] && cp "$DY" build-out/EnableLiquidGlass.dylib || true
+      - name: Produce app-injectable .dylib (install_name @executable_path/Frameworks)
+        run: |
+          DY=$(find . -name '*.dylib' -print -quit || true)
+          if [ -n "$DY" ]; then
+            mkdir -p app-out
+            cp "$DY" app-out/EnableLiquidGlass.dylib
+            install_name_tool -id @executable_path/Frameworks/EnableLiquidGlass.dylib app-out/EnableLiquidGlass.dylib
+          fi
       - uses: actions/upload-artifact@v4
         with:
           name: EnableLiquidGlass-deb-26
           path: packages/*.deb
+          if-no-files-found: warn
       - uses: actions/upload-artifact@v4
         with:
           name: EnableLiquidGlass-dylib-26
           path: build-out/*.dylib
+          if-no-files-found: warn
+      - uses: actions/upload-artifact@v4
+        with:
+          name: EnableLiquidGlass-dylib-app-26
+          path: app-out/*.dylib
+          if-no-files-found: warn
 
   build15:
     name: Fallback on macOS 15 (Xcode 26.0.1)
@@ -60,18 +84,39 @@ jobs:
         with:
           theos-src: theos/theos
           sdks-src: theos/sdks
-      - run: make package FINALPACKAGE=1
-      - run: mkdir -p build-out && DY=$(find . -name '*.dylib' -print -quit) && [ -n "$DY" ] && cp "$DY" build-out/EnableLiquidGlass.dylib || true
+      - name: Build (package)
+        run: make package FINALPACKAGE=1
+      - name: Collect substrate .dylib
+        run: |
+          mkdir -p build-out
+          DY=$(find . -name '*.dylib' -print -quit || true)
+          [ -n "$DY" ] && cp "$DY" build-out/EnableLiquidGlass.dylib || true
+      - name: Produce app-injectable .dylib (install_name @executable_path/Frameworks)
+        run: |
+          DY=$(find . -name '*.dylib' -print -quit || true)
+          if [ -n "$DY" ]; then
+            mkdir -p app-out
+            cp "$DY" app-out/EnableLiquidGlass.dylib
+            install_name_tool -id @executable_path/Frameworks/EnableLiquidGlass.dylib app-out/EnableLiquidGlass.dylib
+          fi
       - uses: actions/upload-artifact@v4
         with:
           name: EnableLiquidGlass-deb-15
           path: packages/*.deb
+          if-no-files-found: warn
       - uses: actions/upload-artifact@v4
         with:
           name: EnableLiquidGlass-dylib-15
           path: build-out/*.dylib
+          if-no-files-found: warn
+      - uses: actions/upload-artifact@v4
+        with:
+          name: EnableLiquidGlass-dylib-app-15
+          path: app-out/*.dylib
+          if-no-files-found: warn
 
   release:
+    name: Release from successful build
     needs: [build26, build15]
     if: ${{ always() && (needs.build26.result == 'success' || needs.build15.result == 'success') }}
     runs-on: ubuntu-latest
@@ -84,7 +129,9 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.event_name == 'workflow_dispatch' && inputs.tag != '' && inputs.tag || format('nightly-{0}', github.run_id)}}
-          files: dist/**
+          tag_name: ${{ github.event_name == 'workflow_dispatch' && inputs.tag != '' && inputs.tag || format('nightly-{0}', github.run_id) }}
+          files: |
+            dist/**/*.deb
+            dist/**/*.dylib
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
