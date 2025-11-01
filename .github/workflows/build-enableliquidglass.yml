@@ -1,37 +1,32 @@
-name: Build & Release EnableLiquidGlass (Xcode + Theos Action)
+name: Build EnableLiquidGlass (Xcode 26.1, stable)
 
 permissions:
   contents: write
 
 on:
-  workflow_dispatch:
-    inputs:
-      tag:
-        description: "Optional: tag to release (e.g. v0.1.0). Leave blank to skip release."
-        required: false
-        default: ""
-      ipa_url:
-        description: "Optional: direct URL of base IPA to auto-inject."
-        required: false
-        default: ""
   push:
     branches: ['**']
     tags: ['v*']
-  pull_request:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Optional: tag to release (e.g. v0.1.1). Leave blank to skip release.'
+        required: false
+        default: ''
 
 jobs:
   build:
     name: Build tweak (.deb & .dylib)
-    runs-on: macos-14
+    runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
 
-      - name: Select Xcode (latest-stable)
+      - name: Select Xcode 26.1
         uses: maxim-lobanov/setup-xcode@v1
         with:
-          xcode-version: latest-stable
+          xcode-version: '26.1'
 
-      - name: Setup Theos (+ patched SDKs)
+      - name: Setup Theos (with patched SDKs)
         uses: waruhachi/theos-action@v2.4.6
         with:
           theos-src: theos/theos
@@ -41,6 +36,11 @@ jobs:
           altlist: false
           libgcuniversal: false
 
+      - name: Toolchain info
+        run: |
+          xcodebuild -version
+          xcodebuild -showsdks | sed -n '1,120p'
+
       - name: Build (clean/package)
         run: |
           make clean package FINALPACKAGE=1
@@ -48,15 +48,18 @@ jobs:
       - name: Collect raw .dylib
         run: |
           mkdir -p build-out
-          DYLIB="$(find . -type f -name '*.dylib' -print -quit)"
+          DYLIB="$(find . -type f -name '*.dylib' -print -quit || true)"
           if [ -n "$DYLIB" ]; then cp "$DYLIB" build-out/EnableLiquidGlass.dylib; fi
 
-      - uses: actions/upload-artifact@v4
+      - name: Upload .deb
+        uses: actions/upload-artifact@v4
         with:
           name: EnableLiquidGlass-deb
           path: packages/*.deb
           if-no-files-found: error
-      - uses: actions/upload-artifact@v4
+
+      - name: Upload .dylib
+        uses: actions/upload-artifact@v4
         with:
           name: EnableLiquidGlass-dylib
           path: build-out/*.dylib
@@ -72,45 +75,12 @@ jobs:
           pattern: EnableLiquidGlass-*
           merge-multiple: true
           path: dist
-      - uses: softprops/action-gh-release@v2
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.event_name == 'workflow_dispatch' && inputs.tag != '' && inputs.tag || github.ref_name }}
           files: |
             dist/**/*.deb
             dist/**/*.dylib
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  inject_ipa:
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.ipa_url != '' }}
-    needs: release
-    runs-on: macos-14
-    steps:
-      - uses: actions/download-artifact@v4
-        with:
-          pattern: EnableLiquidGlass-*
-          merge-multiple: true
-          path: dist
-      - name: Fetch IPA + inject
-        shell: bash
-        run: |
-          curl -L --fail --retry 3 -o base.ipa "${{ inputs.ipa_url }}"
-          mkdir ipa && cd ipa
-          unzip -q ../base.ipa
-          mkdir -p Payload/WhatsApp.app/Library/MobileSubstrate/DynamicLibraries
-          cp ../dist/**/*.dylib Payload/WhatsApp.app/Library/MobileSubstrate/DynamicLibraries/EnableLiquidGlass.dylib
-          cat > Payload/WhatsApp.app/Library/MobileSubstrate/DynamicLibraries/EnableLiquidGlass.plist <<'PL'
-          { Filter = { Bundles = ( "net.whatsapp.WhatsApp" ); }; }
-          PL
-          cd ..
-          zip -qry WhatsApp+EnableLiquidGlass.ipa ipa/*
-      - uses: actions/upload-artifact@v4
-        with:
-          name: WhatsApp-EnableLiquidGlass-ipa
-          path: WhatsApp+EnableLiquidGlass.ipa
-      - uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ github.event_name == 'workflow_dispatch' && inputs.tag != '' && inputs.tag || github.ref_name }}
-          files: WhatsApp+EnableLiquidGlass.ipa
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
