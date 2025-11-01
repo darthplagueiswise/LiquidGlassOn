@@ -8,7 +8,7 @@ jobs:
     name: Compile EnableLiquidGlass dylib
     runs-on: macos-latest
     env:
-      THEOS: ${{ runner.workspace }}/theos
+      THEOS: ${{ github.workspace }}/theos
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
