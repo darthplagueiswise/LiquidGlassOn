@@ -1,0 +1,106 @@
+name: Build & Release EnableLiquidGlass
+
+permissions:
+  contents: write
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Optional: tag to release (e.g. v0.1.0). Leave blank to skip release."
+        required: false
+        default: ""
+      ipa_url:
+        description: "Optional: direct URL of base IPA to auto-inject."
+        required: false
+        default: ""
+  push:
+    branches: ['**']
+    tags: ['v*']
+  pull_request:
+
+jobs:
+  build:
+    name: Build tweak (.deb & .dylib)
+    runs-on: macos-latest
+    env:
+      THEOS: ${{ github.workspace }}/theos
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install brew deps
+        run: |
+          brew update
+          brew install dpkg ldid coreutils findutils gnu-sed gnu-tar xz
+      - name: Clone Theos
+        run: git clone --depth=1 https://github.com/theos/theos.git $THEOS
+      - name: Build (clean, all, package)
+        run: |
+          export PATH="$THEOS/bin:$PATH"
+          make clean all package THEOS_DEVICE_IP=ignore
+      - name: Collect raw .dylib
+        run: |
+          mkdir -p build-out
+          DYLIB="$(find . -type f -name '*.dylib' -print -quit)"
+          if [ -n "$DYLIB" ]; then cp "$DYLIB" build-out/EnableLiquidGlass.dylib; fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: EnableLiquidGlass-deb
+          path: packages/*.deb
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: EnableLiquidGlass-dylib
+          path: build-out/*.dylib
+          if-no-files-found: warn
+
+  release:
+    if: ${{ startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.tag != '') }}
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: EnableLiquidGlass-*
+          merge-multiple: true
+          path: dist
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event_name == 'workflow_dispatch' && inputs.tag != '' && inputs.tag || github.ref_name }}
+          files: |
+            dist/**/*.deb
+            dist/**/*.dylib
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  inject_ipa:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.ipa_url != '' }}
+    needs: release
+    runs-on: macos-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: EnableLiquidGlass-*
+          merge-multiple: true
+          path: dist
+      - name: Fetch IPA + inject
+        run: |
+          curl -L --fail --retry 3 -o base.ipa "${{ inputs.ipa_url }}"
+          mkdir ipa && cd ipa
+          unzip -q ../base.ipa
+          mkdir -p Payload/WhatsApp.app/Library/MobileSubstrate/DynamicLibraries
+          cp ../dist/**/*.dylib Payload/WhatsApp.app/Library/MobileSubstrate/DynamicLibraries/EnableLiquidGlass.dylib
+          cat > Payload/WhatsApp.app/Library/MobileSubstrate/DynamicLibraries/EnableLiquidGlass.plist <<'PL'
+          { Filter = { Bundles = ( "net.whatsapp.WhatsApp" ); }; }
+          PL
+          cd ..
+          zip -qry WhatsApp+EnableLiquidGlass.ipa ipa/*
+      - uses: actions/upload-artifact@v4
+        with:
+          name: WhatsApp-EnableLiquidGlass-ipa
+          path: WhatsApp+EnableLiquidGlass.ipa
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event_name == 'workflow_dispatch' && inputs.tag != '' && inputs.tag || github.ref_name }}
+          files: WhatsApp+EnableLiquidGlass.ipa
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
