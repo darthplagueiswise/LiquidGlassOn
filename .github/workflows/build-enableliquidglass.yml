@@ -1,0 +1,74 @@
+name: Build EnableLiquidGlass
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    name: Compile EnableLiquidGlass dylib
+    runs-on: macos-latest
+    env:
+      THEOS: ${{ github.workspace }}/theos
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+<<<<<<< HEAD
+      - name: Install dependencies (Homebrew)
+        run: |
+          brew update
+          brew install ldid radare2
+=======
+      - name: Install brew deps (dpkg, ldid, gnu tools)
+        run: |
+          brew update
+          brew install dpkg ldid coreutils findutils gnu-sed gnu-tar xz
+>>>>>>> bf570d8 (CI: build + artifacts (.deb & .dylib); deps via brew; fix github.workspace)
+
+      - name: Clone Theos
+        run: git clone --depth=1 https://github.com/theos/theos.git $THEOS
+
+<<<<<<< HEAD
+      - name: Build dylib package
+        run: |
+          export PATH="$THEOS/bin:$PATH"
+          make package THEOS_DEVICE_IP=ignore
+
+      - name: Upload built dylib
+=======
+      - name: Build (clean, all, package)
+        run: |
+          export PATH="$THEOS/bin:$PATH"
+          make clean all package THEOS_DEVICE_IP=ignore
+
+      - name: Collect raw .dylib (best-effort)
+        run: |
+          mkdir -p build-out
+          DYLIB="$(find . -type f -name '*.dylib' -print -quit)"
+          if [ -n "$DYLIB" ]; then
+            cp "$DYLIB" build-out/EnableLiquidGlass.dylib
+            echo "Found dylib: $DYLIB"
+          else
+            echo "No .dylib found; continuing anyway."
+          fi
+
+      - name: Upload .deb
+>>>>>>> bf570d8 (CI: build + artifacts (.deb & .dylib); deps via brew; fix github.workspace)
+        uses: actions/upload-artifact@v4
+        with:
+          name: EnableLiquidGlass-deb
+          path: packages/*.deb
+<<<<<<< HEAD
+=======
+          if-no-files-found: error
+
+      - name: Upload raw .dylib
+        uses: actions/upload-artifact@v4
+        with:
+          name: EnableLiquidGlass-dylib
+          path: build-out/*.dylib
+          if-no-files-found: warn
+>>>>>>> bf570d8 (CI: build + artifacts (.deb & .dylib); deps via brew; fix github.workspace)
