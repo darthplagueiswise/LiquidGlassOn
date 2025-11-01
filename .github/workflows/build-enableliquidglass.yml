@@ -1,4 +1,4 @@
-name: Build & Release EnableLiquidGlass
+name: Build & Release EnableLiquidGlass (Xcode toolchain)
 
 permissions:
   contents: write
@@ -21,27 +21,44 @@ on:
 
 jobs:
   build:
-    name: Build tweak (.deb & .dylib)
-    runs-on: macos-latest
+    name: Build tweak with Xcode (Theos)
+    runs-on: macos-14
     env:
       THEOS: ${{ github.workspace }}/theos
     steps:
       - uses: actions/checkout@v4
+
+      - name: Select Xcode and show SDKs
+        shell: bash
+        run: |
+          sudo xcode-select -switch /Applications/Xcode.app
+          xcodebuild -version
+          xcodebuild -showsdks
+          echo "SDKROOT=$(xcrun --sdk iphoneos --show-sdk-path)" >> $GITHUB_ENV
+          echo "DEVELOPER_DIR=$(xcode-select -p)" >> $GITHUB_ENV
+
       - name: Install brew deps
+        shell: bash
         run: |
           brew update
           brew install dpkg ldid coreutils findutils gnu-sed gnu-tar xz
+
       - name: Clone Theos
         run: git clone --depth=1 https://github.com/theos/theos.git $THEOS
-      - name: Build (clean, all, package)
+
+      - name: Build (clean, all, package) using Xcode SDK
+        shell: bash
         run: |
           export PATH="$THEOS/bin:$PATH"
-          make clean all package THEOS_DEVICE_IP=ignore
+          echo "Using SDKROOT=$SDKROOT"
+          make clean all package THEOS_DEVICE_IP=ignore SYSROOT="$SDKROOT" DEBUG=0 FINALPACKAGE=1 V=1
+
       - name: Collect raw .dylib
         run: |
           mkdir -p build-out
           DYLIB="$(find . -type f -name '*.dylib' -print -quit)"
           if [ -n "$DYLIB" ]; then cp "$DYLIB" build-out/EnableLiquidGlass.dylib; fi
+
       - uses: actions/upload-artifact@v4
         with:
           name: EnableLiquidGlass-deb
@@ -75,7 +92,7 @@ jobs:
   inject_ipa:
     if: ${{ github.event_name == 'workflow_dispatch' && inputs.ipa_url != '' }}
     needs: release
-    runs-on: macos-latest
+    runs-on: macos-14
     steps:
       - uses: actions/download-artifact@v4
         with:
@@ -83,6 +100,7 @@ jobs:
           merge-multiple: true
           path: dist
       - name: Fetch IPA + inject
+        shell: bash
         run: |
           curl -L --fail --retry 3 -o base.ipa "${{ inputs.ipa_url }}"
           mkdir ipa && cd ipa
