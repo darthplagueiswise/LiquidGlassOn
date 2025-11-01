@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Release tag (e.g. v0.3.0). Leave empty to nightly.'
+        description: 'Release tag (e.g. v0.3.1). Leave empty to nightly.'
         required: false
         default: ''
 concurrency:
@@ -47,7 +47,11 @@ jobs:
           test -n "${DY}"
           mkdir -p app-out
           cp "${DY}" app-out/EnableLiquidGlass.dylib
+          # hard-set install name
           install_name_tool -id @executable_path/Frameworks/EnableLiquidGlass.dylib app-out/EnableLiquidGlass.dylib
+          # verify MH_DYLIB and install name
+          otool -hv  app-out/EnableLiquidGlass.dylib | grep -q 'MH_DYLIB'
+          otool -D   app-out/EnableLiquidGlass.dylib | tail -n +2 | grep -qx '@executable_path/Frameworks/EnableLiquidGlass.dylib'
           shasum -a 256 app-out/EnableLiquidGlass.dylib > SHA256SUMS.txt
           wc -c app-out/EnableLiquidGlass.dylib > SIZES.txt
       - uses: actions/upload-artifact@v4
@@ -90,6 +94,8 @@ jobs:
           mkdir -p app-out
           cp "${DY}" app-out/EnableLiquidGlass.dylib
           install_name_tool -id @executable_path/Frameworks/EnableLiquidGlass.dylib app-out/EnableLiquidGlass.dylib
+          otool -hv  app-out/EnableLiquidGlass.dylib | grep -q 'MH_DYLIB'
+          otool -D   app-out/EnableLiquidGlass.dylib | tail -n +2 | grep -qx '@executable_path/Frameworks/EnableLiquidGlass.dylib'
           shasum -a 256 app-out/EnableLiquidGlass.dylib > SHA256SUMS.txt
           wc -c app-out/EnableLiquidGlass.dylib > SIZES.txt
       - uses: actions/upload-artifact@v4
