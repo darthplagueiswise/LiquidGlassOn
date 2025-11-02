@@ -8,6 +8,8 @@ TWEAK_NAME = EnableLiquidGlass
 EnableLiquidGlass_FILES = Tweak.xm
 EnableLiquidGlass_FRAMEWORKS = UIKit Foundation
 EnableLiquidGlass_LIBRARIES = substrate
-EnableLiquidGlass_LDFLAGS += -install_name "@executable_path/Frameworks/EnableLiquidGlass.dylib"
+
+# Define o LC_ID_DYLIB (install name) no link, evitando patch pós-build
+EnableLiquidGlass_LDFLAGS += -Wl,-install_name,@executable_path/Frameworks/EnableLiquidGlass.dylib
 
 include $(THEOS_MAKE_PATH)/tweak.mk
