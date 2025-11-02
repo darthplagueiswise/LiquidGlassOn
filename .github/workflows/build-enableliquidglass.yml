@@ -76,7 +76,9 @@ jobs:
           otool -L app-out/EnableLiquidGlass.dylib > OTOOL_EnableLiquidGlass.txt
           otool -l app-out/EnableLiquidGlass.dylib > MACHO_CMDS.txt
           lipo -info app-out/EnableLiquidGlass.dylib > ARCHES.txt
-          strings app-out/EnableLiquidGlass.dylib | \n            grep -aE "(_METAIsLiquidGlassEnabled|isMediaLiquidGlassEnabled|isLiquidGlassLayoutInMediaBrowserEnabled|isNewLiquidGlassLayoutEnabled|hasLiquidGlassLaunched|isBucketEnabled:)" \n            > SELECTORS.txt || true
+          strings app-out/EnableLiquidGlass.dylib | \\
+            grep -aE '(_METAIsLiquidGlassEnabled|isMediaLiquidGlassEnabled|isLiquidGlassLayoutInMediaBrowserEnabled|isNewLiquidGlassLayoutEnabled|hasLiquidGlassLaunched|isBucketEnabled:)' \\
+            > SELECTORS.txt || true
           python3 - <<'PY'
 import json, hashlib, os
 paths = ["app-out/EnableLiquidGlass.dylib"]
