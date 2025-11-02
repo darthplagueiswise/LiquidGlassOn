@@ -85,7 +85,8 @@ for root,_,files in os.walk('packages'):
     if f.endswith('.deb'): paths.append(os.path.join(root,f))
 info = []
 for p in paths:
-  h=hashlib.sha256(open(p,'rb').read()).hexdigest()
+  with open(p,'rb') as fh:
+    h=hashlib.sha256(fh.read()).hexdigest()
   info.append({"path":p,"size":os.path.getsize(p),"sha256":h})
 open('INFO.json','w').write(json.dumps(info, indent=2))
 PY
