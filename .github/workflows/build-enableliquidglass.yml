@@ -3,7 +3,7 @@ permissions:
   contents: write
 on:
   push:
-    branches: ['main', 'test/**']
+    branches: ['main','test/**']
   workflow_dispatch:
     inputs:
       tag:
@@ -15,21 +15,35 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build26:
-    name: Build on macOS 26 (Xcode 26.0.1)
-    runs-on: macos-26
+  build:
+    name: Build (macOS matrix)
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15, macos-26]  # 26 is public preview; 15 is GA
     steps:
       - uses: actions/checkout@v4
-      - name: Select Xcode 26.0.1
+
+      - name: Select latest stable Xcode
         uses: maxim-lobanov/setup-xcode@v1
-        with: { xcode-version: '26.0.1' }
+        with:
+          xcode-version: latest-stable
+
+      - name: Install deps (ldid, xz)
+        run: |
+          brew update
+          brew install ldid xz || true
+
       - name: Setup Theos (patched SDKs)
         uses: waruhachi/theos-action@v2.4.6
         with:
-          theos-src: theos/theos
-          sdks-src: theos/sdks
+          theos-src: waruhachi/theos
+          sdks-src: waruhachi/sdks
+
       - name: Build tweak (.deb)
         run: make package FINALPACKAGE=1
+
       - name: Make app-inject .dylib (install_name @executable_path/Frameworks)
         run: |
           set -e
@@ -40,62 +54,60 @@ jobs:
           install_name_tool -id @executable_path/Frameworks/EnableLiquidGlass.dylib app-out/EnableLiquidGlass.dylib
           shasum -a 256 app-out/EnableLiquidGlass.dylib packages/*.deb > SHA256SUMS.txt
           wc -c app-out/EnableLiquidGlass.dylib packages/*.deb > SIZES.txt
-      - uses: actions/upload-artifact@v4
-        with: { name: EnableLiquidGlass-deb,   path: packages/*.deb,                     if-no-files-found: error }
-      - uses: actions/upload-artifact@v4
-        with: { name: EnableLiquidGlass-dylib, path: app-out/EnableLiquidGlass.dylib,    if-no-files-found: error }
-      - uses: actions/upload-artifact@v4
-        with: { name: checksums, path: SHA256SUMS.txt }
-      - uses: actions/upload-artifact@v4
-        with: { name: sizes, path: SIZES.txt }
 
-  build15:
-    name: Fallback on macOS 15 (Xcode 26.0.1)
-    needs: build26
-    if: ${{ needs.build26.result != 'success' }}
-    runs-on: macos-15
-    steps:
-      - uses: actions/checkout@v4
-      - name: Select Xcode 26.0.1
-        uses: maxim-lobanov/setup-xcode@v1
-        with: { xcode-version: '26.0.1' }
-      - name: Setup Theos (patched SDKs)
-        uses: waruhachi/theos-action@v2.4.6
+      - uses: actions/upload-artifact@v4
         with:
-          theos-src: theos/theos
-          sdks-src: theos/sdks
-      - name: Build tweak (.deb)
-        run: make package FINALPACKAGE=1
-      - name: Make app-inject .dylib (install_name @executable_path/Frameworks)
-        run: |
-          set -e
-          DY=$(find . -name '*.dylib' -print -quit)
-          mkdir -p app-out
-          cp "$DY" app-out/EnableLiquidGlass.dylib
-          install_name_tool -id @executable_path/Frameworks/EnableLiquidGlass.dylib app-out/EnableLiquidGlass.dylib
-          shasum -a 256 app-out/EnableLiquidGlass.dylib packages/*.deb > SHA256SUMS.txt
-          wc -c app-out/EnableLiquidGlass.dylib packages/*.deb > SIZES.txt
+          name: EnableLiquidGlass-deb-${{ matrix.os }}
+          path: packages/*.deb
+          if-no-files-found: error
+
       - uses: actions/upload-artifact@v4
-        with: { name: EnableLiquidGlass-deb,   path: packages/*.deb,                  if-no-files-found: error }
+        with:
+          name: EnableLiquidGlass-dylib-${{ matrix.os }}
+          path: app-out/EnableLiquidGlass.dylib
+          if-no-files-found: error
+
       - uses: actions/upload-artifact@v4
-        with: { name: EnableLiquidGlass-dylib, path: app-out/EnableLiquidGlass.dylib, if-no-files-found: error }
+        with:
+          name: checksums-${{ matrix.os }}
+          path: SHA256SUMS.txt
+
       - uses: actions/upload-artifact@v4
-        with: { name: checksums, path: SHA256SUMS.txt }
-      - uses: actions/upload-artifact@v4
-        with: { name: sizes, path: SIZES.txt }
+        with:
+          name: sizes-${{ matrix.os }}
+          path: SIZES.txt
 
   release:
     name: Release artifacts
-    needs: [build26, build15]
-    if: ${{ always() && (needs.build26.result == 'success' || needs.build15.result == 'success') }}
+    needs: build
+    if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
-        with: { pattern: EnableLiquidGlass-*, merge-multiple: true, path: dist }
+        with:
+          pattern: EnableLiquidGlass-*
+          merge-multiple: true
+          path: dist
       - uses: actions/download-artifact@v4
-        with: { name: checksums, path: dist }
+        with:
+          name: checksums-macos-15
+          path: dist
+        continue-on-error: true
       - uses: actions/download-artifact@v4
-        with: { name: sizes, path: dist }
+        with:
+          name: checksums-macos-26
+          path: dist
+        continue-on-error: true
+      - uses: actions/download-artifact@v4
+        with:
+          name: sizes-macos-15
+          path: dist
+        continue-on-error: true
+      - uses: actions/download-artifact@v4
+        with:
+          name: sizes-macos-26
+          path: dist
+        continue-on-error: true
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
