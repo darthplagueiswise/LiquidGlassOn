@@ -33,29 +33,29 @@ jobs:
       - name: Build tweak (dylib only, verify MH_DYLIB + LC_ID_DYLIB)
         shell: bash
         run: |
-set -euo pipefail
+          set -euo pipefail
 
-# build
-export PATH="$THEOS/bin:$PATH"
-make -j package FINALPACKAGE=0
+          # build
+          export PATH="$THEOS/bin:$PATH"
+          make -j package FINALPACKAGE=0
 
-# achar dylib produzida pelo theos
-DYLIB="$(/usr/bin/find .theos/obj -type f -name 'EnableLiquidGlass.dylib' -print -quit)"
-test -n "$DYLIB"
+          # achar dylib produzida pelo theos
+          DYLIB="$(/usr/bin/find .theos/obj -type f -name 'EnableLiquidGlass.dylib' -print -quit)"
+          test -n "$DYLIB"
 
-# aplicar install_name correto (todas as archs)
-OUT="app-out/EnableLiquidGlass.dylib"
-mkdir -p app-out
-/usr/bin/rsync -a "$DYLIB" "$OUT"
-/Applications/Xcode_26.0.1.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/install_name_tool \
-  -id '@executable_path/Frameworks/EnableLiquidGlass.dylib' "$OUT"
+          # aplicar install_name correto (todas as archs)
+          OUT="app-out/EnableLiquidGlass.dylib"
+          mkdir -p app-out
+          /usr/bin/rsync -a "$DYLIB" "$OUT"
+          /Applications/Xcode_26.0.1.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/install_name_tool \
+            -id '@executable_path/Frameworks/EnableLiquidGlass.dylib' "$OUT"
 
-# validação estrita (tem que ser MH_DYLIB e com o ID certo)
-otool -hv "$OUT" | grep -q "MH_DYLIB"
-otool -D  "$OUT" | tail -n1 | grep -qx '@executable_path/Frameworks/EnableLiquidGlass.dylib'
+          # validação estrita (tem que ser MH_DYLIB e com o ID certo)
+          otool -hv "$OUT" | grep -q "MH_DYLIB"
+          otool -D  "$OUT" | tail -n1 | grep -qx '@executable_path/Frameworks/EnableLiquidGlass.dylib'
 
-# publica somente esta dylib
-echo "OK -> $OUT"
+          # publica somente esta dylib
+          echo "OK -> $OUT"
       - uses: actions/upload-artifact@v4
         with:
           name: EnableLiquidGlass-dylib
