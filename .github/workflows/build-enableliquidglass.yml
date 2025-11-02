@@ -1,0 +1,91 @@
+name: Build EnableLiquidGlass (deb + app-inject dylib)
+permissions:
+  contents: write
+on:
+  push:
+    branches: ['main','test/**']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Optional release tag (e.g. v0.2.0). Leave empty to nightly.'
+        required: false
+        default: ''
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build (macOS matrix)
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15, macos-26]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Select latest stable Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+      - name: Install deps (ldid, xz)
+        run: |
+          brew update
+          brew install ldid xz || true
+      - name: Setup Theos (patched SDKs)
+        uses: waruhachi/theos-action@v2.4.6
+        with:
+          theos-src: waruhachi/theos
+          sdks-src: waruhachi/sdks
+      - name: Build tweak (.deb)
+        run: make package FINALPACKAGE=1
+      - name: Make app-inject .dylib (install_name @executable_path/Frameworks)
+        run: |
+          set -e
+          DY=$(find . -name '*.dylib' -print -quit)
+          echo "Found dylib: $DY"
+          mkdir -p app-out
+          cp "$DY" app-out/EnableLiquidGlass.dylib
+          install_name_tool -id @executable_path/Frameworks/EnableLiquidGlass.dylib app-out/EnableLiquidGlass.dylib
+          shasum -a 256 app-out/EnableLiquidGlass.dylib packages/*.deb > SHA256SUMS.txt
+          wc -c app-out/EnableLiquidGlass.dylib packages/*.deb > SIZES.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: EnableLiquidGlass-deb-${{ matrix.os }}
+          path: packages/*.deb
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: EnableLiquidGlass-dylib-${{ matrix.os }}
+        path: app-out/EnableLiquidGlass.dylib
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: checksums-${{ matrix.os }}
+          path: SHA256SUMS.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sizes-${{ matrix.os }}
+          path: SIZES.txt
+  release:
+    name: Release artifacts
+    needs: build
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: EnableLiquidGlass-*
+          merge-multiple: true
+          path: dist
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event_name == 'workflow_dispatch' && inputs.tag != '' && inputs.tag || format('nightly-{0}', github.run_id) }}
+          files: |
+            dist/**/*.deb
+            dist/**/EnableLiquidGlass.dylib
+            dist/SHA256SUMS.txt
+            dist/SIZES.txt
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
