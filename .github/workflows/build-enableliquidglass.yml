@@ -24,24 +24,43 @@ jobs:
         os: [macos-15, macos-26]
     steps:
       - uses: actions/checkout@v4
+
+      - name: Sanity check required files
+        shell: bash
+        run: |
+          set -euo pipefail
+          for f in Tweak.xm Makefile EnableLiquidGlass.plist control; do
+            [[ -f "$f" ]] || { echo "Missing $f"; exit 1; }
+          done
+
       - name: Select latest stable Xcode
         uses: maxim-lobanov/setup-xcode@v1
         with:
           xcode-version: latest-stable
+
       - name: Install deps (ldid, xz)
+        shell: bash
         run: |
+          set -euo pipefail
           brew update
-          brew install ldid xz || true
+          brew install -q ldid xz || true
+
       - name: Setup Theos (patched SDKs)
         uses: waruhachi/theos-action@v2.4.6
         with:
           theos-src: waruhachi/theos
           sdks-src: waruhachi/sdks
+
       - name: Build tweak (.deb)
-        run: make package FINALPACKAGE=1
-      - name: Make app-inject .dylib (install_name @executable_path/Frameworks)
+        shell: bash
         run: |
-          set -e
+          set -euo pipefail
+          make package FINALPACKAGE=1
+
+      - name: Make app-inject .dylib (install_name @executable_path/Frameworks)
+        shell: bash
+        run: |
+          set -euo pipefail
           DY=$(find . -name '*.dylib' -print -quit)
           echo "Found dylib: $DY"
           mkdir -p app-out
@@ -49,28 +68,64 @@ jobs:
           install_name_tool -id @executable_path/Frameworks/EnableLiquidGlass.dylib app-out/EnableLiquidGlass.dylib
           shasum -a 256 app-out/EnableLiquidGlass.dylib packages/*.deb > SHA256SUMS.txt
           wc -c app-out/EnableLiquidGlass.dylib packages/*.deb > SIZES.txt
+
+      - name: Sanity reports (otool, lipo, selectors, meta)
+        shell: bash
+        run: |
+          set -euo pipefail
+          otool -L app-out/EnableLiquidGlass.dylib > OTOOL_EnableLiquidGlass.txt
+          otool -l app-out/EnableLiquidGlass.dylib > MACHO_CMDS.txt
+          lipo -info app-out/EnableLiquidGlass.dylib > ARCHES.txt
+          strings app-out/EnableLiquidGlass.dylib | \n            grep -aE "(_METAIsLiquidGlassEnabled|isMediaLiquidGlassEnabled|isLiquidGlassLayoutInMediaBrowserEnabled|isNewLiquidGlassLayoutEnabled|hasLiquidGlassLaunched|isBucketEnabled:)" \n            > SELECTORS.txt || true
+          python3 - <<'PY'
+import json, hashlib, os
+paths = ["app-out/EnableLiquidGlass.dylib"]
+for root,_,files in os.walk('packages'):
+  for f in files:
+    if f.endswith('.deb'): paths.append(os.path.join(root,f))
+info = []
+for p in paths:
+  h=hashlib.sha256(open(p,'rb').read()).hexdigest()
+  info.append({"path":p,"size":os.path.getsize(p),"sha256":h})
+open('INFO.json','w').write(json.dumps(info, indent=2))
+PY
+
       - uses: actions/upload-artifact@v4
         with:
           name: EnableLiquidGlass-deb-${{ matrix.os }}
           path: packages/*.deb
           if-no-files-found: error
+
       - uses: actions/upload-artifact@v4
         with:
           name: EnableLiquidGlass-dylib-${{ matrix.os }}
-        path: app-out/EnableLiquidGlass.dylib
+          path: app-out/EnableLiquidGlass.dylib
           if-no-files-found: error
+
       - uses: actions/upload-artifact@v4
         with:
           name: checksums-${{ matrix.os }}
           path: SHA256SUMS.txt
+
       - uses: actions/upload-artifact@v4
         with:
           name: sizes-${{ matrix.os }}
           path: SIZES.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: reports-${{ matrix.os }}
+          path: |
+            OTOOL_EnableLiquidGlass.txt
+            MACHO_CMDS.txt
+            ARCHES.txt
+            SELECTORS.txt
+            INFO.json
+
   release:
     name: Release artifacts
     needs: build
-    if: ${{ always() }}
+    if: ${{ needs.build.result == 'success' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
@@ -78,6 +133,28 @@ jobs:
           pattern: EnableLiquidGlass-*
           merge-multiple: true
           path: dist
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: checksums-*
+          merge-multiple: true
+          path: dist
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: sizes-*
+          merge-multiple: true
+          path: dist
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: reports-*
+          merge-multiple: true
+          path: dist
+      - name: Validate release contents
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$(ls -1 dist/**/*.deb 2>/dev/null || true)" || { echo 'No .deb files found'; exit 1; }
+          test -n "$(ls -1 dist/**/EnableLiquidGlass.dylib 2>/dev/null || true)" || { echo 'No dylib found'; exit 1; }
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
@@ -85,7 +162,12 @@ jobs:
           files: |
             dist/**/*.deb
             dist/**/EnableLiquidGlass.dylib
-            dist/SHA256SUMS.txt
-            dist/SIZES.txt
+            dist/**/SHA256SUMS.txt
+            dist/**/SIZES.txt
+            dist/**/OTool_*.txt
+            dist/**/MACHO_CMDS.txt
+            dist/**/ARCHES.txt
+            dist/**/SELECTORS.txt
+            dist/**/INFO.json
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
