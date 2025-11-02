@@ -48,11 +48,10 @@ jobs:
           DYLIB="$(/usr/bin/find .theos/obj -type f -name 'EnableLiquidGlass.dylib' -print -quit)"
           test -n "$DYLIB"
 
-          # aplicar install_name correto (todas as archs)
+          # copiar para pasta de saída (sem editar a dylib)
           OUT="app-out/EnableLiquidGlass.dylib"
           mkdir -p app-out
           /usr/bin/rsync -a "$DYLIB" "$OUT"
-          /usr/bin/xcrun install_name_tool -id '@executable_path/Frameworks/EnableLiquidGlass.dylib' "$OUT"
 
           # validação estrita (tem que ser MH_DYLIB e com o ID certo)
           /usr/bin/xcrun otool -hv "$OUT" | /usr/bin/grep -q "MH_DYLIB"
