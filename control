@@ -1,0 +1,9 @@
+Package: com.vader.enableliquidglass
+Name: EnableLiquidGlass
+Depends: mobilesubstrate
+Architecture: iphoneos-arm
+Version: 1.2
+Description: Force WhatsApp Liquid Glass UI (iOS 26) – broad runtime hooks
+Maintainer: Vader <you@example.com>
+Author: Vader
+Section: Tweaks
