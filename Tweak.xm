@@ -8,6 +8,14 @@
 
 static BOOL eg_yes(id self, SEL _cmd) { return YES; }
 
+// Globals to safely use inside dispatch_after block
+static const char *const kMetaKeys[] = {
+    "_METAGetOverrideLiquidGlassEnabledKey",
+    "_METAGetLiquidGlassSolariumKey",
+    "_METAGetLiquidGlassCompatibilityKey",
+};
+static const unsigned kMetaKeysCount = (unsigned)(sizeof(kMetaKeys)/sizeof(kMetaKeys[0]));
+
 static void eg_forceMetaKeyYES(const char *selName) {
     if (!selName) return;
     Class C = objc_getClass("SharedModules");
@@ -42,20 +50,16 @@ static void eg_hookBoolSelectorEverywhere(const char *selName) {
 
 %ctor {
     @autoreleasepool {
-        const char *metaKeys[] = {
-            "_METAGetOverrideLiquidGlassEnabledKey",
-            "_METAGetLiquidGlassSolariumKey",
-            "_METAGetLiquidGlassCompatibilityKey",
-        };
-        for (unsigned i = 0; i < sizeof(metaKeys)/sizeof(metaKeys[0]); i++) eg_forceMetaKeyYES(metaKeys[i]);
+        // Apply overrides immediately
+        for (unsigned i = 0; i < kMetaKeysCount; i++) eg_forceMetaKeyYES(kMetaKeys[i]);
 
-        // Reforço pós-launch (caso override remoto chegue depois)
+        // Re-apply after launch (if remote overrides arrive later)
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1 * NSEC_PER_SEC)),
                        dispatch_get_main_queue(), ^{
-            for (unsigned i = 0; i < sizeof(metaKeys)/sizeof(metaKeys[0]); i++) eg_forceMetaKeyYES(metaKeys[i]);
+            for (unsigned i = 0; i < kMetaKeysCount; i++) eg_forceMetaKeyYES(kMetaKeys[i]);
         });
 
-        // Hooks genéricos (instância e classe)
+        // Generic hooks (instance + class)
         const char *boolSels[] = {
             "_METAIsLiquidGlassEnabled",
             "isMediaLiquidGlassEnabled",
@@ -65,7 +69,7 @@ static void eg_hookBoolSelectorEverywhere(const char *selName) {
         };
         for (unsigned j = 0; j < sizeof(boolSels)/sizeof(boolSels[0]); j++) eg_hookBoolSelectorEverywhere(boolSels[j]);
 
-        // Bridge Swift (se exposto ao ObjC)
+        // Swift bridge (if exposed to ObjC)
         const char *swiftCandidates[] = { "WAUIKit.LiquidGlass", "LiquidGlass", "_TtC7WAUIKit12LiquidGlass" };
         const char *swiftBools[] = { "isM0Enabled", "isM1Enabled", "isEnabled" };
         for (unsigned i = 0; i < sizeof(swiftCandidates)/sizeof(swiftCandidates[0]); i++) {
