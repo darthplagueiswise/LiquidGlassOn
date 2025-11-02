@@ -1,6 +1,7 @@
 name: Build EnableLiquidGlass (dylib-only, strict)
 permissions:
   contents: write
+
 on:
   push:
     branches: ['main']
@@ -11,25 +12,29 @@ on:
         description: 'Release tag (e.g. v0.3.0). Leave empty to nightly.'
         required: false
         default: ''
+
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   build:
-    name: Build on macOS 26 (Xcode 26.0.1)
-    runs-on: macos-26
+    name: Build on macOS (Xcode 26.0.1)
+    runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
+
       - name: Select Xcode 26.0.1
         uses: maxim-lobanov/setup-xcode@v1
         with:
           xcode-version: '26.0.1'
+
       - name: Setup Theos (patched SDKs)
         uses: waruhachi/theos-action@v2.4.6
         with:
           theos-src: theos/theos
           sdks-src: theos/sdks
+
       - name: Build tweak (dylib only, verify MH_DYLIB + LC_ID_DYLIB)
         shell: bash
         run: |
@@ -47,28 +52,35 @@ jobs:
           OUT="app-out/EnableLiquidGlass.dylib"
           mkdir -p app-out
           /usr/bin/rsync -a "$DYLIB" "$OUT"
-          /Applications/Xcode_26.0.1.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/install_name_tool \
-            -id '@executable_path/Frameworks/EnableLiquidGlass.dylib' "$OUT"
+          /usr/bin/xcrun install_name_tool -id '@executable_path/Frameworks/EnableLiquidGlass.dylib' "$OUT"
 
           # validação estrita (tem que ser MH_DYLIB e com o ID certo)
-          otool -hv "$OUT" | grep -q "MH_DYLIB"
-          otool -D  "$OUT" | tail -n1 | grep -qx '@executable_path/Frameworks/EnableLiquidGlass.dylib'
+          /usr/bin/xcrun otool -hv "$OUT" | /usr/bin/grep -q "MH_DYLIB"
+          /usr/bin/xcrun otool -D  "$OUT" | /usr/bin/tail -n1 | /usr/bin/grep -qx '@executable_path/Frameworks/EnableLiquidGlass.dylib'
 
-          # publica somente esta dylib
+          # gerar artefatos auxiliares
+          /usr/bin/shasum -a 256 "$OUT" > SHA256SUMS.txt
+          /usr/bin/du -h "$OUT" > SIZES.txt
+
           echo "OK -> $OUT"
+
       - uses: actions/upload-artifact@v4
         with:
           name: EnableLiquidGlass-dylib
           path: app-out/EnableLiquidGlass.dylib
           if-no-files-found: error
+
       - uses: actions/upload-artifact@v4
         with:
           name: checksums
           path: SHA256SUMS.txt
+          if-no-files-found: error
+
       - uses: actions/upload-artifact@v4
         with:
           name: sizes
           path: SIZES.txt
+          if-no-files-found: error
 
   release:
     name: Release dylib only
