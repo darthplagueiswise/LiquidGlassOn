@@ -1,4 +1,4 @@
-name: Build WAGram dev2
+name: Build WAGram main
 
 on:
   push:
