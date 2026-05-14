@@ -3,7 +3,7 @@ name: Build WAGram dev2
 on:
   push:
     branches:
-      - 'dev2'
+      - 'main'
   workflow_dispatch:
 
 concurrency:
@@ -12,7 +12,7 @@ concurrency:
 
 jobs:
   build:
-    name: Build WAGram dev2
+    name: Build WAGram
     runs-on: macos-latest
     permissions:
       contents: read
@@ -28,7 +28,6 @@ jobs:
         run: |
           chmod +x ./build.sh || true
           find . -name "*.sh" -exec chmod +x {} \; || true
-
       - name: Install Dependencies
         run: brew install ldid dpkg make
 
@@ -89,7 +88,6 @@ jobs:
           echo "package_name=${PACKAGE_NAME}" >> "$GITHUB_OUTPUT"
           echo "Using package version ${BUILD_VERSION} (${BUILD_LABEL})"
           grep '^Version:' control
-
       - name: Build package
         run: |
           export THEOS="${{ github.workspace }}/theos"
@@ -99,7 +97,6 @@ jobs:
           DEB="$(ls -t *.deb | head -n1)"
           [ -n "$DEB" ] && mv "$DEB" "$PACKAGE_NAME"
           ls -la
-
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
