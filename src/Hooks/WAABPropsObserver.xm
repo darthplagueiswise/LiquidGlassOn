@@ -151,7 +151,7 @@ static void WAGRABTryHook(Class cls, SEL sel, IMP hook, IMP *orig) {
     NSLog(@"[WAGram][WAAB] hooked -[%@ %@]", NSStringFromClass(cls), NSStringFromSelector(sel));
 }
 
-void WAGRWAABEnsureHooksInstalled(void) {
+extern "C" void WAGRWAABEnsureHooksInstalled(void) {
     WAGRABEnsureStorage();
     dispatch_once(&_wagrABInstallOnce, ^{
         unsigned int count = 0;
@@ -175,19 +175,19 @@ void WAGRWAABEnsureHooksInstalled(void) {
     });
 }
 
-NSString *WAGRABObsLog(void) {
+extern "C" NSString *WAGRABObsLog(void) {
     WAGRABEnsureStorage();
     __block NSArray<NSString *> *snap = nil;
     dispatch_sync(_wagrABQueue, ^{ snap = [_wagrABLog copy]; });
     return snap.count ? [snap componentsJoinedByString:@"\n"] : @"(no WAAB observations yet)";
 }
 
-void WAGRABObsClear(void) {
+extern "C" void WAGRABObsClear(void) {
     WAGRABEnsureStorage();
     dispatch_async(_wagrABQueue, ^{ [_wagrABLog removeAllObjects]; });
 }
 
-NSString *WAGRWAABDiagnosticText(void) {
+extern "C" NSString *WAGRWAABDiagnosticText(void) {
     return [NSString stringWithFormat:@"observer=%@\nhasActiveOverrides=%@\nhooksInstalled=%@\norig bool=%@\norig string=%@\norig integer=%@\norig double=%@",
             WAGRPref(kWAGRABPropsObserver) ? @"ON" : @"OFF",
             WAGRWAABHasActiveOverrides() ? @"YES" : @"NO",
