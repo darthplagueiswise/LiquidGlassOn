@@ -2,10 +2,10 @@ name: Build LiquidGlassOn
 
 on:
   push:
-    branches: [ main, dev, dev2 ]
+    branches: [ main, dev ]
     tags:     [ 'v*' ]
   pull_request:
-    branches: [ main, dev2 ]
+    branches: [ main ]
   workflow_dispatch:
 
 concurrency:

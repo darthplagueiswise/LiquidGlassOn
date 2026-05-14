@@ -1,11 +1,16 @@
 #import <Foundation/Foundation.h>
-NS_ASSUME_NONNULL_BEGIN
+
 #ifdef __cplusplus
 extern "C" {
 #endif
-void WAGRDogfoodEnsureHooksInstalled(void);
-NSString *WAGRDogfoodDiagnosticText(void);
+
+NS_ASSUME_NONNULL_BEGIN
+
+void WAInstallEmployeeDogfoodHooksIfNeeded(void);
+NSString *WAEmployeeDogfoodDiagnostic(void);
+
+NS_ASSUME_NONNULL_END
+
 #ifdef __cplusplus
 }
 #endif
-NS_ASSUME_NONNULL_END

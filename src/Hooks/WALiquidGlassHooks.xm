@@ -17,10 +17,10 @@
 // Individual sub-flags: kWAGRLG_* (each maps to one ABProp)
 // ─────────────────────────────────────────────────────────────────────────────
 
-#import "../WAGramPrefix.h"
 #import <Foundation/Foundation.h>
 #import <objc/runtime.h>
 #import <substrate.h>
+#import "../WAGramPrefix.h"
 
 // ── Native UserDefaults key (from SharedModules enum) ─────────────────────────
 //  WALiquidGlassOverrideMethodUserDefaults is an enum case whose raw-value string
@@ -173,7 +173,6 @@ static void WAGRLGInstallHooksOnClass(Class cls) {
 
 static void WAGRLGInstallAllHooks(void) {
     if (_wagrLGHooksInstalled) return;
-    if (!WAGRPref(kWAGRLiquidGlassMaster) || !WAGRPref(kWAGRLiquidGlassMethodHooks)) return;
     unsigned int count = 0;
     Class *all = objc_copyClassList(&count);
     if (!all) return;

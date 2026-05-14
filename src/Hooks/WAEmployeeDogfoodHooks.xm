@@ -2,10 +2,10 @@
 // Hooks the four validated employee/dogfood gates found in SharedModules.
 // Toggle: kWAGREmployeeMaster (default OFF). Hooks are only scheduled when ON.
 
-#import "../WAGramPrefix.h"
 #import <Foundation/Foundation.h>
 #import <objc/runtime.h>
 #import <substrate.h>
+#import "../WAGramPrefix.h"
 
 static BOOL (*orig_isMetaEmployeeOrInternalTester)(id, SEL) = NULL;
 static BOOL (*orig_is_meta_employee_getter)(id, SEL) = NULL;

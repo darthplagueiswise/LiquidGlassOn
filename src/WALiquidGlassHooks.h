@@ -1,10 +1,16 @@
 #import <Foundation/Foundation.h>
-NS_ASSUME_NONNULL_BEGIN
+
 #ifdef __cplusplus
 extern "C" {
 #endif
-void WAGRLGPrefsDidChange(void);
+
+NS_ASSUME_NONNULL_BEGIN
+
+void WAInstallLiquidGlassHooksIfNeeded(void);
+void WAApplyLiquidGlassUserDefaults(void);
+
+NS_ASSUME_NONNULL_END
+
 #ifdef __cplusplus
 }
 #endif
-NS_ASSUME_NONNULL_END
