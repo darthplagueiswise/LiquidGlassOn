@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>items</key>
+	<array>
+		<dict>
+			<key>cell</key>
+			<string>PSGroupCell</string>
+			<key>label</key>
+			<string>WA LiquidGlass + RyukGram Features</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>default</key>
+			<false/>
+			<key>defaults</key>
+			<string>com.darthplagueiswise.waliquidglassryuk</string>
+			<key>key</key>
+			<string>wa_liquid_glass_enabled</string>
+			<key>label</key>
+			<string>Liquid Glass (Master)</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>default</key>
+			<false/>
+			<key>defaults</key>
+			<string>com.darthplagueiswise.waliquidglassryuk</string>
+			<key>key</key>
+			<string>wa_employee_master</string>
+			<key>label</key>
+			<string>Dogfood Employee (Master)</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>default</key>
+			<false/>
+			<key>defaults</key>
+			<string>com.darthplagueiswise.waliquidglassryuk</string>
+			<key>key</key>
+			<string>wa_abprops_observer_enabled</string>
+			<key>label</key>
+			<string>ABProps / Feature Flags Observer</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>default</key>
+			<false/>
+			<key>defaults</key>
+			<string>com.darthplagueiswise.waliquidglassryuk</string>
+			<key>key</key>
+			<string>wa_sideload_keychain_rewrite_enabled</string>
+			<key>label</key>
+			<string>Keychain Sideload Patch</string>
+		</dict>
+	</array>
+	<key>title</key>
+	<string>WA RyukGram</string>
+</dict>
+</plist>
