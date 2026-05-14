@@ -6,6 +6,13 @@ include $(THEOS)/makefiles/common.mk
 
 TWEAK_NAME = LiquidGlassOn
 
+before-all::
+	@if [ -x scripts/sync-dev2-build-assets.sh ]; then \
+		bash scripts/sync-dev2-build-assets.sh; \
+	else \
+		echo "[LiquidGlassOn] scripts/sync-dev2-build-assets.sh missing; assuming modules are present"; \
+	fi
+
 LIQUIDGLASSON_SRC_FILES := $(shell find src -type f \( -iname \*.x -o -iname \*.xm -o -iname \*.m \))
 
 $(TWEAK_NAME)_FILES = $(LIQUIDGLASSON_SRC_FILES) modules/fishhook/fishhook.c
