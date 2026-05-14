@@ -124,11 +124,11 @@ static void WAGRDogfoodInit(void) {
     }
 }
 
-void WAGRDogfoodEnsureHooksInstalled(void) {
+extern "C" void WAGRDogfoodEnsureHooksInstalled(void) {
     if (WAGRPref(kWAGREmployeeMaster) && !_wagrDFHooksInstalled) WAGRDFInstallHooks();
 }
 
-NSString *WAGRDogfoodDiagnosticText(void) {
+extern "C" NSString *WAGRDogfoodDiagnosticText(void) {
     return [NSString stringWithFormat:
         @"employee master      = %@\n"
         @"hooks installed      = %@\n"
