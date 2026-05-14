@@ -142,7 +142,7 @@ static CFDictionaryRef WACopyQueryWithAccessGroup(CFDictionaryRef input) {
 
     NSMutableDictionary *q = [dict mutableCopy];
     q[(__bridge id)kSecAttrAccessGroup] = group;
-    return CFBridgingRetain(q);
+    return (CFDictionaryRef)CFBridgingRetain(q);
 }
 
 static OSStatus replaced_SecItemAdd(CFDictionaryRef attributes, CFTypeRef *result) {
