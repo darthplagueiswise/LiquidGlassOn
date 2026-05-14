@@ -1,9 +1,9 @@
-Package: com.darthplagueiswise.liquidglasson
-Name: LiquidGlassOn
-Version: 0.1.0
+Package: com.darthplagueiswise.wagram
+Name: WAGram
+Version: 2.0.0
 Architecture: iphoneos-arm64
-Description: Rootless WhatsApp tweak base for Liquid Glass, sideload Keychain diagnostics, and opt-in Meta employee/dogfood probes.
-Maintainer: darthplagueiswise
-Author: darthplagueiswise
+Description: Unified iOS Feature Flag & Dogfood Hook Kit for WhatsApp (Liquid Glass + internal features)
+Maintainer: darthplagueiswise + Grok
+Author: Grok
 Section: Tweaks
-Depends: mobilesubstrate (>= 0.9.5000), firmware (>= 15.0)
+Depends: mobilesubstrate, firmware (>= 15.0)
