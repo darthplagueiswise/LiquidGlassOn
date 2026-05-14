@@ -1,10 +1,9 @@
-name: Build WAGram (LiquidGlassOn)
+name: Build WAGram dev2
 
 on:
   push:
     branches:
       - 'feat/wagram-integrated-v2'
-      - 'main'
   workflow_dispatch:
 
 concurrency:
@@ -28,7 +27,6 @@ jobs:
       - name: Normalize script permissions
         run: |
           chmod +x ./build.sh || true
-          chmod +x ./build-dev.sh || true
           find . -name "*.sh" -exec chmod +x {} \; || true
 
       - name: Install Dependencies
@@ -45,7 +43,7 @@ jobs:
           path: ${{ github.workspace }}/theos
           submodules: recursive
 
-      - name: SDK Caching (iPhoneOS16.2.sdk)
+      - name: SDK Caching
         id: SDK
         uses: actions/cache@v4
         env:
@@ -55,7 +53,7 @@ jobs:
           key: ${{ env.cache-name }}
           restore-keys: ${{ env.cache-name }}
 
-      - name: Download iOS SDK (if cache miss)
+      - name: Download iOS SDK
         if: steps.SDK.outputs.cache-hit != 'true'
         run: |
           git clone --quiet -n --depth=1 --filter=tree:0 https://github.com/xybp888/iOS-SDKs/
@@ -66,17 +64,17 @@ jobs:
         env:
           THEOS: ${{ github.workspace }}/theos
 
-      - name: Set WAGram package version
+      - name: Set dev2 package version
         id: version
         run: |
-          RAW_VERSION=$(awk '/Version:/ {print $2}' control 2>/dev/null || echo "2.0.0")
+          RAW_VERSION=$(awk '/Version:/ {print $2}' control)
           BASE_VERSION=$(printf '%s\n' "$RAW_VERSION" | sed -E 's/^([0-9]+\.[0-9]+\.[0-9]+).*/\1/')
           BRANCH_NAME="${GITHUB_REF_NAME////-}"
           RUN_NUMBER="${GITHUB_RUN_NUMBER}"
           BUILD_VERSION="${BASE_VERSION}.${RUN_NUMBER}"
-          BUILD_LABEL="${BRANCH_NAME}_v${BASE_VERSION}_#${RUN_NUMBER}"
+          BUILD_LABEL="${BRANCH_NAME}_${BASE_VERSION}_#${RUN_NUMBER}"
           PACKAGE_NAME="WAGram_${BUILD_LABEL}.deb"
-          sed -i '' "s/^Version:.*/Version: ${BUILD_VERSION}/" control 2>/dev/null || true
+          sed -i '' "s/^Version:.*/Version: ${BUILD_VERSION}/" control
           echo "BASE_VERSION=${BASE_VERSION}" >> "$GITHUB_ENV"
           echo "BUILD_VERSION=${BUILD_VERSION}" >> "$GITHUB_ENV"
           echo "BRANCH_NAME=${BRANCH_NAME}" >> "$GITHUB_ENV"
@@ -90,24 +88,21 @@ jobs:
           echo "build_label=${BUILD_LABEL}" >> "$GITHUB_OUTPUT"
           echo "package_name=${PACKAGE_NAME}" >> "$GITHUB_OUTPUT"
           echo "Using package version ${BUILD_VERSION} (${BUILD_LABEL})"
-          grep '^Version:' control || true
+          grep '^Version:' control
 
       - name: Build package
         run: |
           export THEOS="${{ github.workspace }}/theos"
           chmod +x ./build.sh || true
-          bash ./build.sh || make package FINALPACKAGE=1
-          mkdir -p packages
-          cd packages || true
-          DEB="$(ls -t *.deb 2>/dev/null | head -n1 || echo '')"
-          if [ -n "$DEB" ]; then
-            mv "$DEB" "$PACKAGE_NAME" || true
-          fi
-          ls -la packages/ || true
+          bash ./build.sh
+          cd packages
+          DEB="$(ls -t *.deb | head -n1)"
+          [ -n "$DEB" ] && mv "$DEB" "$PACKAGE_NAME"
+          ls -la
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: "WAGram_${{ steps.version.outputs.branch_name }}_v${{ steps.version.outputs.base_version }}_#${{ steps.version.outputs.run_number }}"
           path: packages/${{ steps.version.outputs.package_name }}
-          if-no-files-found: warn
+          if-no-files-found: error
