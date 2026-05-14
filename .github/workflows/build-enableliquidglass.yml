@@ -80,8 +80,7 @@ jobs:
             grep -aE '(_METAIsLiquidGlassEnabled|isMediaLiquidGlassEnabled|isLiquidGlassLayoutInMediaBrowserEnabled|isNewLiquidGlassLayoutEnabled|hasLiquidGlassLaunched|isBucketEnabled:)' \\
             > SELECTORS.txt || true
           python3 - <<'PY'
-import json, hashlib, os
-paths = ["app-out/EnableLiquidGlass.dylib"]
+import json, hashlib, os paths = ["app-out/EnableLiquidGlass.dylib"]
 for root,_,files in os.walk('packages'):
   for f in files:
     if f.endswith('.deb'): paths.append(os.path.join(root,f))
