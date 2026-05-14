@@ -3,7 +3,7 @@ name: Build WAGram dev2
 on:
   push:
     branches:
-      - 'feat/wagram-integrated-v2'
+      - 'main'
   workflow_dispatch:
 
 concurrency:
