@@ -197,7 +197,12 @@ static void WAGRLiquidGlassInit(void) {
         // Strategy 1 immediately
         WAGRLGApplyUserDefaultsOverride();
 
-        // Strategy 2: hook after frameworks load
+        if (!WAGRPref(kWAGRLiquidGlassMaster)) {
+            NSLog(@"[WAGram][LiquidGlass] inert startup: master OFF");
+            return;
+        }
+
+        // Strategy 2: hook after frameworks load, only when explicitly enabled.
         double delays[] = { 0.8, 2.5 };
         for (size_t i = 0; i < 2; i++) {
             dispatch_after(
@@ -210,6 +215,9 @@ static void WAGRLiquidGlassInit(void) {
 }
 
 /// Called from menu when user changes any LiquidGlass toggle.
-void WAGRLGPrefsDidChange(void) {
+extern "C" void WAGRLGPrefsDidChange(void) {
     WAGRLGApplyUserDefaultsOverride();
+    if (WAGRPref(kWAGRLiquidGlassMaster)) {
+        WAGRLGInstallAllHooks();
+    }
 }
