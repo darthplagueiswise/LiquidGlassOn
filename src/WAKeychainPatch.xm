@@ -125,7 +125,7 @@ static NSString *WADetectAccessGroup(void) {
     return group;
 }
 
-NSString *WAKeychainAccessGroupDiagnostic(void) {
+extern "C" NSString *WAKeychainAccessGroupDiagnostic(void) {
     NSString *group = WADetectAccessGroup();
     return [NSString stringWithFormat:@"rewrite=%@\nobserver=%@\naccessGroup=%@\nbundle=%@",
             WAKeychainRewriteEnabled() ? @"ON" : @"OFF",
@@ -183,7 +183,7 @@ static OSStatus replaced_SecItemDelete(CFDictionaryRef query) {
     return s;
 }
 
-void WAInstallKeychainPatchIfNeeded(void) {
+extern "C" void WAInstallKeychainPatchIfNeeded(void) {
     if (!WAKeychainRewriteEnabled() && !WAKeychainObserverEnabled()) {
         WALog(@"keychain hooks disabled; inert");
         return;

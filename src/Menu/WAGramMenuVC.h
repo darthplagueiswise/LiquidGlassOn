@@ -1,68 +1,58 @@
 // WAGramMenuVC.h
-// ─────────────────────────────────────────────────────────────────────────────
-// Main WAGram menu, presented via a long-press on Settings > Help & Feedback.
-// Modelled closely on RyukGram-Fork/dev2 SCITweakSettings pattern.
-// ─────────────────────────────────────────────────────────────────────────────
-
 #pragma once
-
 #import <UIKit/UIKit.h>
 
-// Forward declarations of hook diagnostics exposed by individual .xm files
-NSString *WAGRKeychainDiagnosticText(void);
-NSString *WAGRDogfoodDiagnosticText(void);
-NSString *WAGRABObsLog(void);
-void      WAGRABObsClear(void);
+// ── Functions exposed by hook files ──────────────────────────────────────────
+// WAABPropsObserver.xm
 void      WAGRWAABEnsureHooksInstalled(void);
 NSString *WAGRWAABDiagnosticText(void);
-void      WAGRDogfoodEnsureHooksInstalled(void);
-void      WAGRLGPrefsDidChange(void);
+NSString *WAGRABObsLog(void);
+void      WAGRABObsClear(void);
 
-// ── WAGramRow ─────────────────────────────────────────────────────────────────
+// WAEmployeeDogfoodHooks.xm
+void      WAGRDogfoodEnsureHooksInstalled(void);
+NSString *WAGRDogfoodDiagnosticText(void);
+
+// WAKeychainPatch.xm
+void      WAInstallKeychainPatchIfNeeded(void);
+NSString *WAKeychainAccessGroupDiagnostic(void);
+
+// WALiquidGlassHooks.xm
+void      WAGRLGPrefsDidChange(void);  // call after any LG pref change
+
+// ── Row / Section model ────────────────────────────────────────────────────────
 typedef NS_ENUM(NSInteger, WAGramRowStyle) {
     WAGramRowStyleSwitch,
     WAGramRowStyleButton,
     WAGramRowStyleNavigation,
+    WAGramRowStyleWAABFlag,    // tri-state WAAB flag (mode 0/1/2)
 };
 
 @interface WAGramRow : NSObject
 @property (nonatomic, copy)   NSString        *title;
 @property (nonatomic, copy)   NSString        *subtitle;
-@property (nonatomic, copy)   NSString        *prefsKey;        // nil for button/nav
+@property (nonatomic, copy)   NSString        *prefsKey;   // for Switch rows (direct bool pref)
+@property (nonatomic, copy)   NSString        *waabKey;    // for WAGRFlagTypeBool rows (WAAB flag key)
 @property (nonatomic, assign) WAGramRowStyle   style;
-@property (nonatomic, copy)   void (^action)(BOOL isOn);        // switch: called on change; button: called on tap
-@property (nonatomic, strong) UIViewController *navTarget;      // navigation row
+@property (nonatomic, copy)   void (^action)(BOOL isOn);
+@property (nonatomic, strong) UIViewController *navTarget;
 
-+ (instancetype)switchWithTitle:(NSString *)title
-                       subtitle:(NSString *)subtitle
-                           key:(NSString *)key
-                          action:(void (^)(BOOL isOn))action;
-
-+ (instancetype)buttonWithTitle:(NSString *)title
-                        subtitle:(NSString *)subtitle
-                          action:(void (^)(BOOL unused))action;
-
-+ (instancetype)navWithTitle:(NSString *)title
-                     subtitle:(NSString *)subtitle
-                       target:(UIViewController *)target;
++ (instancetype)switchWithTitle:(NSString *)title subtitle:(NSString *)subtitle key:(NSString *)key action:(void (^)(BOOL))action;
++ (instancetype)waabFlagWithTitle:(NSString *)title subtitle:(NSString *)subtitle waabKey:(NSString *)waabKey;
++ (instancetype)buttonWithTitle:(NSString *)title subtitle:(NSString *)subtitle action:(void (^)(BOOL))action;
++ (instancetype)navWithTitle:(NSString *)title subtitle:(NSString *)subtitle target:(UIViewController *)target;
 @end
 
-// ── WAGramSectionDef ──────────────────────────────────────────────────────────
 @interface WAGramSectionDef : NSObject
 @property (nonatomic, copy)   NSString            *header;
 @property (nonatomic, copy)   NSString            *footer;
 @property (nonatomic, strong) NSArray<WAGramRow *> *rows;
-+ (instancetype)sectionWithHeader:(NSString *)header
-                           footer:(NSString *)footer
-                             rows:(NSArray<WAGramRow *> *)rows;
++ (instancetype)sectionWithHeader:(NSString *)header footer:(NSString *)footer rows:(NSArray<WAGramRow *> *)rows;
 @end
 
-// ── WAGramMenuVC (main) ───────────────────────────────────────────────────────
 @interface WAGramMenuVC : UITableViewController
 @end
 
-// ── WAGramSubMenuVC (generic sub-screen) ─────────────────────────────────────
 @interface WAGramSubMenuVC : UITableViewController
-- (instancetype)initWithSections:(NSArray<WAGramSectionDef *> *)sections
-                           title:(NSString *)title;
+- (instancetype)initWithSections:(NSArray<WAGramSectionDef *> *)sections title:(NSString *)title;
 @end

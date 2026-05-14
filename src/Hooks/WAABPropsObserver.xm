@@ -33,11 +33,6 @@ static id (*orig_WAABString)(id, SEL, NSString *, id) = NULL;
 static NSInteger (*orig_WAABInteger)(id, SEL, NSString *, NSInteger) = NULL;
 static double (*orig_WAABDouble)(id, SEL, NSString *, double) = NULL;
 
-static NSString *WAGRWAABKeyMode(NSString *key) { return [@"wagr.waab." stringByAppendingFormat:@"%@.mode", key ?: @""]; }
-static NSString *WAGRWAABKeyNumber(NSString *key) { return [@"wagr.waab." stringByAppendingFormat:@"%@.number", key ?: @""]; }
-static NSString *WAGRWAABKeyString(NSString *key) { return [@"wagr.waab." stringByAppendingFormat:@"%@.string", key ?: @""]; }
-static NSString *WAGRWAABKeyRuntimeType(NSString *key) { return [@"wagr.waab.runtime." stringByAppendingFormat:@"%@.type", key ?: @""]; }
-static NSString *WAGRWAABKeyRuntimeValue(NSString *key) { return [@"wagr.waab.runtime." stringByAppendingFormat:@"%@.value", key ?: @""]; }
 
 static void WAGRABEnsureStorage(void) {
     dispatch_once(&_wagrABInitOnce, ^{
