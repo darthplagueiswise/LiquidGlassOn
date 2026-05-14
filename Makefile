@@ -30,9 +30,11 @@ $(TWEAK_NAME)_LOGOSFLAGS = --c warnings=none
 $(TWEAK_NAME)_LIBRARIES = substrate
 
 ifneq ($(wildcard src/WAGramPrefix.h),)
-$(TWEAK_NAME)_CFLAGS += -include src/WAGramPrefix.h
+$(TWEAK_NAME)_OBJCFLAGS += -include src/WAGramPrefix.h
+$(TWEAK_NAME)_OBJCXXFLAGS += -include src/WAGramPrefix.h
 else ifneq ($(wildcard src/WAPrefix.h),)
-$(TWEAK_NAME)_CFLAGS += -include src/WAPrefix.h
+$(TWEAK_NAME)_OBJCFLAGS += -include src/WAPrefix.h
+$(TWEAK_NAME)_OBJCXXFLAGS += -include src/WAPrefix.h
 endif
 
 CCFLAGS += -std=c++11

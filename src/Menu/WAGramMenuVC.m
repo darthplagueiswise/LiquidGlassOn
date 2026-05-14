@@ -146,7 +146,7 @@ static NSString *const kSW=@"SW", *const kNAV=@"NAV", *const kBTN=@"BTN", *const
 // Sub-menu builders — one per section
 // ═══════════════════════════════════════════════════════════════════════════════
 #define WAAB(key, title, sub) [WAGramRow waabFlagWithTitle:(title) subtitle:(sub) waabKey:(key)]
-#define SW(key, title, sub, act) [WAGramRow switchWithTitle:(title) subtitle:(sub) key:(key) action:(act)]
+#define SW(prefKey, title, sub, act) [WAGramRow switchWithTitle:(title) subtitle:(sub) key:(prefKey) action:(act)]
 #define BTN(title, sub, act) [WAGramRow buttonWithTitle:(title) subtitle:(sub) action:(act)]
 #define SEC(hdr, ftr, ...) [WAGramSectionDef sectionWithHeader:(hdr) footer:(ftr) rows:@[__VA_ARGS__]]
 
