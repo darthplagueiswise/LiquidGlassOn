@@ -76,20 +76,22 @@ jobs:
           otool -L app-out/EnableLiquidGlass.dylib > OTOOL_EnableLiquidGlass.txt
           otool -l app-out/EnableLiquidGlass.dylib > MACHO_CMDS.txt
           lipo -info app-out/EnableLiquidGlass.dylib > ARCHES.txt
-          strings app-out/EnableLiquidGlass.dylib | \\
-            grep -aE '(_METAIsLiquidGlassEnabled|isMediaLiquidGlassEnabled|isLiquidGlassLayoutInMediaBrowserEnabled|isNewLiquidGlassLayoutEnabled|hasLiquidGlassLaunched|isBucketEnabled:)' \\
+          strings app-out/EnableLiquidGlass.dylib | \
+            grep -aE '(_METAIsLiquidGlassEnabled|isMediaLiquidGlassEnabled|isLiquidGlassLayoutInMediaBrowserEnabled|isNewLiquidGlassLayoutEnabled|hasLiquidGlassLaunched|isBucketEnabled:)' \
             > SELECTORS.txt || true
           python3 - <<'PY'
-import json, hashlib, os paths = ["app-out/EnableLiquidGlass.dylib"]
-for root,_,files in os.walk('packages'):
+import json, hashlib, os
+paths = ["app-out/EnableLiquidGlass.dylib"]
+for root, _, files in os.walk('packages'):
   for f in files:
-    if f.endswith('.deb'): paths.append(os.path.join(root,f))
+    if f.endswith('.deb'):
+      paths.append(os.path.join(root, f))
 info = []
 for p in paths:
-  with open(p,'rb') as fh:
-    h=hashlib.sha256(fh.read()).hexdigest()
-  info.append({"path":p,"size":os.path.getsize(p),"sha256":h})
-open('INFO.json','w').write(json.dumps(info, indent=2))
+  with open(p, 'rb') as fh:
+    h = hashlib.sha256(fh.read()).hexdigest()
+  info.append({"path": p, "size": os.path.getsize(p), "sha256": h})
+open('INFO.json', 'w').write(json.dumps(info, indent=2))
 PY
 
       - uses: actions/upload-artifact@v4
@@ -166,7 +168,7 @@ PY
             dist/**/EnableLiquidGlass.dylib
             dist/**/SHA256SUMS.txt
             dist/**/SIZES.txt
-            dist/**/OTool_*.txt
+            dist/**/OTOOL_EnableLiquidGlass.txt
             dist/**/MACHO_CMDS.txt
             dist/**/ARCHES.txt
             dist/**/SELECTORS.txt
