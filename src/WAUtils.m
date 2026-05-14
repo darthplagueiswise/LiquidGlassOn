@@ -16,11 +16,24 @@ void WASetEnabled(NSString *key, BOOL enabled) {
 void WARegisterDefaults(void) {
     [NSUserDefaults.standardUserDefaults registerDefaults:@{
         WA_PREF_KEYCHAIN_REWRITE: @NO,
+        WA_PREF_KEYCHAIN_OBSERVER: @NO,
         WA_PREF_EMPLOYEE_MASTER: @NO,
         WA_PREF_AB_OBSERVER: @NO,
         WA_PREF_LIQUID_GLASS: @NO,
-        @"wa_liquid_glass_userdefaults_overrides": @YES,
-        @"wa_liquid_glass_method_hooks": @YES
+        WA_PREF_LIQUID_GLASS_USERDEFAULTS: @YES,
+        WA_PREF_LIQUID_GLASS_METHOD_HOOKS: @YES,
+        @"wa_lg_ios_liquid_glass_enabled": @NO,
+        @"wa_lg_ios_liquid_glass_launched": @NO,
+        @"wa_lg_ios_liquid_glass_m1": @NO,
+        @"wa_lg_ios_liquid_glass_m_1_5": @NO,
+        @"wa_lg_ios_liquid_glass_m_1_5_context_menu": @NO,
+        @"wa_lg_ios_liquid_glass_chat_top_bar_m2_enabled": @NO,
+        @"wa_lg_ios_liquid_glass_enable_new_chatbar_ux": @NO,
+        @"wa_lg_ios_liquid_glass_larger_composer": @NO,
+        @"wa_lg_ios_liquid_glass_reduce_transparency": @NO,
+        @"wa_lg_ios_liquid_glass_workaround_attachment_tray": @NO,
+        @"wa_lg_ios_liquid_glass_workaround_hides_bottombar": @NO,
+        @"wa_lg_ios_liquid_glass_workaround_topbar_appearance": @NO
     }];
 }
 
