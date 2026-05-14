@@ -56,6 +56,9 @@ static inline NSString *WAGRWAABKeyString(NSString *key) {
 static inline NSString *WAGRWAABKeyRuntimeType(NSString *key) {
     return key.length ? [@"wagr.waab.runtime." stringByAppendingFormat:@"%@.type", key] : @"";
 }
+static inline NSString *WAGRWAABKeyRuntimeValue(NSString *key) {
+    return key.length ? [@"wagr.waab.runtime." stringByAppendingFormat:@"%@.value", key] : @"";
+}
 
 // Convenience: read a BOOL pref.
 #define WAGRPref(key) [[NSUserDefaults standardUserDefaults] boolForKey:(key)]
