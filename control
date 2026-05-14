@@ -1,9 +1,10 @@
 Package: com.darthplagueiswise.liquidglasson
 Name: LiquidGlassOn
-Version: 0.1.0
-Architecture: iphoneos-arm64
-Description: Rootless WhatsApp tweak base for Liquid Glass, sideload Keychain diagnostics, and opt-in Meta employee/dogfood probes.
-Maintainer: darthplagueiswise
-Author: darthplagueiswise
+Version: 1.0.0
+Architecture: iphoneos-arm
+Description: Feature research tweak for WhatsApp — Liquid Glass, Dogfood, ABProps, Keychain observer.
+Homepage: https://github.com/darthplagueiswise/LiquidGlassOn
+Maintainer: Radan
+Author: Radan
 Section: Tweaks
-Depends: mobilesubstrate (>= 0.9.5000), firmware (>= 15.0)
+Depends: mobilesubstrate
