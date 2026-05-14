@@ -1,24 +1,21 @@
-TARGET := iphone:clang:16.2:15.0
+TARGET := iphone:clang:16.2
 INSTALL_TARGET_PROCESSES = WhatsApp
 ARCHS = arm64
 
 include $(THEOS)/makefiles/common.mk
 
-TWEAK_NAME = LiquidGlassOn
+TWEAK_NAME = WAGram
 
-before-all::
-	@if [ -f scripts/sync-dev2-build-assets.sh ]; then \
-		bash scripts/sync-dev2-build-assets.sh; \
-	else \
-		echo "[LiquidGlassOn] scripts/sync-dev2-build-assets.sh missing; assuming modules are present"; \
-	fi
+WAGR_SRC := $(shell find src -type f \( -name "*.x" -o -name "*.xm" -o -name "*.m" \))
 
-LIQUIDGLASSON_SRC_FILES := $(shell find src -type f \( -iname \*.x -o -iname \*.xm -o -iname \*.m \))
+$(TWEAK_NAME)_FILES = $(WAGR_SRC) modules/fishhook/fishhook.c
 
-$(TWEAK_NAME)_FILES = $(LIQUIDGLASSON_SRC_FILES) modules/fishhook/fishhook.c
-$(TWEAK_NAME)_FRAMEWORKS = UIKit Foundation Security QuartzCore
-$(TWEAK_NAME)_CFLAGS = -fobjc-arc -Wno-unsupported-availability-guard -Wno-unused-value -Wno-deprecated-declarations -Wno-nullability-completeness -Wno-unused-function -Wno-incompatible-pointer-types -include src/WAPrefix.h
+ifdef SIDESTORE
+    $(TWEAK_NAME)_FILES += modules/SideloadPatch/WASideloadPatch.xm
+endif
+
+$(TWEAK_NAME)_FRAMEWORKS = UIKit Foundation Security
+$(TWEAK_NAME)_CFLAGS = -fobjc-arc -include src/WAGramPrefix.h -Wno-deprecated-declarations
 $(TWEAK_NAME)_LOGOSFLAGS = --c warnings=none
-$(TWEAK_NAME)_LIBRARIES = substrate
 
 include $(THEOS_MAKE_PATH)/tweak.mk
