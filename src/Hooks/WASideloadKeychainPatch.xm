@@ -137,7 +137,7 @@ static OSStatus wagr_SecItemDelete(CFDictionaryRef query) {
     return status;
 }
 
-NSString *WAGRKeychainDiagnosticText(void) {
+extern "C" NSString *WAGRKeychainDiagnosticText(void) {
     WAGRKCResolveIdentifiers();
     return [NSString stringWithFormat:
         @"bundle     = %@\naccessGroup = %@\nhooks       = %@",
