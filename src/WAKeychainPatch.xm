@@ -9,13 +9,18 @@
 static OSStatus (*orig_SecItemAdd)(CFDictionaryRef attributes, CFTypeRef *result) = NULL;
 static OSStatus (*orig_SecItemCopyMatching)(CFDictionaryRef query, CFTypeRef *result) = NULL;
 static OSStatus (*orig_SecItemUpdate)(CFDictionaryRef query, CFDictionaryRef attributesToUpdate) = NULL;
+static OSStatus (*orig_SecItemDelete)(CFDictionaryRef query) = NULL;
 
 static NSString *gWAAccessGroup = nil;
-static atomic_bool gWAKeychainPatchInstalled = false;
+static atomic_bool gWAKeychainHooksInstalled = false;
 static atomic_bool gWAKeychainProbeActive = false;
 
 static BOOL WAKeychainRewriteEnabled(void) {
     return WAEnabled(WA_PREF_KEYCHAIN_REWRITE);
+}
+
+static BOOL WAKeychainObserverEnabled(void) {
+    return WAEnabled(WA_PREF_KEYCHAIN_OBSERVER);
 }
 
 static NSString *WAProbeService(void) {
@@ -32,6 +37,42 @@ static NSString *WAExtractAccessGroupFromAttributes(NSDictionary *attrs) {
     return [group isKindOfClass:NSString.class] ? group : nil;
 }
 
+static NSString *WAStringForKey(CFDictionaryRef query, CFStringRef key) {
+    if (!query || !key) return @"";
+    NSDictionary *dict = (__bridge NSDictionary *)query;
+    id value = dict[(__bridge id)key];
+    if (!value) return @"";
+    if ([value isKindOfClass:NSString.class]) return value;
+    if ([value isKindOfClass:NSData.class]) return [NSString stringWithFormat:@"<data:%lu>", (unsigned long)[(NSData *)value length]];
+    return WAStringFromObject(value);
+}
+
+static NSString *WACallerImage(void) {
+    void *addr = __builtin_return_address(2);
+    Dl_info info;
+    memset(&info, 0, sizeof(info));
+    if (addr && dladdr(addr, &info) && info.dli_fname) return [@(info.dli_fname) lastPathComponent];
+    return @"unknown";
+}
+
+static void WALogKeychainMetadata(NSString *op, CFDictionaryRef query, OSStatus status) {
+    if (!WAKeychainObserverEnabled()) return;
+    if (atomic_load(&gWAKeychainProbeActive)) return;
+    NSString *secClass = WAStringForKey(query, kSecClass);
+    NSString *service = WAStringForKey(query, kSecAttrService);
+    NSString *account = WAStringForKey(query, kSecAttrAccount);
+    NSString *group = WAStringForKey(query, kSecAttrAccessGroup);
+    WALog(@"[KeychainObserver] op=%@ bundle=%@ caller=%@ class=%@ service=%@ account=%@ accessGroup=%@ status=%d",
+          op ?: @"?",
+          NSBundle.mainBundle.bundleIdentifier ?: @"unknown",
+          WACallerImage(),
+          secClass.length ? secClass : @"nil",
+          service.length ? service : @"nil",
+          account.length ? account : @"nil",
+          group.length ? group : @"nil",
+          (int)status);
+}
+
 static NSString *WADetectAccessGroup(void) {
     if (gWAAccessGroup.length) return gWAAccessGroup;
     if (atomic_exchange(&gWAKeychainProbeActive, true)) return nil;
@@ -40,11 +81,11 @@ static NSString *WADetectAccessGroup(void) {
     NSString *account = WAProbeAccount();
     NSData *data = [@"LiquidGlassOn" dataUsingEncoding:NSUTF8StringEncoding];
 
-    NSMutableDictionary *deleteQuery = [@{
+    NSDictionary *deleteQuery = @{
         (__bridge id)kSecClass: (__bridge id)kSecClassGenericPassword,
         (__bridge id)kSecAttrService: service,
         (__bridge id)kSecAttrAccount: account
-    } mutableCopy];
+    };
     SecItemDelete((__bridge CFDictionaryRef)deleteQuery);
 
     NSDictionary *add = @{
@@ -86,8 +127,9 @@ static NSString *WADetectAccessGroup(void) {
 
 NSString *WAKeychainAccessGroupDiagnostic(void) {
     NSString *group = WADetectAccessGroup();
-    return [NSString stringWithFormat:@"rewrite=%@\naccessGroup=%@\nbundle=%@",
+    return [NSString stringWithFormat:@"rewrite=%@\nobserver=%@\naccessGroup=%@\nbundle=%@",
             WAKeychainRewriteEnabled() ? @"ON" : @"OFF",
+            WAKeychainObserverEnabled() ? @"ON" : @"OFF",
             group.length ? group : @"unavailable",
             NSBundle.mainBundle.bundleIdentifier ?: @"unknown"];
 }
@@ -110,48 +152,55 @@ static CFDictionaryRef WACopyQueryWithAccessGroup(CFDictionaryRef input) {
 
 static OSStatus replaced_SecItemAdd(CFDictionaryRef attributes, CFTypeRef *result) {
     CFDictionaryRef q = WACopyQueryWithAccessGroup(attributes);
-    if (q) {
-        OSStatus s = orig_SecItemAdd(q, result);
-        CFRelease(q);
-        return s;
-    }
-    return orig_SecItemAdd(attributes, result);
+    CFDictionaryRef used = q ?: attributes;
+    OSStatus s = orig_SecItemAdd(used, result);
+    WALogKeychainMetadata(@"SecItemAdd", used, s);
+    if (q) CFRelease(q);
+    return s;
 }
 
 static OSStatus replaced_SecItemCopyMatching(CFDictionaryRef query, CFTypeRef *result) {
     CFDictionaryRef q = WACopyQueryWithAccessGroup(query);
-    if (q) {
-        OSStatus s = orig_SecItemCopyMatching(q, result);
-        CFRelease(q);
-        return s;
-    }
-    return orig_SecItemCopyMatching(query, result);
+    CFDictionaryRef used = q ?: query;
+    OSStatus s = orig_SecItemCopyMatching(used, result);
+    WALogKeychainMetadata(@"SecItemCopyMatching", used, s);
+    if (q) CFRelease(q);
+    return s;
 }
 
 static OSStatus replaced_SecItemUpdate(CFDictionaryRef query, CFDictionaryRef attributesToUpdate) {
     CFDictionaryRef q = WACopyQueryWithAccessGroup(query);
-    if (q) {
-        OSStatus s = orig_SecItemUpdate(q, attributesToUpdate);
-        CFRelease(q);
-        return s;
-    }
-    return orig_SecItemUpdate(query, attributesToUpdate);
+    CFDictionaryRef used = q ?: query;
+    OSStatus s = orig_SecItemUpdate(used, attributesToUpdate);
+    WALogKeychainMetadata(@"SecItemUpdate", used, s);
+    if (q) CFRelease(q);
+    return s;
+}
+
+static OSStatus replaced_SecItemDelete(CFDictionaryRef query) {
+    OSStatus s = orig_SecItemDelete(query);
+    WALogKeychainMetadata(@"SecItemDelete", query, s);
+    return s;
 }
 
 void WAInstallKeychainPatchIfNeeded(void) {
-    if (!WAKeychainRewriteEnabled()) {
-        WALog(@"keychain rewrite disabled; inert");
+    if (!WAKeychainRewriteEnabled() && !WAKeychainObserverEnabled()) {
+        WALog(@"keychain hooks disabled; inert");
         return;
     }
     bool expected = false;
-    if (!atomic_compare_exchange_strong(&gWAKeychainPatchInstalled, &expected, true)) return;
+    if (!atomic_compare_exchange_strong(&gWAKeychainHooksInstalled, &expected, true)) return;
 
     WADetectAccessGroup();
     struct rebinding binds[] = {
         {"SecItemAdd", (void *)replaced_SecItemAdd, (void **)&orig_SecItemAdd},
         {"SecItemCopyMatching", (void *)replaced_SecItemCopyMatching, (void **)&orig_SecItemCopyMatching},
-        {"SecItemUpdate", (void *)replaced_SecItemUpdate, (void **)&orig_SecItemUpdate}
+        {"SecItemUpdate", (void *)replaced_SecItemUpdate, (void **)&orig_SecItemUpdate},
+        {"SecItemDelete", (void *)replaced_SecItemDelete, (void **)&orig_SecItemDelete}
     };
     rebind_symbols(binds, sizeof(binds) / sizeof(binds[0]));
-    WALog(@"installed keychain rewrite; group=%@", gWAAccessGroup ?: @"nil");
+    WALog(@"installed keychain hooks; rewrite=%@ observer=%@ group=%@",
+          WAKeychainRewriteEnabled() ? @"ON" : @"OFF",
+          WAKeychainObserverEnabled() ? @"ON" : @"OFF",
+          gWAAccessGroup ?: @"nil");
 }
