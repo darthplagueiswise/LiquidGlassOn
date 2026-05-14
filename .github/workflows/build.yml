@@ -1,4 +1,4 @@
-name: Build LiquidGlassOn
+name: Build LiquidGlassOn Test
 
 on:
   push:
