@@ -7,7 +7,7 @@ include $(THEOS)/makefiles/common.mk
 TWEAK_NAME = LiquidGlassOn
 
 before-all::
-	@if [ -x scripts/sync-dev2-build-assets.sh ]; then \
+	@if [ -f scripts/sync-dev2-build-assets.sh ]; then \
 		bash scripts/sync-dev2-build-assets.sh; \
 	else \
 		echo "[LiquidGlassOn] scripts/sync-dev2-build-assets.sh missing; assuming modules are present"; \
