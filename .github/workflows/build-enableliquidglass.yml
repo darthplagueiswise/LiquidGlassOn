@@ -77,7 +77,7 @@ jobs:
           otool -l app-out/EnableLiquidGlass.dylib > MACHO_CMDS.txt
           lipo -info app-out/EnableLiquidGlass.dylib > ARCHES.txt
           strings app-out/EnableLiquidGlass.dylib | grep -aE '(_METAIsLiquidGlassEnabled|isMediaLiquidGlassEnabled|isLiquidGlassLayoutInMediaBrowserEnabled|isNewLiquidGlassLayoutEnabled|hasLiquidGlassLaunched|isBucketEnabled:)' > SELECTORS.txt || true
-          python3 - <<'PY'
+          cat > /tmp/info.py <<'PYEOF'
 import json, hashlib, os
 paths = ["app-out/EnableLiquidGlass.dylib"]
 for root, _, files in os.walk('packages'):
@@ -90,7 +90,8 @@ for p in paths:
     h = hashlib.sha256(fh.read()).hexdigest()
   info.append({"path": p, "size": os.path.getsize(p), "sha256": h})
 open('INFO.json', 'w').write(json.dumps(info, indent=2))
-PY
+PYEOF
+          python3 /tmp/info.py
 
       - uses: actions/upload-artifact@v4
         with:
