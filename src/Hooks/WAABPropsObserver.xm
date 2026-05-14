@@ -16,6 +16,7 @@
 //   • No global “force everything” behavior.
 // ─────────────────────────────────────────────────────────────────────────────
 
+#import "../WAGramPrefix.h"
 #import <Foundation/Foundation.h>
 #import <objc/runtime.h>
 #import <substrate.h>
@@ -26,7 +27,6 @@ static NSMutableArray<NSString *> *_wagrABLog = nil;
 static dispatch_queue_t _wagrABQueue = nil;
 static dispatch_once_t _wagrABInitOnce = 0;
 static BOOL _wagrABHooksInstalled = NO;
-static dispatch_once_t _wagrABInstallOnce = 0;
 
 static BOOL (*orig_WAABBool)(id, SEL, NSString *, BOOL) = NULL;
 static id (*orig_WAABString)(id, SEL, NSString *, id) = NULL;
@@ -99,6 +99,11 @@ static id hook_WAABString(id self, SEL _cmd, NSString *key, id defaultValue) {
         WAGRABLogGetter(@"string", self, _cmd, key, forced, YES);
         return forced;
     }
+    if (mode == 2) {
+        NSString *forced = [[NSUserDefaults standardUserDefaults] stringForKey:WAGRWAABKeyString(key)] ?: @"enabled";
+        WAGRABLogGetter(@"string", self, _cmd, key, forced, YES);
+        return forced;
+    }
     WAGRABLogGetter(@"string", self, _cmd, key, original ?: @"nil", NO);
     return original;
 }
@@ -107,8 +112,8 @@ static NSInteger hook_WAABInteger(id self, SEL _cmd, NSString *key, NSInteger de
     NSInteger original = orig_WAABInteger ? orig_WAABInteger(self, _cmd, key, defaultValue) : defaultValue;
     WAGRWAABRememberRuntime(key, @"integer", @(original));
     NSInteger mode = [[NSUserDefaults standardUserDefaults] integerForKey:WAGRWAABKeyMode(key)];
-    if (mode == 1) {
-        NSInteger forced = [[NSUserDefaults standardUserDefaults] integerForKey:WAGRWAABKeyNumber(key)];
+    if (mode == 1 || mode == 2) {
+        NSInteger forced = (mode == 1) ? 0 : ([[NSUserDefaults standardUserDefaults] objectForKey:WAGRWAABKeyNumber(key)] ? [[NSUserDefaults standardUserDefaults] integerForKey:WAGRWAABKeyNumber(key)] : 1);
         WAGRABLogGetter(@"integer", self, _cmd, key, @(forced), YES);
         return forced;
     }
@@ -120,8 +125,8 @@ static double hook_WAABDouble(id self, SEL _cmd, NSString *key, double defaultVa
     double original = orig_WAABDouble ? orig_WAABDouble(self, _cmd, key, defaultValue) : defaultValue;
     WAGRWAABRememberRuntime(key, @"double", @(original));
     NSInteger mode = [[NSUserDefaults standardUserDefaults] integerForKey:WAGRWAABKeyMode(key)];
-    if (mode == 1) {
-        double forced = [[NSUserDefaults standardUserDefaults] doubleForKey:WAGRWAABKeyNumber(key)];
+    if (mode == 1 || mode == 2) {
+        double forced = (mode == 1) ? 0.0 : ([[NSUserDefaults standardUserDefaults] objectForKey:WAGRWAABKeyNumber(key)] ? [[NSUserDefaults standardUserDefaults] doubleForKey:WAGRWAABKeyNumber(key)] : 1.0);
         WAGRABLogGetter(@"double", self, _cmd, key, @(forced), YES);
         return forced;
     }
@@ -138,36 +143,39 @@ static BOOL WAGRABClassLooksRelevant(Class cls) {
            [name containsString:@"MobileConfig"];
 }
 
-static void WAGRABTryHook(Class cls, SEL sel, IMP hook, IMP *orig) {
-    if (!cls || !sel || !hook || !orig || *orig) return;
+static BOOL WAGRABTryHook(Class cls, SEL sel, IMP hook, IMP *orig) {
+    if (!cls || !sel || !hook || !orig || *orig) return NO;
     Method m = class_getInstanceMethod(cls, sel);
-    if (!m) return;
+    if (!m) return NO;
     MSHookMessageEx(cls, sel, hook, orig);
     NSLog(@"[WAGram][WAAB] hooked -[%@ %@]", NSStringFromClass(cls), NSStringFromSelector(sel));
+    return YES;
 }
 
 extern "C" void WAGRWAABEnsureHooksInstalled(void) {
     WAGRABEnsureStorage();
-    dispatch_once(&_wagrABInstallOnce, ^{
-        unsigned int count = 0;
-        Class *classes = objc_copyClassList(&count);
-        if (!classes) return;
-        SEL boolSel = NSSelectorFromString(@"boolForKey:defaultValue:");
-        SEL stringSel = NSSelectorFromString(@"stringForKey:defaultValue:");
-        SEL integerSel = NSSelectorFromString(@"integerForKey:defaultValue:");
-        SEL doubleSel = NSSelectorFromString(@"doubleForKey:defaultValue:");
-        for (unsigned int i = 0; i < count; i++) {
-            Class cls = classes[i];
-            if (!WAGRABClassLooksRelevant(cls)) continue;
-            WAGRABTryHook(cls, boolSel, (IMP)hook_WAABBool, (IMP *)&orig_WAABBool);
-            WAGRABTryHook(cls, stringSel, (IMP)hook_WAABString, (IMP *)&orig_WAABString);
-            WAGRABTryHook(cls, integerSel, (IMP)hook_WAABInteger, (IMP *)&orig_WAABInteger);
-            WAGRABTryHook(cls, doubleSel, (IMP)hook_WAABDouble, (IMP *)&orig_WAABDouble);
-        }
-        free(classes);
+    if (_wagrABHooksInstalled) return;
+    unsigned int count = 0;
+    Class *classes = objc_copyClassList(&count);
+    if (!classes) return;
+    SEL boolSel = NSSelectorFromString(@"boolForKey:defaultValue:");
+    SEL stringSel = NSSelectorFromString(@"stringForKey:defaultValue:");
+    SEL integerSel = NSSelectorFromString(@"integerForKey:defaultValue:");
+    SEL doubleSel = NSSelectorFromString(@"doubleForKey:defaultValue:");
+    NSUInteger hooked = 0;
+    for (unsigned int i = 0; i < count; i++) {
+        Class cls = classes[i];
+        if (!WAGRABClassLooksRelevant(cls)) continue;
+        if (WAGRABTryHook(cls, boolSel, (IMP)hook_WAABBool, (IMP *)&orig_WAABBool)) hooked++;
+        if (WAGRABTryHook(cls, stringSel, (IMP)hook_WAABString, (IMP *)&orig_WAABString)) hooked++;
+        if (WAGRABTryHook(cls, integerSel, (IMP)hook_WAABInteger, (IMP *)&orig_WAABInteger)) hooked++;
+        if (WAGRABTryHook(cls, doubleSel, (IMP)hook_WAABDouble, (IMP *)&orig_WAABDouble)) hooked++;
+    }
+    free(classes);
+    if (hooked > 0 || orig_WAABBool || orig_WAABString || orig_WAABInteger || orig_WAABDouble) {
         _wagrABHooksInstalled = YES;
-        NSLog(@"[WAGram][WAAB] install pass complete");
-    });
+    }
+    NSLog(@"[WAGram][WAAB] install pass complete hooks=%lu", (unsigned long)hooked);
 }
 
 extern "C" NSString *WAGRABObsLog(void) {

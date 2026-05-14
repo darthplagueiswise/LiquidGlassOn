@@ -1,8 +1,5 @@
 // WAGramPrefix.h
-// Precompiled prefix imported into Objective-C / Objective-C++ translation units.
-// Compatible with WAKeychainPatch.xm, WAEmployeeDogfoodHooks.xm,
-// WAABPropsObserver.xm, WALiquidGlassHooks.xm.
-
+// Shared Objective-C/Objective-C++ compatibility prefix for LiquidGlassOn/WAGram.
 #pragma once
 
 #ifdef __OBJC__
@@ -11,12 +8,8 @@
 #import <objc/runtime.h>
 #import <objc/message.h>
 #import <substrate.h>
-#endif
-
-// WAPrefix compat (WAUtils.m uses WA_PREF_* defines from WAPrefix.h).
 #import "WAPrefix.h"
 
-// Master pref keys (kWAGR* = unified WAGram keys).
 #define kWAGRKeychain          WA_PREF_KEYCHAIN_REWRITE
 #define kWAGRKeychainObserver  WA_PREF_KEYCHAIN_OBSERVER
 #define kWAGREmployeeMaster    WA_PREF_EMPLOYEE_MASTER
@@ -26,7 +19,6 @@
 #define kWAGRLiquidGlassMethodHooks  WA_PREF_LIQUID_GLASS_METHOD_HOOKS
 #define kWAGRDebugMode         @"wagr_debug_mode_enabled"
 
-// Liquid Glass sub-flag pref keys (legacy, still used by WALiquidGlassHooks).
 #define kWAGRLG_enabled                      @"wa_lg_ios_liquid_glass_enabled"
 #define kWAGRLG_launched                     @"wa_lg_ios_liquid_glass_launched"
 #define kWAGRLG_m1                           @"wa_lg_ios_liquid_glass_m1"
@@ -40,10 +32,6 @@
 #define kWAGRLG_workaround_hides_bottombar   @"wa_lg_ios_liquid_glass_workaround_hides_bottombar"
 #define kWAGRLG_workaround_topbar_appearance @"wa_lg_ios_liquid_glass_workaround_topbar_appearance"
 
-// WAAB override storage (used by WAABPropsObserver.xm).
-// wagr.waab.<key>.mode   = NSInteger  0=system  1=force-OFF  2=force-ON
-// wagr.waab.<key>.number = NSNumber   typed override for integer/double keys
-// wagr.waab.<key>.string = NSString   typed override for string keys
 static inline NSString *WAGRWAABKeyMode(NSString *key) {
     return key.length ? [@"wagr.waab." stringByAppendingFormat:@"%@.mode", key] : @"";
 }
@@ -60,5 +48,5 @@ static inline NSString *WAGRWAABKeyRuntimeValue(NSString *key) {
     return key.length ? [@"wagr.waab.runtime." stringByAppendingFormat:@"%@.value", key] : @"";
 }
 
-// Convenience: read a BOOL pref.
 #define WAGRPref(key) [[NSUserDefaults standardUserDefaults] boolForKey:(key)]
+#endif

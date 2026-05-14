@@ -5,6 +5,7 @@
 // Compatible with WAABPropsObserver.xm hook_WAABBool / hook_WAABString.
 // ─────────────────────────────────────────────────────────────────────────────
 
+#import "../WAGramPrefix.h"
 #import "WAGramMenuVC.h"
 #import "../WAUtils.h"
 
@@ -109,6 +110,7 @@ static NSString *const kSW=@"SW", *const kNAV=@"NAV", *const kBTN=@"BTN", *const
         cell.accessoryView=sw; cell.selectionStyle=UITableViewCellSelectionStyleNone;
     } else if(row.style==WAGramRowStyleWAABFlag){
         NSInteger mode=WAGRModeGet(row.waabKey);
+        if (mode < 0 || mode > 2) mode = 0;
         NSArray *labels=@[@"SYS",@"OFF",@"ON"];
         NSArray *colors=@[UIColor.secondaryLabelColor,UIColor.systemRedColor,UIColor.systemGreenColor];
         UILabel *badge=[[UILabel alloc]init];
@@ -503,7 +505,7 @@ static UIViewController *DebugSubVC(void) {
 
 - (UITableViewCell*)tableView:(UITableView*)tv cellForRowAtIndexPath:(NSIndexPath*)ip {
     WAGramRow *row=_sections[(NSUInteger)ip.section].rows[(NSUInteger)ip.row];
-    NSString *rid=(row.style==WAGramRowStyleSwitch)?kSW:(row.style==WAGramRowStyleNavigation)?kNAV:kBTN;
+    NSString *rid=(row.style==WAGramRowStyleSwitch)?kSW:(row.style==WAGramRowStyleNavigation)?kNAV:(row.style==WAGramRowStyleWAABFlag)?kWAAB:kBTN;
     UITableViewCell *cell=[tv dequeueReusableCellWithIdentifier:rid];
     if(!cell){UITableViewCellStyle sty=row.subtitle.length?UITableViewCellStyleSubtitle:UITableViewCellStyleDefault;cell=[[UITableViewCell alloc]initWithStyle:sty reuseIdentifier:rid];}
     cell.textLabel.text=row.title; cell.detailTextLabel.text=row.subtitle;
@@ -532,7 +534,11 @@ static UIViewController *DebugSubVC(void) {
 - (void)tableView:(UITableView*)tv didSelectRowAtIndexPath:(NSIndexPath*)ip {
     [tv deselectRowAtIndexPath:ip animated:YES];
     WAGramRow *row=_sections[(NSUInteger)ip.section].rows[(NSUInteger)ip.row];
-    if(row.style==WAGramRowStyleNavigation&&row.navTarget)
+    if(row.style==WAGramRowStyleWAABFlag && row.waabKey.length){
+        WAGRModeCycle(row.waabKey);
+        WAGRWAABEnsureHooksInstalled();
+        [tv reloadRowsAtIndexPaths:@[ip] withRowAnimation:UITableViewRowAnimationNone];
+    } else if(row.style==WAGramRowStyleNavigation&&row.navTarget)
         [self.navigationController pushViewController:row.navTarget animated:YES];
     else if(row.style==WAGramRowStyleButton&&row.action)
         row.action(NO);

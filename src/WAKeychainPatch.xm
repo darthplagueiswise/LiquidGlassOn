@@ -2,7 +2,6 @@
 #import "WAPrefix.h"
 #import "WAUtils.h"
 #import <Security/Security.h>
-#import <dlfcn.h>
 #import <stdatomic.h>
 #import "../modules/fishhook/fishhook.h"
 
@@ -48,11 +47,7 @@ static NSString *WAStringForKey(CFDictionaryRef query, CFStringRef key) {
 }
 
 static NSString *WACallerImage(void) {
-    void *addr = __builtin_return_address(2);
-    Dl_info info;
-    memset(&info, 0, sizeof(info));
-    if (addr && dladdr(addr, &info) && info.dli_fname) return [@(info.dli_fname) lastPathComponent];
-    return @"unknown";
+    return [[NSBundle mainBundle] executablePath].lastPathComponent ?: @"WhatsApp";
 }
 
 static void WALogKeychainMetadata(NSString *op, CFDictionaryRef query, OSStatus status) {

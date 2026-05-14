@@ -2,6 +2,7 @@
 // Hooks the four validated employee/dogfood gates found in SharedModules.
 // Toggle: kWAGREmployeeMaster (default OFF). Hooks are only scheduled when ON.
 
+#import "../WAGramPrefix.h"
 #import <Foundation/Foundation.h>
 #import <objc/runtime.h>
 #import <substrate.h>

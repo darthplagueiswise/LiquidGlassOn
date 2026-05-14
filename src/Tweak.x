@@ -18,11 +18,13 @@
 // use the first one that responds to the view lifecycle.
 // ─────────────────────────────────────────────────────────────────────────────
 
+#import "WAGramPrefix.h"
 #import <UIKit/UIKit.h>
 #import <Foundation/Foundation.h>
 #import <objc/runtime.h>
 #import <substrate.h>
 #import "Menu/WAGramMenuVC.h"
+#import "WAUtils.h"
 
 // ── Constant ──────────────────────────────────────────────────────────────────
 static const char *kWAGRLPInstalledKey = "wagr.longpress.installed";
@@ -153,11 +155,15 @@ static void WAGRInstallSettingsHook(void) {
               [[NSBundle mainBundle] bundleIdentifier]);
 
         // Register defaults (all OFF)
+        WARegisterDefaults();
         NSDictionary *defs = @{
             kWAGRKeychain          : @NO,
+            kWAGRKeychainObserver  : @NO,
             kWAGREmployeeMaster    : @NO,
             kWAGRABPropsObserver   : @NO,
             kWAGRLiquidGlassMaster : @NO,
+            kWAGRLiquidGlassUserDefaults : @YES,
+            kWAGRLiquidGlassMethodHooks  : @YES,
             kWAGRLG_enabled        : @NO,
             kWAGRLG_launched       : @NO,
             kWAGRLG_m1             : @NO,

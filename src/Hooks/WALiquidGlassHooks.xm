@@ -17,6 +17,7 @@
 // Individual sub-flags: kWAGRLG_* (each maps to one ABProp)
 // ─────────────────────────────────────────────────────────────────────────────
 
+#import "../WAGramPrefix.h"
 #import <Foundation/Foundation.h>
 #import <objc/runtime.h>
 #import <substrate.h>
@@ -172,6 +173,7 @@ static void WAGRLGInstallHooksOnClass(Class cls) {
 
 static void WAGRLGInstallAllHooks(void) {
     if (_wagrLGHooksInstalled) return;
+    if (!WAGRPref(kWAGRLiquidGlassMaster) || !WAGRPref(kWAGRLiquidGlassMethodHooks)) return;
     unsigned int count = 0;
     Class *all = objc_copyClassList(&count);
     if (!all) return;
@@ -217,7 +219,5 @@ static void WAGRLiquidGlassInit(void) {
 /// Called from menu when user changes any LiquidGlass toggle.
 extern "C" void WAGRLGPrefsDidChange(void) {
     WAGRLGApplyUserDefaultsOverride();
-    if (WAGRPref(kWAGRLiquidGlassMaster)) {
-        WAGRLGInstallAllHooks();
-    }
+    if (WAGRPref(kWAGRLiquidGlassMaster)) WAGRLGInstallAllHooks();
 }
