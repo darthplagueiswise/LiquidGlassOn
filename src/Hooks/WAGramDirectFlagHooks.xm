@@ -1,4 +1,10 @@
 // WAGramDirectFlagHooks.xm
+// Safe DexKit-style direct selector runtime for WAAB-style flags.
+//
+// Important: this intentionally hooks only WAAB/ABProperties-style classes.
+// The previous global scan across Debug/Gating/Experiment/Feature classes was
+// too broad, made Internal mode slow, and could hook unrelated methods.
+
 #import <Foundation/Foundation.h>
 #import <objc/runtime.h>
 #import <substrate.h>
@@ -9,6 +15,7 @@ static NSMutableSet<NSString *> *gWAGDirectInstalled = nil;
 static dispatch_queue_t gWAGDirectQueue = nil;
 static BOOL gWAGDirectDidInit = NO;
 static NSUInteger gWAGDirectHookCount = 0;
+static NSUInteger gWAGDirectMissingCount = 0;
 
 static void WAGDirectInitStorage(void) {
     static dispatch_once_t once;
@@ -43,18 +50,35 @@ static BOOL WAGDirectBoolHook(id self, SEL _cmd) {
     return orig ? orig(self, _cmd) : NO;
 }
 
-static BOOL WAGDirectClassLooksRelevant(Class cls) {
-    if (!cls) return NO;
-    NSString *n = NSStringFromClass(cls);
-    return [n containsString:@"WAABProperties"] ||
-           [n containsString:@"ABProperties"] ||
-           [n containsString:@"MetaConfig"] ||
-           [n containsString:@"MobileConfig"] ||
-           [n containsString:@"Experiment"] ||
-           [n containsString:@"Gating"] ||
-           [n containsString:@"Debug"] ||
-           [n containsString:@"Dogfood"] ||
-           [n containsString:@"Feature"];
+static NSArray<Class> *WAGDirectTargetClasses(void) {
+    NSMutableArray<Class> *classes = [NSMutableArray array];
+    NSArray<NSString *> *names = @[
+        @"WAABProperties",
+        @"WABetaFeaturesABProperties",
+        @"WADeprecatedABProperties",
+        @"WAABPropertiesImpl",
+        @"ABProperties",
+        @"WAABProps",
+    ];
+    for (NSString *name in names) {
+        Class cls = NSClassFromString(name);
+        if (cls && ![classes containsObject:cls]) [classes addObject:cls];
+    }
+
+    // Narrow fallback: only class names that explicitly look like ABProperties.
+    unsigned int count = 0;
+    Class *all = objc_copyClassList(&count);
+    if (all) {
+        for (unsigned int i = 0; i < count; i++) {
+            Class cls = all[i];
+            NSString *n = NSStringFromClass(cls);
+            if (([n containsString:@"WAAB"] || [n containsString:@"ABProperties"]) && ![classes containsObject:cls]) {
+                [classes addObject:cls];
+            }
+        }
+        free(all);
+    }
+    return classes;
 }
 
 static BOOL WAGDirectMethodLooksBoolNoArg(Method m) {
@@ -65,15 +89,15 @@ static BOOL WAGDirectMethodLooksBoolNoArg(Method m) {
     return ret[0] == 'B' || ret[0] == 'c';
 }
 
-static void WAGDirectTryHook(Class cls, SEL sel, BOOL classMethod) {
-    if (!cls || !sel) return;
+static BOOL WAGDirectTryHook(Class cls, SEL sel, BOOL classMethod) {
+    if (!cls || !sel) return NO;
     Method m = classMethod ? class_getClassMethod(cls, sel) : class_getInstanceMethod(cls, sel);
-    if (!WAGDirectMethodLooksBoolNoArg(m)) return;
+    if (!WAGDirectMethodLooksBoolNoArg(m)) return NO;
     Class target = classMethod ? object_getClass(cls) : cls;
-    if (!target) return;
+    if (!target) return NO;
 
     NSString *sig = [NSString stringWithFormat:@"%@/%@", NSStringFromClass(cls), NSStringFromSelector(sel)];
-    if ([gWAGDirectInstalled containsObject:sig]) return;
+    if ([gWAGDirectInstalled containsObject:sig]) return YES;
 
     IMP orig = NULL;
     MSHookMessageEx(target, sel, (IMP)WAGDirectBoolHook, &orig);
@@ -81,6 +105,7 @@ static void WAGDirectTryHook(Class cls, SEL sel, BOOL classMethod) {
     [gWAGDirectInstalled addObject:sig];
     gWAGDirectHookCount++;
     NSLog(@"[WAGram][DirectFlags] hooked %@[%@ %@]", classMethod ? @"+" : @"-", NSStringFromClass(cls), NSStringFromSelector(sel));
+    return YES;
 }
 
 static NSArray<NSString *> *WAGDirectActiveKeys(void) {
@@ -111,43 +136,44 @@ static void WAGDirectInstallForActiveKeys(void) {
     NSArray<NSString *> *keys = WAGDirectActiveKeys();
     if (!keys.count) return;
 
-    unsigned int count = 0;
-    Class *classes = objc_copyClassList(&count);
-    if (!classes) return;
+    NSArray<Class> *classes = WAGDirectTargetClasses();
+    if (!classes.count) return;
 
+    NSUInteger missing = 0;
     for (NSString *key in keys) {
         SEL sel = NSSelectorFromString(key);
-        for (unsigned int i = 0; i < count; i++) {
-            Class cls = classes[i];
-            if (!WAGDirectClassLooksRelevant(cls)) continue;
-            WAGDirectTryHook(cls, sel, NO);
-            WAGDirectTryHook(cls, sel, YES);
+        BOOL hooked = NO;
+        for (Class cls in classes) {
+            hooked |= WAGDirectTryHook(cls, sel, NO);
+            hooked |= WAGDirectTryHook(cls, sel, YES);
         }
+        if (!hooked) missing++;
     }
 
-    free(classes);
+    gWAGDirectMissingCount = missing;
     gWAGDirectDidInit = YES;
 }
 
-extern "C" void WAGRDirectFlagsEnsureHooksInstalled(void) {
+void WAGRDirectFlagsEnsureHooksInstalled(void) {
     WAGDirectInitStorage();
     dispatch_async(gWAGDirectQueue, ^{ WAGDirectInstallForActiveKeys(); });
 }
 
-extern "C" NSString *WAGRDirectFlagsDiagnosticText(void) {
+NSString *WAGRDirectFlagsDiagnosticText(void) {
     WAGDirectInitStorage();
-    return [NSString stringWithFormat:@"direct runtime=%@\nactive keys=%lu\nhooked selectors=%lu\nmodel=NSUserDefaults + direct bool selectors",
+    return [NSString stringWithFormat:@"direct runtime=%@\nactive keys=%lu\nhooked selectors=%lu\nmissing active selectors=%lu\nmodel=NSUserDefaults + WAAB direct bool selectors only",
             gWAGDirectDidInit ? @"ON" : @"IDLE",
             (unsigned long)WAGDirectActiveKeys().count,
-            (unsigned long)gWAGDirectHookCount];
+            (unsigned long)gWAGDirectHookCount,
+            (unsigned long)gWAGDirectMissingCount];
 }
 
 __attribute__((constructor))
 static void WAGDirectFlagsInit(void) {
     @autoreleasepool {
         WAGDirectInitStorage();
-        double delays[] = {0.2, 1.0, 3.0, 6.0};
-        for (size_t i = 0; i < 4; i++) {
+        double delays[] = {0.8, 2.0, 5.0};
+        for (size_t i = 0; i < 3; i++) {
             dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(delays[i] * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{ WAGDirectInstallForActiveKeys(); });
         }
     }
