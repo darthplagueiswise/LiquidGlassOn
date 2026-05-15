@@ -1,9 +1,8 @@
 // WAGramMenuVC.m — WAGram v3
-// Professional dark-mode UI with:
-//   • UISwitch for all flags (ON = @"on", OFF removes override)
-//   • Dynamic WAGRABFlagBrowserVC: shows ALL WAABProperties bool methods at runtime
-//   • Search in dynamic browser
-//   • Featured curated sections
+// RyukGram-style dark UI with:
+//   • Runtime WAABProperties flag browser
+//   • Switch semantics for positive and negative/kill-switch gates
+//   • Categorized runtime sections
 //   • Restart WhatsApp button
 
 #import "WAGramMenuVC.h"
@@ -12,23 +11,66 @@
 
 // ── Accent colour ─────────────────────────────────────────────────────────────
 static UIColor *WAGRAccent(void)  { return [UIColor systemBlueColor]; }
-static UIColor *WAGRBG(void)      { return [UIColor systemGroupedBackgroundColor]; }
-static UIColor *WAGRCellBG(void)  { return [UIColor secondarySystemGroupedBackgroundColor]; }
+static UIColor *WAGRBG(void)      { return [UIColor blackColor]; }
+static UIColor *WAGRCellBG(void)  { return [UIColor colorWithWhite:0.10 alpha:1.0]; }
+static UIColor *WAGRLineColor(void){ return [UIColor colorWithWhite:0.24 alpha:1.0]; }
 
 // ── NSUserDefaults helpers (on/off strings) ───────────────────────────────────
-static BOOL WAGRFlagIsOn(NSString *flag) {
-    return [[[NSUserDefaults standardUserDefaults] stringForKey:WAGRKey(flag)] isEqualToString:@"on"];
+static NSString *WAGRFlagStoredValue(NSString *flag) {
+    return [[NSUserDefaults standardUserDefaults] stringForKey:WAGRKey(flag)];
 }
-static void WAGRFlagSet(NSString *flag, BOOL on) {
-    if (on) [[NSUserDefaults standardUserDefaults] setObject:@"on" forKey:WAGRKey(flag)];
-    else    [[NSUserDefaults standardUserDefaults] removeObjectForKey:WAGRKey(flag)];
+static BOOL WAGRFlagIsOn(NSString *flag) {
+    return [WAGRFlagStoredValue(flag) isEqualToString:@"on"];
+}
+static BOOL WAGRFlagIsOff(NSString *flag) {
+    return [WAGRFlagStoredValue(flag) isEqualToString:@"off"];
+}
+static BOOL WAGRFlagIsNegativeGate(NSString *flag) {
+    NSString *f = flag.lowercaseString ?: @"";
+    return [f containsString:@"killswitch"] ||
+           [f containsString:@"kill_switch"] ||
+           [f containsString:@"disabled"] ||
+           [f containsString:@"disable_"] ||
+           [f containsString:@"_disable"] ||
+           [f containsString:@"hide_"] ||
+           [f containsString:@"_hide"] ||
+           [f containsString:@"hidden"] ||
+           [f containsString:@"block"] ||
+           [f containsString:@"deny"];
+}
+static NSString *WAGRFlagDisplayName(NSString *flag) {
+    return flag ?: @"";
+}
+static BOOL WAGRFlagVisualIsOn(NSString *flag) {
+    if (WAGRFlagIsNegativeGate(flag)) return WAGRFlagIsOff(flag);
+    return WAGRFlagIsOn(flag);
+}
+static NSString *WAGRFlagOverrideDetail(NSString *flag) {
+    NSString *v = WAGRFlagStoredValue(flag);
+    if (!v.length) return @"";
+    if (WAGRFlagIsNegativeGate(flag)) {
+        if ([v isEqualToString:@"off"]) return @"allow · force OFF";
+        if ([v isEqualToString:@"on"])  return @"block · force ON";
+    }
+    return [v isEqualToString:@"on"] ? @"force ON" : @"force OFF";
+}
+static void WAGRFlagSetRaw(NSString *flag, NSString *value) {
+    if (!flag.length) return;
+    if (value.length) [[NSUserDefaults standardUserDefaults] setObject:value forKey:WAGRKey(flag)];
+    else [[NSUserDefaults standardUserDefaults] removeObjectForKey:WAGRKey(flag)];
     [[NSUserDefaults standardUserDefaults] synchronize];
     WAGRWAABEnsureHooksInstalled();
-    // Cascade for LiquidGlass
     if ([flag containsString:@"liquid_glass"] || [flag isEqualToString:@"status_viewer_redesign_enabled"])
         WAGRLGPrefsDidChange();
-    if ([flag containsString:@"internal"] || [flag containsString:@"dogfood"])
+    if ([flag containsString:@"internal"] || [flag containsString:@"dogfood"] || [flag containsString:@"debug"])
         WAGRDogfoodEnsureHooksInstalled();
+}
+static void WAGRFlagSet(NSString *flag, BOOL visibleOn) {
+    if (WAGRFlagIsNegativeGate(flag)) {
+        WAGRFlagSetRaw(flag, visibleOn ? @"off" : @"on");
+    } else {
+        WAGRFlagSetRaw(flag, visibleOn ? @"on" : @"off");
+    }
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -100,8 +142,8 @@ static void WAGRAlert(NSString *title, NSString *msg) {
     _lbl = [[UILabel alloc] init];
     _lbl.translatesAutoresizingMaskIntoConstraints = NO;
     _lbl.text = [title uppercaseString];
-    _lbl.font = [UIFont systemFontOfSize:12 weight:UIFontWeightSemibold];
-    _lbl.textColor = WAGRAccent();
+    _lbl.font = [UIFont systemFontOfSize:13 weight:UIFontWeightSemibold];
+    _lbl.textColor = UIColor.secondaryLabelColor;
     [self addSubview:_lbl];
     [NSLayoutConstraint activateConstraints:@[
         [_lbl.leadingAnchor  constraintEqualToAnchor:self.leadingAnchor  constant:20],
@@ -184,9 +226,9 @@ static NSString *const kIDAB  = @"ab";
     NSUInteger active = 0;
     NSUserDefaults *ud = NSUserDefaults.standardUserDefaults;
     for (NSString *f in _allFlags)
-        if ([[ud stringForKey:WAGRKey(f)] isEqualToString:@"on"]) active++;
+        if ([[ud stringForKey:WAGRKey(f)] length]) active++;
     self.navigationItem.title = active > 0
-        ? [NSString stringWithFormat:@"%@ (%lu on)", self.title, (unsigned long)active]
+        ? [NSString stringWithFormat:@"%@ (%lu overrides)", self.title, (unsigned long)active]
         : self.title;
 }
 
@@ -224,24 +266,20 @@ static const char kBrowserFlagKey = 0;
     if (!cell) cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleSubtitle reuseIdentifier:kIDAB];
 
     NSString *flag = _filtered[(NSUInteger)ip.row];
-    BOOL isOn = WAGRFlagIsOn(flag);
+    BOOL isOn = WAGRFlagVisualIsOn(flag);
 
     cell.backgroundColor = WAGRCellBG();
-    cell.textLabel.text  = flag;
-    cell.textLabel.font  = [UIFont monospacedSystemFontOfSize:11 weight:UIFontWeightRegular];
+    cell.textLabel.text  = WAGRFlagDisplayName(flag);
+    cell.textLabel.font  = [UIFont monospacedSystemFontOfSize:10 weight:UIFontWeightRegular];
+    cell.textLabel.numberOfLines = 2;
+    cell.textLabel.lineBreakMode = NSLineBreakByTruncatingMiddle;
     cell.textLabel.textColor = UIColor.labelColor;
     cell.selectionStyle = UITableViewCellSelectionStyleNone;
 
-    // Show system value if known
-    Class cls = NSClassFromString(@"WAABProperties");
-    if (cls && !isOn) {
-        // Try to read the current system value (if WAABProperties is accessible)
-        cell.detailTextLabel.text = @"";
-        cell.detailTextLabel.textColor = UIColor.secondaryLabelColor;
-    } else {
-        cell.detailTextLabel.text = isOn ? @"force ON" : @"";
-        cell.detailTextLabel.textColor = UIColor.systemGreenColor;
-    }
+    NSString *detail = WAGRFlagOverrideDetail(flag);
+    cell.detailTextLabel.text = detail;
+    cell.detailTextLabel.font = [UIFont systemFontOfSize:10 weight:UIFontWeightSemibold];
+    cell.detailTextLabel.textColor = [detail containsString:@"allow"] || [detail containsString:@"force ON"] ? UIColor.systemGreenColor : UIColor.systemOrangeColor;
 
     UISwitch *sw = [[UISwitch alloc] init];
     sw.on = isOn;
@@ -258,13 +296,13 @@ static const char kBrowserFlagKey = 0;
     // Find the cell and update its detail
     for (UITableViewCell *cell in self.tableView.visibleCells) {
         if ([objc_getAssociatedObject(cell.accessoryView, &kBrowserFlagKey) isEqualToString:flag]) {
-            cell.detailTextLabel.text = sw.isOn ? @"force ON" : @"";
+            cell.detailTextLabel.text = WAGRFlagOverrideDetail(flag);
         }
     }
     [self updateTitle];
 }
 
-- (CGFloat)tableView:(UITableView *)tv heightForRowAtIndexPath:(NSIndexPath *)ip { return 58; }
+- (CGFloat)tableView:(UITableView *)tv heightForRowAtIndexPath:(NSIndexPath *)ip { return 72; }
 @end
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -300,7 +338,7 @@ static const char kSubFlagKey = 0;
     return _sections[(NSUInteger)s].header.length ? 36 : 0;
 }
 - (NSString *)tableView:(UITableView *)tv titleForFooterInSection:(NSInteger)s {
-    return _sections[(NSUInteger)s].footer;
+    return nil;
 }
 
 - (UITableViewCell *)tableView:(UITableView *)tv cellForRowAtIndexPath:(NSIndexPath *)ip {
@@ -310,14 +348,17 @@ static const char kSubFlagKey = 0;
         UITableViewCell *c = [tv dequeueReusableCellWithIdentifier:kIDAB];
         if (!c) c = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleSubtitle reuseIdentifier:kIDAB];
         c.backgroundColor = WAGRCellBG();
-        c.textLabel.text = row.title;
+        c.textLabel.text = WAGRFlagDisplayName(row.waabKey ?: row.title);
         c.textLabel.textColor = UIColor.labelColor;
-        c.detailTextLabel.text = row.waabKey;
-        c.detailTextLabel.font = [UIFont monospacedSystemFontOfSize:11 weight:UIFontWeightRegular];
-        c.detailTextLabel.textColor = UIColor.secondaryLabelColor;
+        c.textLabel.font = [UIFont monospacedSystemFontOfSize:10 weight:UIFontWeightRegular];
+        c.textLabel.numberOfLines = 2;
+        c.textLabel.lineBreakMode = NSLineBreakByTruncatingMiddle;
+        c.detailTextLabel.text = WAGRFlagOverrideDetail(row.waabKey);
+        c.detailTextLabel.font = [UIFont systemFontOfSize:10 weight:UIFontWeightSemibold];
+        c.detailTextLabel.textColor = [c.detailTextLabel.text containsString:@"allow"] || [c.detailTextLabel.text containsString:@"force ON"] ? UIColor.systemGreenColor : UIColor.systemOrangeColor;
         c.selectionStyle = UITableViewCellSelectionStyleNone;
         UISwitch *sw = [[UISwitch alloc] init];
-        sw.on = WAGRFlagIsOn(row.waabKey);
+        sw.on = WAGRFlagVisualIsOn(row.waabKey);
         sw.onTintColor = WAGRAccent();
         objc_setAssociatedObject(sw, &kSubFlagKey, row.waabKey, OBJC_ASSOCIATION_COPY_NONATOMIC);
         [sw addTarget:self action:@selector(waabSwitchChanged:) forControlEvents:UIControlEventValueChanged];
@@ -329,7 +370,8 @@ static const char kSubFlagKey = 0;
         if (!c) c = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleSubtitle reuseIdentifier:kIDSW];
         c.backgroundColor = WAGRCellBG();
         c.textLabel.text = row.title; c.textLabel.textColor = UIColor.labelColor;
-        c.detailTextLabel.text = row.subtitle; c.detailTextLabel.textColor = UIColor.secondaryLabelColor;
+        c.textLabel.font = [UIFont systemFontOfSize:17 weight:UIFontWeightRegular];
+        c.detailTextLabel.text = nil;
         c.selectionStyle = UITableViewCellSelectionStyleNone;
         UISwitch *sw = [[UISwitch alloc] init];
         sw.on = row.prefsKey ? WAEnabled(row.prefsKey) : NO;
@@ -344,7 +386,8 @@ static const char kSubFlagKey = 0;
         if (!c) c = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleValue1 reuseIdentifier:kIDNAV];
         c.backgroundColor = WAGRCellBG();
         c.textLabel.text = row.title; c.textLabel.textColor = UIColor.labelColor;
-        c.detailTextLabel.text = row.subtitle; c.detailTextLabel.textColor = UIColor.tertiaryLabelColor;
+        c.textLabel.font = [UIFont systemFontOfSize:17 weight:UIFontWeightRegular];
+        c.detailTextLabel.text = nil;
         c.accessoryType = UITableViewCellAccessoryDisclosureIndicator;
         return c;
     }
@@ -411,6 +454,17 @@ static UIViewController *browserVC(NSString *title, NSArray<NSString *> *tokens)
     return vc;
 }
 
+static NSArray<WAGramRow *> *WAGRWAABRowsForTokens(NSArray<NSString *> *tokens) {
+    NSMutableArray<WAGramRow *> *rows = [NSMutableArray array];
+    for (NSString *flag in WAGRRuntimeFlagsMatchingTokens(tokens)) {
+        [rows addObject:WAAB(flag, flag)];
+    }
+    return rows;
+}
+static WAGramSectionDef *WAGRRuntimeSection(NSString *header, NSArray<NSString *> *tokens) {
+    return [WAGramSectionDef sectionWithHeader:header footer:nil rows:WAGRWAABRowsForTokens(tokens)];
+}
+
 // ── Liquid Glass (exact mirror of working dylib) ──────────────────────────────
 static UIViewController *LGSubVC(void) {
     NSArray *wdsFlags = @[
@@ -450,16 +504,13 @@ static UIViewController *LGSubVC(void) {
             WAAB(@"ios_liquid_glass_fixes_for_older_ios",  @"LG Fixes (older iOS)"),
             WAAB(@"ios_liquid_glass_workaround_attachment_tray", @"LG Fix: Attachment Tray"),
             WAAB(@"ios_liquid_glass_chat_top_bar_m2_enabled", @"LG Chat Top Bar M2"),
-            WAAB(@"ios_liquid_glass_media_editor_enabled", @"LG Media Editor"),
+            WAAB(@"ios_liquid_glass_enable_new_chatbar_ux", @"LG New Chatbar UX"),
             WAAB(@"status_viewer_redesign_enabled",        @"Status Viewer Redesign")
         ),
         [WAGramSectionDef sectionWithHeader:@"WDSLiquidGlass class methods"
                                      footer:@"Controlados pelo master toggle. Não configurable individualmente."
                                        rows:wdsRows],
-        SEC(@"WAAB Runtime — LiquidGlass",
-            @"Lista dinâmica baseada no mesmo ALL WAABProperties FLAGS.",
-            NAV(@"Todas flags LiquidGlass reais", @"liquid_glass, status_viewer_redesign", browserVC(@"LiquidGlass Runtime", @[@"liquid_glass", @"status_viewer_redesign"]))
-        ),
+        WAGRRuntimeSection(@"WAAB Runtime — LiquidGlass", @[@"liquid_glass", @"status_viewer_redesign"]),
         SEC(@"Diagnóstico",@"",
             BTN(@"LiquidGlass Diagnostic", ^(BOOL _){ WAGRAlert(@"LiquidGlass", WAGRLGDiagnosticText()); })
         ),
@@ -514,10 +565,7 @@ static UIViewController *DogfoodSubVC(void) {
                ^(BOOL on){ WAGRDogfoodEnsureHooksInstalled(); }),
             BTN(@"Dogfood Diagnostic", ^(BOOL _){ WAGRAlert(@"Dogfood", WAGRDogfoodDiagnosticText()); })
         ),
-        SEC(@"WAAB Runtime — Debug/Dogfood/Internal",
-            @"Lista dinâmica baseada no mesmo ALL WAABProperties FLAGS. Essas são as flags reais que existem no runtime.",
-            NAV(@"Todas flags Debug/Dogfood/Internal reais", @"internal, dogfood, employee, debug, tester, diagnostics", browserVC(@"Debug/Dogfood/Internal Runtime", @[@"internal", @"dogfood", @"employee", @"debug", @"tester", @"diagnostic", @"diagnostics"]))
-        ),
+        WAGRRuntimeSection(@"WAAB Runtime — Debug/Dogfood/Internal", @[@"internal", @"dogfood", @"employee", @"debug", @"tester", @"diagnostic", @"diagnostics"]),
         SEC(@"WAAB Bool Flags — via method hook",
             @"Via WAABProperties direct method hook.",
             WAAB(@"is_internal_tester",          @"is_internal_tester"),
@@ -544,133 +592,129 @@ static NSArray<NSString *> *AITokens(void) {
 }
 
 static UIViewController *AISubVC(void) {
-    // Tudo que é IA fica aqui: Meta AI, AI Tab, genAI, imagine, voice, hatch,
-    // incognito, side chat, chat threads, rewrite/summarize, SMB AI automation
-    // e tradução AI. A lista é dinâmica e vem do mesmo runtime do ALL WAAB.
     return [[WAGramSubMenuVC alloc] initWithSections:@[
-        SEC(@"Runtime — AI / Artificial Intelligence",
-            @"Lista dinâmica baseada no mesmo ALL WAABProperties FLAGS. Mostra só selectors reais encontrados no runtime.",
-            NAV(@"Todas flags AI reais", @"Meta AI, genAI, imagine, voice, hatch, incognito, side chat, AI tab, SMB AI", browserVC(@"AI Runtime", AITokens()))
-        ),
-        SEC(@"Subcategorias", @"Todas ainda usam runtimeFlags; não há lista falsa/hardcoded sem selector real.",
-            NAV(@"Meta AI / Main Gate", @"meta_ai, in_app_tab, ai_home, psi", browserVC(@"Meta AI / Main Gate", @[@"meta_ai", @"meta_ai_in_app_tab", @"ai_home", @"psi_ux", @"ai_tab"])),
-            NAV(@"GenAI / Imagine / Media", @"genai, imagine, image, media input", browserVC(@"GenAI / Imagine / Media", @[@"genai", @"imagine", @"image_creation", @"media_input", @"voice_image", @"live_video"])),
-            NAV(@"Incognito AI", @"incognito", browserVC(@"Incognito AI", @[@"incognito"])),
-            NAV(@"Side Chat", @"side_chat, writing, summarize, suggestions", browserVC(@"AI Side Chat", @[@"side_chat", @"writing_help", @"summarization", @"summarize", @"contextual_suggestion"])),
-            NAV(@"Hatch", @"hatch", browserVC(@"AI Hatch", @[@"hatch"])),
-            NAV(@"AI Threads / Chat", @"chat_threads, rich_response, rewrite", browserVC(@"AI Threads / Chat", @[@"chat_threads", @"rich_response", @"rewrite", @"chat_list_search"])),
-            NAV(@"Voice / Assistant / Bot", @"voice, assistant, bot, prompt, llm", browserVC(@"Voice / Assistant / Bot", @[@"voice", @"assistant", @"bot", @"prompt", @"llm"])),
-            NAV(@"SMB AI / Automation", @"smb_ai, automator, ai_reply, rewrite_summary_for_smb", browserVC(@"SMB AI / Automation", @[@"smb_ai", @"automator", @"automation", @"ai_reply", @"rewrite_summary_for_smb"])),
-            NAV(@"AI Translation", @"ai_translate, translate_messages", browserVC(@"AI Translation", @[@"ai_translate", @"translate_messages", @"translation"])),
-            NAV(@"AI Tab", @"ai_tab, meta_ai_in_app_tab, tab_glyph", browserVC(@"AI Tab", @[@"ai_tab", @"meta_ai_in_app_tab", @"tab_glyph"]))
-        ),
-    ] title:@"AI / Artificial Intelligence"];
+        WAGRRuntimeSection(@"All AI", AITokens()),
+        WAGRRuntimeSection(@"Meta AI / Main Gate", @[@"meta_ai", @"meta_ai_in_app_tab", @"ai_home", @"psi_ux", @"ai_tab"]),
+        WAGRRuntimeSection(@"GenAI / Imagine / Media", @[@"genai", @"imagine", @"image_creation", @"media_input", @"voice_image", @"live_video"]),
+        WAGRRuntimeSection(@"Incognito AI", @[@"incognito"]),
+        WAGRRuntimeSection(@"Side Chat", @[@"side_chat", @"writing_help", @"summarization", @"summarize", @"contextual_suggestion"]),
+        WAGRRuntimeSection(@"Hatch", @[@"hatch"]),
+        WAGRRuntimeSection(@"AI Threads / Chat", @[@"chat_threads", @"rich_response", @"rewrite", @"chat_list_search"]),
+        WAGRRuntimeSection(@"Voice / Assistant / Bot", @[@"voice", @"assistant", @"bot", @"prompt", @"llm"]),
+        WAGRRuntimeSection(@"SMB AI / Automation", @[@"smb_ai", @"automator", @"automation", @"ai_reply", @"rewrite_summary_for_smb"]),
+        WAGRRuntimeSection(@"AI Translation", @[@"ai_translate", @"translate_messages", @"translation"]),
+        WAGRRuntimeSection(@"AI Tab", @[@"ai_tab", @"meta_ai_in_app_tab", @"tab_glyph"]),
+    ] title:@"AI"];
 }
 
 // ── Calls ─────────────────────────────────────────────────────────────────────
 static UIViewController *CallsSubVC(void) {
-    return browserVC(@"Calls", @[@"call", @"calling", @"callkit", @"scheduled_call"]);
+    return [[WAGramSubMenuVC alloc] initWithSections:@[
+        WAGRRuntimeSection(@"Calls", @[@"call", @"calling", @"callkit", @"scheduled_call"]),
+        WAGRRuntimeSection(@"CallKit", @[@"callkit"]),
+        WAGRRuntimeSection(@"Scheduled Calls", @[@"scheduled_call", @"schedule_call"]),
+    ] title:@"Calls"];
 }
 
 // ── Status ────────────────────────────────────────────────────────────────────
 static UIViewController *StatusSubVC(void) {
-    return browserVC(@"Status / Stories", @[@"status", @"story", @"stories"]);
+    return [[WAGramSubMenuVC alloc] initWithSections:@[
+        WAGRRuntimeSection(@"Status / Stories", @[@"status", @"story", @"stories"]),
+        WAGRRuntimeSection(@"Status Viewer", @[@"status_viewer", @"viewer"]),
+        WAGRRuntimeSection(@"Status Composer", @[@"status_composer", @"status_creation", @"add_status"]),
+    ] title:@"Status / Stories"];
 }
 
 // ── Channels ──────────────────────────────────────────────────────────────────
 static UIViewController *ChannelsSubVC(void) {
-    return browserVC(@"Channels", @[@"channel", @"newsletter", @"broadcast"]);
+    return [[WAGramSubMenuVC alloc] initWithSections:@[
+        WAGRRuntimeSection(@"Channels", @[@"channel", @"newsletter", @"broadcast"]),
+        WAGRRuntimeSection(@"Newsletters", @[@"newsletter"]),
+        WAGRRuntimeSection(@"Broadcast", @[@"broadcast"]),
+    ] title:@"Channels"];
 }
 
 // ── Groups & Interop ──────────────────────────────────────────────────────────
 static UIViewController *GroupsSubVC(void) {
-    return browserVC(@"Groups & Interop", @[@"group", @"community", @"interop", @"poll", @"scheduled", @"recall"]);
+    return [[WAGramSubMenuVC alloc] initWithSections:@[
+        WAGRRuntimeSection(@"Groups", @[@"group", @"groups"]),
+        WAGRRuntimeSection(@"Communities", @[@"community", @"communities"]),
+        WAGRRuntimeSection(@"Interop", @[@"interop"]),
+        WAGRRuntimeSection(@"Polls / Scheduled / Recall", @[@"poll", @"scheduled", @"recall"]),
+    ] title:@"Groups & Interop"];
 }
 
 // ── Privacy & Username ────────────────────────────────────────────────────────
 static UIViewController *PrivacySubVC(void) {
-    return browserVC(@"Privacy & Username", @[@"privacy", @"username", @"passkey", @"defense", @"secure"]);
+    return [[WAGramSubMenuVC alloc] initWithSections:@[
+        WAGRRuntimeSection(@"Privacy", @[@"privacy", @"secure"]),
+        WAGRRuntimeSection(@"Username", @[@"username"]),
+        WAGRRuntimeSection(@"Passkeys", @[@"passkey"]),
+        WAGRRuntimeSection(@"Defense Mode", @[@"defense"]),
+    ] title:@"Privacy & Username"];
 }
 
 // ── Tab Bar / Navigation ─────────────────────────────────────────────────────
 static UIViewController *TabBarSubVC(void) {
     return [[WAGramSubMenuVC alloc] initWithSections:@[
-        SEC(@"Runtime — Tab Bar / Navigation",
-            @"Flags reais de navegação, abas inferiores/superiores, updates tab, calls tab, community tab, top bar e bottom bar.",
-            NAV(@"Todas flags de Tab Bar / Navigation", @"tab, calls_tab, updates_tab, community_tab, bottom_bar, top_bar",
-                browserVC(@"Tab Bar / Navigation", @[@"tab", @"tabbar", @"calls_tab", @"updates_tab", @"community_tab", @"navigation", @"bottom_bar", @"top_bar", @"nav_bar", @"navbar"]))
-        ),
-        SEC(@"Subcategorias", @"",
-            NAV(@"Updates Tab", @"updates_tab, status tiles", browserVC(@"Updates Tab", @[@"updates_tab", @"status_tiles", @"tiles_status"])),
-            NAV(@"Calls Tab", @"calls_tab, schedule_call", browserVC(@"Calls Tab", @[@"calls_tab", @"schedule_call", @"scheduled_call"])),
-            NAV(@"Community Tab", @"community_tab", browserVC(@"Community Tab", @[@"community_tab"]))
-        ),
+        WAGRRuntimeSection(@"Tab Bar / Navigation", @[@"tab", @"tabbar", @"navigation", @"bottom_bar", @"top_bar", @"nav_bar", @"navbar"]),
+        WAGRRuntimeSection(@"Updates Tab", @[@"updates_tab", @"status_tiles", @"tiles_status"]),
+        WAGRRuntimeSection(@"Calls Tab", @[@"calls_tab", @"schedule_call", @"scheduled_call"]),
+        WAGRRuntimeSection(@"Community Tab", @[@"community_tab"]),
     ] title:@"Tab Bar / Navigation"];
 }
 
 // ── Status Bar / Top Chrome ──────────────────────────────────────────────────
 static UIViewController *StatusBarSubVC(void) {
     return [[WAGramSubMenuVC alloc] initWithSections:@[
-        SEC(@"Runtime — Status Bar / Top Chrome",
-            @"Flags reais relacionadas a status bar, title bar, nav bar, top bar e chrome superior. Separado de Status/Stories.",
-            NAV(@"Todas flags Status Bar / Top Bar", @"status_bar, title_bar, top_bar, nav_bar",
-                browserVC(@"Status Bar / Top Bar", @[@"status_bar", @"statusbar", @"title_bar", @"top_bar", @"nav_bar", @"navbar", @"navigation_bar", @"header"]))
-        ),
-        SEC(@"Subcategorias", @"",
-            NAV(@"Top Bar", @"top_bar, chat_top_bar", browserVC(@"Top Bar", @[@"top_bar", @"chat_top_bar", @"title_bar"])),
-            NAV(@"Headers", @"header, title", browserVC(@"Headers", @[@"header", @"title_bar", @"navbar"]))
-        ),
+        WAGRRuntimeSection(@"Status Bar / Top Chrome", @[@"status_bar", @"statusbar", @"title_bar", @"top_bar", @"nav_bar", @"navbar", @"navigation_bar", @"header"]),
+        WAGRRuntimeSection(@"Top Bar", @[@"top_bar", @"chat_top_bar", @"title_bar"]),
+        WAGRRuntimeSection(@"Headers", @[@"header", @"title_bar", @"navbar"]),
     ] title:@"Status Bar / Top Chrome"];
 }
 
 // ── Payments ─────────────────────────────────────────────────────────────────
 static UIViewController *PaymentsSubVC(void) {
     return [[WAGramSubMenuVC alloc] initWithSections:@[
-        SEC(@"Runtime — Payments",
-            @"Flags reais de payments, PIX, UPI, payment links, billing, checkout, order details e seller payments.",
-            NAV(@"Todas flags de Payments", @"payment, payments, pix, upi, billing, checkout, order",
-                browserVC(@"Payments", @[@"payment", @"payments", @"pay_", @"_pay", @"pix", @"upi", @"billing", @"checkout", @"order_detail", @"order_details", @"seller", @"wallet"]))
-        ),
-        SEC(@"Subcategorias", @"",
-            NAV(@"PIX / Brazil", @"br_payments, pix", browserVC(@"PIX / Brazil", @[@"br_payment", @"br_payments", @"pix"])),
-            NAV(@"UPI", @"upi", browserVC(@"UPI", @[@"upi"])),
-            NAV(@"Payment Links", @"payment_links", browserVC(@"Payment Links", @[@"payment_links", @"payment_link"])),
-            NAV(@"Billing / Checkout", @"billing, checkout, order", browserVC(@"Billing / Checkout", @[@"billing", @"checkout", @"order_detail", @"order_details"]))
-        ),
+        WAGRRuntimeSection(@"Payments", @[@"payment", @"payments", @"pay_", @"_pay", @"pix", @"upi", @"billing", @"checkout", @"order_detail", @"order_details", @"seller", @"wallet"]),
+        WAGRRuntimeSection(@"PIX / Brazil", @[@"br_payment", @"br_payments", @"pix"]),
+        WAGRRuntimeSection(@"UPI", @[@"upi"]),
+        WAGRRuntimeSection(@"Payment Links", @[@"payment_links", @"payment_link"]),
+        WAGRRuntimeSection(@"Billing / Checkout", @[@"billing", @"checkout", @"order_detail", @"order_details"]),
     ] title:@"Payments"];
 }
 
 // ── SMB / WhatsApp Business ──────────────────────────────────────────────────
 static UIViewController *SMBSubVC(void) {
     return [[WAGramSubMenuVC alloc] initWithSections:@[
-        SEC(@"Runtime — SMB / Business",
-            @"Tudo que aponta para WhatsApp Business: smb, smbi, wabi/wabie, biz, catalog, merchant, seller e commerce.",
-            NAV(@"Todas flags SMB / Business", @"smb, smbi, wabi, wabie, business, biz, catalog",
-                browserVC(@"SMB / Business", @[@"smb", @"smbi", @"wabi", @"wabie", @"business", @"biz", @"catalog", @"merchant", @"seller", @"commerce", @"shop", @"cart", @"product"]))
-        ),
-        SEC(@"Subcategorias", @"",
-            NAV(@"Catalog / Products", @"catalog, product, cart", browserVC(@"Catalog / Products", @[@"catalog", @"product", @"cart", @"shop"])),
-            NAV(@"Business Profile", @"business_profile, biz_profile", browserVC(@"Business Profile", @[@"business_profile", @"biz_profile", @"profile_view"])),
-            NAV(@"Business Broadcast", @"broadcast, premium_broadcast", browserVC(@"Business Broadcast", @[@"business_broadcast", @"premium_broadcast", @"broadcast"]))
-        ),
+        WAGRRuntimeSection(@"SMB / Business", @[@"smb", @"smbi", @"wabi", @"wabie", @"business", @"biz", @"catalog", @"merchant", @"seller", @"commerce", @"shop", @"cart", @"product"]),
+        WAGRRuntimeSection(@"Catalog / Products", @[@"catalog", @"product", @"cart", @"shop"]),
+        WAGRRuntimeSection(@"Business Profile", @[@"business_profile", @"biz_profile", @"profile_view"]),
+        WAGRRuntimeSection(@"Business Broadcast", @[@"business_broadcast", @"premium_broadcast", @"broadcast"]),
     ] title:@"SMB / WhatsApp Business"];
 }
 
 // ── Subscription / Plus / Themes ─────────────────────────────────────────────
 static UIViewController *SubscriptionSubVC(void) {
     return [[WAGramSubMenuVC alloc] initWithSections:@[
-        SEC(@"Runtime — Subscription / Plus",
-            @"Assinatura/Plus, premium, benefícios, temas de chat, app themes, app icon e customizações visuais.",
-            NAV(@"Todas flags Subscription / Plus", @"subscription, premium, plus, theme, app_icon, aura",
-                browserVC(@"Subscription / Plus", @[@"subscription", @"subscribe", @"premium", @"plus", @"benefit", @"benefits", @"theme", @"themes", @"chat_theme", @"app_theme", @"app_icon", @"aura", @"icon"]))
-        ),
-        SEC(@"Subcategorias", @"",
-            NAV(@"Subscriptions", @"subscription, subscribe", browserVC(@"Subscriptions", @[@"subscription", @"subscribe", @"subscription_status", @"subscription_type"])),
-            NAV(@"Premium / Plus", @"premium, plus, benefits", browserVC(@"Premium / Plus", @[@"premium", @"plus", @"benefit", @"benefits"])),
-            NAV(@"Chat Themes", @"chat_theme, themes", browserVC(@"Chat Themes", @[@"chat_theme", @"chat_themes", @"themes", @"theme"])),
-            NAV(@"App Icon / App Theme", @"app_icon, app_theme, aura", browserVC(@"App Icon / App Theme", @[@"app_icon", @"app_theme", @"aura_app", @"aura_apple_watch", @"icon"]))
-        ),
+        WAGRRuntimeSection(@"Subscription / Plus", @[@"subscription", @"subscribe", @"premium", @"plus", @"benefit", @"benefits", @"theme", @"themes", @"chat_theme", @"app_theme", @"app_icon", @"aura", @"icon"]),
+        WAGRRuntimeSection(@"Subscriptions", @[@"subscription", @"subscribe", @"subscription_status", @"subscription_type"]),
+        WAGRRuntimeSection(@"Premium / Plus", @[@"premium", @"plus", @"benefit", @"benefits"]),
+        WAGRRuntimeSection(@"Chat Themes", @[@"chat_theme", @"chat_themes", @"themes", @"theme"]),
+        WAGRRuntimeSection(@"App Icon / App Theme", @[@"app_icon", @"app_theme", @"aura_app", @"aura_apple_watch", @"icon"]),
     ] title:@"Subscription / Plus"];
+}
+
+// ── Kill Switches / Negative Gates ───────────────────────────────────────────
+static UIViewController *KillSwitchSubVC(void) {
+    return [[WAGramSubMenuVC alloc] initWithSections:@[
+        WAGRRuntimeSection(@"Kill Switch", @[@"killswitch", @"kill_switch", @"kill-switch"]),
+        WAGRRuntimeSection(@"Disable / Disabled", @[@"disable_", @"_disable", @"disabled"]),
+        WAGRRuntimeSection(@"Hide / Hidden", @[@"hide_", @"_hide", @"hidden"]),
+        WAGRRuntimeSection(@"Block / Deny", @[@"block", @"deny", @"denied"]),
+        WAGRRuntimeSection(@"Message Kill Switches", @[@"message_kill", @"messagekill", @"message_kill_switch", @"messagekillswitch"]),
+        WAGRRuntimeSection(@"Vault Kill Switches", @[@"vault", @"backup", @"restore", @"media_offload", @"media_refetch"]),
+    ] title:@"Kill Switches"];
 }
 
 // ── Premium & Business legacy aggregate ───────────────────────────────────────
@@ -774,7 +818,7 @@ static UIViewController *SystemSubVC(void) {
             NAV(@"Payments",            @"payment, pix, upi, billing, checkout",                      PaymentsSubVC()),
             NAV(@"SMB / WhatsApp Business", @"smb, smbi, wabi, business, catalog",                    SMBSubVC()),
             NAV(@"Subscription / Plus", @"subscription, premium, themes, app icon",                    SubscriptionSubVC()),
-            NAV(@"Premium & Business",  @"legacy aggregate",                                          PremiumSubVC()),
+            NAV(@"Kill Switches",       @"Remote disable/allow gates",                                KillSwitchSubVC()),
             NAV(@"Sistema & Debug",     @"Keychain, WAAB log, reset",                                 SystemSubVC())
         ),
         // ── Browser dinâmico ─────────────────────────────────────────────────
@@ -824,7 +868,7 @@ static UIViewController *SystemSubVC(void) {
     return _sections[(NSUInteger)s].header.length ? 38 : 8;
 }
 - (NSString *)tableView:(UITableView *)tv titleForFooterInSection:(NSInteger)s {
-    return _sections[(NSUInteger)s].footer;
+    return nil;
 }
 
 - (UITableViewCell *)tableView:(UITableView *)tv cellForRowAtIndexPath:(NSIndexPath *)ip {
@@ -835,7 +879,8 @@ static UIViewController *SystemSubVC(void) {
         if (!c) c = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleSubtitle reuseIdentifier:kIDSW];
         c.backgroundColor = WAGRCellBG();
         c.textLabel.text = row.title; c.textLabel.textColor = UIColor.labelColor;
-        c.detailTextLabel.text = row.subtitle; c.detailTextLabel.textColor = UIColor.secondaryLabelColor;
+        c.textLabel.font = [UIFont systemFontOfSize:17 weight:UIFontWeightRegular];
+        c.detailTextLabel.text = nil;
         c.selectionStyle = UITableViewCellSelectionStyleNone;
         UISwitch *sw = [[UISwitch alloc] init];
         sw.on = row.prefsKey ? WAEnabled(row.prefsKey) : NO;
@@ -850,7 +895,8 @@ static UIViewController *SystemSubVC(void) {
         if (!c) c = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleValue1 reuseIdentifier:kIDNAV];
         c.backgroundColor = WAGRCellBG();
         c.textLabel.text = row.title; c.textLabel.textColor = UIColor.labelColor;
-        c.detailTextLabel.text = row.subtitle; c.detailTextLabel.textColor = UIColor.tertiaryLabelColor;
+        c.textLabel.font = [UIFont systemFontOfSize:17 weight:UIFontWeightRegular];
+        c.detailTextLabel.text = nil;
         c.detailTextLabel.font = [UIFont systemFontOfSize:13];
         c.accessoryType = UITableViewCellAccessoryDisclosureIndicator;
         return c;
