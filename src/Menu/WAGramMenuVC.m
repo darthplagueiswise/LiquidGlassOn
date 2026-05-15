@@ -890,8 +890,6 @@ static UIViewController *SystemSubVC(void) {
     return _sections[(NSUInteger)s].footer;
 }
 
-static const char kRootFlagKey = 0;
-
 - (UITableViewCell *)tableView:(UITableView *)tv cellForRowAtIndexPath:(NSIndexPath *)ip {
     WAGramRow *row = _sections[(NSUInteger)ip.section].rows[(NSUInteger)ip.row];
 
