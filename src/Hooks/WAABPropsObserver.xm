@@ -8,12 +8,7 @@
 //   integerForKey:defaultValue:
 //   doubleForKey:defaultValue:
 //
-// Rules:
-//   • If all toggles are OFF and no saved WAAB override exists, startup stays inert.
-//   • bool keys use tri-state System / OFF / ON.
-//   • number and string keys use typed override only after explicit user input.
-//   • unknown/static-only keys are observe-only until runtime confirms a getter.
-//   • No global “force everything” behavior.
+// mode: 0=System, 1=Force OFF/0/empty, 2=Force ON/1/enabled.
 // ─────────────────────────────────────────────────────────────────────────────
 
 #import <Foundation/Foundation.h>
@@ -33,7 +28,6 @@ static BOOL (*orig_WAABBool)(id, SEL, NSString *, BOOL) = NULL;
 static id (*orig_WAABString)(id, SEL, NSString *, id) = NULL;
 static NSInteger (*orig_WAABInteger)(id, SEL, NSString *, NSInteger) = NULL;
 static double (*orig_WAABDouble)(id, SEL, NSString *, double) = NULL;
-
 
 static void WAGRABEnsureStorage(void) {
     dispatch_once(&_wagrABInitOnce, ^{
@@ -113,7 +107,12 @@ static NSInteger hook_WAABInteger(id self, SEL _cmd, NSString *key, NSInteger de
     WAGRWAABRememberRuntime(key, @"integer", @(original));
     NSInteger mode = [[NSUserDefaults standardUserDefaults] integerForKey:WAGRWAABKeyMode(key)];
     if (mode == 1) {
-        NSInteger forced = [[NSUserDefaults standardUserDefaults] integerForKey:WAGRWAABKeyNumber(key)];
+        WAGRABLogGetter(@"integer", self, _cmd, key, @0, YES);
+        return 0;
+    }
+    if (mode == 2) {
+        id stored = [NSUserDefaults.standardUserDefaults objectForKey:WAGRWAABKeyNumber(key)];
+        NSInteger forced = stored ? [stored integerValue] : 1;
         WAGRABLogGetter(@"integer", self, _cmd, key, @(forced), YES);
         return forced;
     }
@@ -126,7 +125,12 @@ static double hook_WAABDouble(id self, SEL _cmd, NSString *key, double defaultVa
     WAGRWAABRememberRuntime(key, @"double", @(original));
     NSInteger mode = [[NSUserDefaults standardUserDefaults] integerForKey:WAGRWAABKeyMode(key)];
     if (mode == 1) {
-        double forced = [[NSUserDefaults standardUserDefaults] doubleForKey:WAGRWAABKeyNumber(key)];
+        WAGRABLogGetter(@"double", self, _cmd, key, @0, YES);
+        return 0.0;
+    }
+    if (mode == 2) {
+        id stored = [NSUserDefaults.standardUserDefaults objectForKey:WAGRWAABKeyNumber(key)];
+        double forced = stored ? [stored doubleValue] : 1.0;
         WAGRABLogGetter(@"double", self, _cmd, key, @(forced), YES);
         return forced;
     }
