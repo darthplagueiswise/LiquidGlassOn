@@ -2,8 +2,7 @@
 // Safe DexKit-style direct selector runtime for WAAB-style flags.
 //
 // Important: this intentionally hooks only WAAB/ABProperties-style classes.
-// The previous global scan across Debug/Gating/Experiment/Feature classes was
-// too broad, made Internal mode slow, and could hook unrelated methods.
+// Broad scans across Debug/Gating/Experiment/Feature classes caused lag/crash.
 
 #import <Foundation/Foundation.h>
 #import <objc/runtime.h>
@@ -65,7 +64,6 @@ static NSArray<Class> *WAGDirectTargetClasses(void) {
         if (cls && ![classes containsObject:cls]) [classes addObject:cls];
     }
 
-    // Narrow fallback: only class names that explicitly look like ABProperties.
     unsigned int count = 0;
     Class *all = objc_copyClassList(&count);
     if (all) {
@@ -154,12 +152,12 @@ static void WAGDirectInstallForActiveKeys(void) {
     gWAGDirectDidInit = YES;
 }
 
-void WAGRDirectFlagsEnsureHooksInstalled(void) {
+extern "C" void WAGRDirectFlagsEnsureHooksInstalled(void) {
     WAGDirectInitStorage();
     dispatch_async(gWAGDirectQueue, ^{ WAGDirectInstallForActiveKeys(); });
 }
 
-NSString *WAGRDirectFlagsDiagnosticText(void) {
+extern "C" NSString *WAGRDirectFlagsDiagnosticText(void) {
     WAGDirectInitStorage();
     return [NSString stringWithFormat:@"direct runtime=%@\nactive keys=%lu\nhooked selectors=%lu\nmissing active selectors=%lu\nmodel=NSUserDefaults + WAAB direct bool selectors only",
             gWAGDirectDidInit ? @"ON" : @"IDLE",
