@@ -313,7 +313,7 @@ static const char kSubFlagKey = 0;
         c.textLabel.text = row.title;
         c.textLabel.textColor = UIColor.labelColor;
         c.detailTextLabel.text = row.waabKey;
-        c.detailTextLabel.font = [UIFont monospacedSystemFontOfSize:10 weight:UIFontWeightRegular];
+        c.detailTextLabel.font = [UIFont monospacedSystemFontOfSize:11 weight:UIFontWeightRegular];
         c.detailTextLabel.textColor = UIColor.secondaryLabelColor;
         c.selectionStyle = UITableViewCellSelectionStyleNone;
         UISwitch *sw = [[UISwitch alloc] init];
@@ -386,31 +386,28 @@ static const char kSubFlagKey = 0;
 #define NAV(t,s,vc)   [WAGramRow navWithTitle:(t) subtitle:(s) target:(vc)]
 #define SEC(h,f,...)  [WAGramSectionDef sectionWithHeader:(h) footer:(f) rows:@[__VA_ARGS__]]
 
-// Helper: make a flag browser from runtime WAABProperties flags filtered by tokens.
-// This is intentionally the same source used by “All WAABProperties Flags”;
-// category menus are views over the real runtime selector list, not hardcoded guesses.
-static BOOL WAGRFlagMatchesTokens(NSString *flag, NSArray<NSString *> *tokens) {
-    if (!tokens.count) return YES;
-    NSString *lower = [flag lowercaseString];
-    for (NSString *tok in tokens) {
-        if (![tok isKindOfClass:NSString.class] || !tok.length) continue;
-        if ([lower containsString:[tok lowercaseString]]) return YES;
-    }
-    return NO;
-}
-
-static NSArray<NSString *> *WAGRRuntimeFlagsForTokens(NSArray<NSString *> *tokens) {
+// Helper: make a runtime flag browser from token filters.
+// Uses the exact same source as “ALL WAABProperties Flags”: WAGRABFlagBrowserVC runtimeFlags.
+// Category menus are filtered views of the live WAABProperties selector list.
+static NSArray<NSString *> *WAGRRuntimeFlagsMatchingTokens(NSArray<NSString *> *tokens) {
     NSArray<NSString *> *all = [WAGRABFlagBrowserVC runtimeFlags];
     if (!tokens.count) return all;
     NSMutableArray<NSString *> *out = [NSMutableArray array];
     for (NSString *flag in all) {
-        if (WAGRFlagMatchesTokens(flag, tokens)) [out addObject:flag];
+        NSString *lower = flag.lowercaseString;
+        for (NSString *tok in tokens) {
+            if ([lower containsString:tok.lowercaseString]) {
+                [out addObject:flag];
+                break;
+            }
+        }
     }
     return [out sortedArrayUsingSelector:@selector(compare:)];
 }
 
 static UIViewController *browserVC(NSString *title, NSArray<NSString *> *tokens) {
-    WAGRABFlagBrowserVC *vc = [[WAGRABFlagBrowserVC alloc] initWithTitle:title flags:WAGRRuntimeFlagsForTokens(tokens)];
+    WAGRABFlagBrowserVC *vc = [[WAGRABFlagBrowserVC alloc] initWithTitle:title
+                                                                   flags:WAGRRuntimeFlagsMatchingTokens(tokens)];
     return vc;
 }
 
@@ -459,9 +456,9 @@ static UIViewController *LGSubVC(void) {
         [WAGramSectionDef sectionWithHeader:@"WDSLiquidGlass class methods"
                                      footer:@"Controlados pelo master toggle. Não configurable individualmente."
                                        rows:wdsRows],
-        SEC(@"WAABProperties runtime LG flags",
-            @"Mesma lógica do ALL WAABPROPERTIES FLAGS, filtrada por liquid_glass/status_viewer. Estes toggles usam as keys reais do runtime.",
-            NAV(@"Todos os LiquidGlass flags reais", @"runtime WAABProperties filter", browserVC(@"LiquidGlass WAAB Flags", @[@"liquid_glass", @"status_viewer_redesign"]))
+        SEC(@"WAAB Runtime — LiquidGlass",
+            @"Lista dinâmica baseada no mesmo ALL WAABProperties FLAGS.",
+            NAV(@"Todas flags LiquidGlass reais", @"liquid_glass, status_viewer_redesign", browserVC(@"LiquidGlass Runtime", @[@"liquid_glass", @"status_viewer_redesign"]))
         ),
         SEC(@"Diagnóstico",@"",
             BTN(@"LiquidGlass Diagnostic", ^(BOOL _){ WAGRAlert(@"LiquidGlass", WAGRLGDiagnosticText()); })
@@ -471,114 +468,191 @@ static UIViewController *LGSubVC(void) {
 
 // ── About / Evolve About (recado redesign) ────────────────────────────────────
 static UIViewController *AboutSubVC(void) {
-    return browserVC(@"About / Recado", @[@"about", @"recado", @"evolve_about"]);
+    return browserVC(@"About / Recado", @[@"about", @"evolve_about", @"recado"]);
 }
-
 
 // ── Translation ───────────────────────────────────────────────────────────────
 static UIViewController *TranslationSubVC(void) {
     return browserVC(@"Translation", @[@"translate", @"translation"]);
 }
 
-
 // ── Debug / Developer Menu ────────────────────────────────────────────────────
 static UIViewController *DebugMenuSubVC(void) {
     return [[WAGramSubMenuVC alloc] initWithSections:@[
         SEC(@"Native Debug Menu Gate",
-            @"isDebugMenuAllowed em WASettingsViewController. ON = tenta mostrar SettingsView_DeveloperCell → WADebugMenuMain.",
+            @"isDebugMenuAllowed em WASettingsViewController (WA:107333). ON = Developer cell aparece nas Settings → acessa WADebugMenuMain nativo do WA.",
             SW(kWAGRDebugMenuNative, @"isDebugMenuAllowed = YES",
                @"Mostra SettingsView_DeveloperCell → WADebugMenuMain",
                ^(BOOL on){ WAGRDebugMenuEnsureHooksInstalled(); }),
-            SW(kWAGRInternalMaster, @"Internal Master",
-               @"Master interno global usado pelos hooks; existe em WAGramPrefix/Tweak.x",
-               ^(BOOL on){ WAGRDebugMenuEnsureHooksInstalled(); WAGRDogfoodEnsureHooksInstalled(); }),
             BTN(@"Debug Menu Diagnostic", ^(BOOL _){ WAGRAlert(@"Debug Menu", WAGRDebugMenuDiagnosticText()); })
-        ),
-        SEC(@"Runtime WAABProperties Debug/Internal",
-            @"Mesma fonte do ALL WAABPROPERTIES FLAGS, filtrada por debug/internal/dogfood/employee/tester/diagnostics.",
-            NAV(@"Todos Debug/Dogfood/Internal flags reais", @"runtime WAABProperties filter", browserVC(@"Debug / Dogfood / Internal Flags", @[@"internal", @"dogfood", @"employee", @"debug", @"tester", @"diagnostic", @"diagnostics"]))
         ),
     ] title:@"Debug / Developer Menu"];
 }
-
 
 // ── Dogfood / Employee ────────────────────────────────────────────────────────
 static UIViewController *DogfoodSubVC(void) {
     return [[WAGramSubMenuVC alloc] initWithSections:@[
         SEC(@"Direct ObjC Selector Hooks",
-            @"Hooks diretos persistentes. Employee/Internal/Debug masters forçam os gates; os switches individuais continuam disponíveis.",
+            @"MSHookMessageEx em runtime scan. A lógica: primeiro hookamos estas funções. Quando o app chama 'sou employee?', o hook responde SIM. Aí as features que checam isso funcionam.",
             SW(kWAGREmployeeMaster, @"Employee Master",
-               @"Força os gates de employee/dogfood",
+               @"Força todos os 4 gates abaixo ao mesmo tempo",
                ^(BOOL on){ WAGRDogfoodEnsureHooksInstalled(); }),
             SW(kWAGRInternalMaster, @"Internal Master",
-               @"Master interno global usado pelos hooks",
-               ^(BOOL on){ WAGRDogfoodEnsureHooksInstalled(); WAGRDebugMenuEnsureHooksInstalled(); }),
-            SW(kWAGRDebugMode, @"Debug Mode",
-               @"Ativa modo debug/logging e participa do effective force",
-               ^(BOOL on){ WAGRDogfoodEnsureHooksInstalled(); WAGRDebugMenuEnsureHooksInstalled(); }),
+               @"Força paths internal/debug complementares usados por WAAB e menus nativos",
+               ^(BOOL on){ WAGRDogfoodEnsureHooksInstalled(); }),
             SW(kWAGRDogfoodGateMetaEmployee, @"isMetaEmployeeOrInternalTester",
-               @"WA/SM → YES",
+               @"WA:136909 / SM:94927 → YES",
                ^(BOOL on){ WAGRDogfoodEnsureHooksInstalled(); }),
             SW(kWAGRDogfoodGateMetaEmployeeSnake, @"is_meta_employee_or_internal_tester",
-               @"SM → YES",
+               @"SM:73827 → YES",
                ^(BOOL on){ WAGRDogfoodEnsureHooksInstalled(); }),
             SW(kWAGRDogfoodGateInternalUser, @"isInternalUser",
-               @"WA → YES",
+               @"WA:94156 → YES",
                ^(BOOL on){ WAGRDogfoodEnsureHooksInstalled(); }),
             SW(kWAGRDogfoodGateGraphQLEmpC1, @"graphQLEmployeeC1Disabled",
-               @"WA → NO (= C1 enabled)",
+               @"WA:94150 → NO (= C1 enabled)",
                ^(BOOL on){ WAGRDogfoodEnsureHooksInstalled(); }),
             BTN(@"Dogfood Diagnostic", ^(BOOL _){ WAGRAlert(@"Dogfood", WAGRDogfoodDiagnosticText()); })
         ),
-        SEC(@"WAABProperties Runtime Flags",
-            @"Mesma lógica do ALL WAABPROPERTIES FLAGS. Mostra apenas flags reais existentes no runtime.",
-            NAV(@"Todos Internal/Dogfood/Debug flags reais", @"runtime WAABProperties filter", browserVC(@"Internal / Dogfood / Debug Flags", @[@"internal", @"dogfood", @"employee", @"debug", @"tester", @"diagnostic", @"diagnostics"]))
+        SEC(@"WAAB Runtime — Debug/Dogfood/Internal",
+            @"Lista dinâmica baseada no mesmo ALL WAABProperties FLAGS. Essas são as flags reais que existem no runtime.",
+            NAV(@"Todas flags Debug/Dogfood/Internal reais", @"internal, dogfood, employee, debug, tester, diagnostics", browserVC(@"Debug/Dogfood/Internal Runtime", @[@"internal", @"dogfood", @"employee", @"debug", @"tester", @"diagnostic", @"diagnostics"]))
+        ),
+        SEC(@"WAAB Bool Flags — via method hook",
+            @"Via WAABProperties direct method hook.",
+            WAAB(@"is_internal_tester",          @"is_internal_tester"),
+            WAAB(@"mobile_config_debug_internal", @"mobile_config_debug_internal"),
+            WAAB(@"dogfooder_diagnostics",        @"dogfooder_diagnostics"),
+            WAAB(@"ios_internal_hall_enabled",    @"ios_internal_hall_enabled"),
+            WAAB(@"defense_mode_available",       @"defense_mode_available"),
+            WAAB(@"ios_optic_debug_indicator_enabled", @"ios_optic_debug_indicator_enabled"),
+            WAAB(@"visible_message_drop_placeholder_enabled_internal_only", @"Message Drop Placeholder")
         ),
     ] title:@"Dogfood / Internal"];
 }
 
-
 // ── AI & Meta AI (dynamic browser for the full AI set) ───────────────────────
 static UIViewController *AISubVC(void) {
-    return browserVC(@"AI & Meta AI", @[@"ai_", @"meta_ai", @"incognito", @"side_chat", @"hatch"]);
+    // Curated important ones + dynamic runtime browser
+    return [[WAGramSubMenuVC alloc] initWithSections:@[
+        SEC(@"WAAB Runtime — AI",
+            @"Lista dinâmica baseada no mesmo ALL WAABProperties FLAGS.",
+            NAV(@"Todas flags AI reais", @"ai_, meta_ai, incognito, side_chat, hatch", browserVC(@"AI Runtime", @[@"ai_", @"meta_ai", @"incognito", @"side_chat", @"hatch"]))
+        ),
+        SEC(@"Meta AI — Main Gate",
+            @"Flags que controlam a aba/tab Meta AI.",
+            WAAB(@"ai_meta_ai_in_app_tab_main_gate_enabled", @"Meta AI Tab Main Gate"),
+            WAAB(@"ai_home_redesign_enabled",                @"AI Home Redesign"),
+            WAAB(@"ai_psi_ux_enabled",                       @"AI PSI UX"),
+            WAAB(@"ai_search_bar_2025_redesign_enabled",     @"AI Search Bar 2025"),
+            WAAB(@"ai_tab_glyph_icon_enabled",               @"AI Tab Glyph Icon"),
+            WAAB(@"ai_tab_perf_optimizations_enabled",       @"AI Tab Perf Optimizations")
+        ),
+        SEC(@"Incognito AI Chat",
+            @"Feature anunciada pelo Zuckerberg.",
+            WAAB(@"ai_incognito_mode_enabled",               @"Incognito AI Chat"),
+            WAAB(@"ai_incognito_mode_disappearing_messages_enabled", @"Incognito Disappearing Msgs"),
+            WAAB(@"ai_incognito_mode_personalization_enabled",@"Incognito Personalization"),
+            WAAB(@"ai_incognito_media_input_enabled",        @"Incognito Media Input")
+        ),
+        SEC(@"Translation",
+            @"Feature de tradução de mensagens.",
+            WAAB(@"ai_translate_messages_enabled",           @"Translate Messages")
+        ),
+        SEC(@"Side Chat",
+            @"",
+            WAAB(@"ai_side_chat_enabled",                    @"AI Side Chat"),
+            WAAB(@"ai_side_chat_search_starter_enabled",     @"Side Chat Search"),
+            WAAB(@"ai_side_chat_summarization_enabled",      @"Side Chat Summarize"),
+            WAAB(@"ai_side_chat_writing_help_enabled",       @"Side Chat Writing Help"),
+            WAAB(@"ai_side_chat_image_creation_enabled",     @"Side Chat Image Create"),
+            WAAB(@"ai_side_chat_media_input_enabled",        @"Side Chat Media Input"),
+            WAAB(@"ai_side_chat_contextual_suggestions_enabled", @"Side Chat Suggestions"),
+            WAAB(@"ai_side_chat_animation_enabled",          @"Side Chat Animation")
+        ),
+        SEC(@"Hatch",
+            @"",
+            WAAB(@"ai_hatch_integration_enabled",            @"AI Hatch Integration"),
+            WAAB(@"ai_hatch_integration_tab_enabled",        @"AI Hatch Tab"),
+            WAAB(@"ai_hatch_commands_enabled",               @"AI Hatch Commands"),
+            WAAB(@"ai_hatch_video_upload_enabled",           @"AI Hatch Video Upload")
+        ),
+        SEC(@"Threads & Chat",
+            @"",
+            WAAB(@"ai_chat_threads_enabled",                 @"AI Chat Threads"),
+            WAAB(@"ai_chat_threads_side_sheet_enabled",      @"AI Threads Side Sheet"),
+            WAAB(@"ai_chat_threads_multiplayer_enabled",     @"AI Threads Multiplayer"),
+            WAAB(@"ai_chat_threads_pin_enabled",             @"AI Threads Pin"),
+            WAAB(@"ai_chat_list_search_enabled",             @"AI Chat List Search"),
+            WAAB(@"ai_rewrite_in_edit_message_enabled",      @"AI Rewrite in Edit"),
+            WAAB(@"ai_rich_response_tables_enabled",         @"AI Rich Response Tables")
+        ),
+        SEC(@"Ver todos os 325+ flags AI",
+            @"",
+            [WAGramRow navWithTitle:@"Browser AI flags"
+                          subtitle:@"Lista dinâmica com search"
+                            target:browserVC(@"AI Flags", @[
+                @"ai_meta_ai_in_app_tab_main_gate_enabled", @"ai_home_redesign_enabled",
+                @"ai_incognito_mode_enabled", @"ai_incognito_mode_disappearing_messages_enabled",
+                @"ai_incognito_mode_personalization_enabled", @"ai_incognito_media_input_enabled",
+                @"ai_translate_messages_enabled", @"ai_side_chat_enabled",
+                @"ai_side_chat_search_starter_enabled", @"ai_side_chat_summarization_enabled",
+                @"ai_side_chat_writing_help_enabled", @"ai_side_chat_image_creation_enabled",
+                @"ai_side_chat_media_input_enabled", @"ai_side_chat_contextual_suggestions_enabled",
+                @"ai_hatch_integration_enabled", @"ai_hatch_integration_tab_enabled",
+                @"ai_hatch_commands_enabled", @"ai_chat_threads_enabled",
+                @"ai_chat_threads_side_sheet_enabled", @"ai_chat_threads_multiplayer_enabled",
+                @"ai_chat_threads_pin_enabled", @"ai_chat_list_search_enabled",
+                @"ai_rewrite_in_edit_message_enabled", @"ai_rich_response_tables_enabled",
+                @"ai_psi_ux_enabled", @"ai_bot_imagine_me_enabled",
+                @"ai_bot_imagine_me_auto_capture_enabled", @"ai_bot_integration_enabled",
+                @"ai_genai_imagine_intent_status_v3_enabled",
+                @"ai_genai_imagine_intent_ar_effects_v3_enabled",
+                @"ai_genai_imagine_intent_attachment_tray_enabled",
+                @"ai_group_participation_enabled", @"ai_group_participation_send_enabled",
+                @"ai_group_multi_modal_enabled",
+                @"ai_voice_image_input_enabled", @"ai_voice_live_video_input_enabled",
+                @"ai_voice_live_video_pip_enabled", @"ai_voice_ptt_coexistence_enabled",
+                @"ai_fab_chat_list_refactor_enabled",
+                @"ai_dynamic_mode_selector_enabled", @"ai_dynamic_model_branding_enabled",
+                @"ai_tab_glyph_icon_enabled", @"ai_tab_perf_optimizations_enabled",
+                @"ai_search_bar_2025_redesign_enabled",
+                @"ai_ask_meta_ai_in_media_viewer", @"ai_ask_metai_in_message_long_press",
+                @"ai_stickers_rebranding_enabled", @"ai_account_linking_enabled",
+            ])]
+        ),
+    ] title:@"AI & Meta AI"];
 }
-
 
 // ── Calls ─────────────────────────────────────────────────────────────────────
 static UIViewController *CallsSubVC(void) {
     return browserVC(@"Calls", @[@"call", @"calling", @"callkit", @"scheduled_call"]);
 }
 
-
 // ── Status ────────────────────────────────────────────────────────────────────
 static UIViewController *StatusSubVC(void) {
-    return browserVC(@"Status", @[@"status", @"story", @"stories"]);
+    return browserVC(@"Status / Stories", @[@"status", @"story", @"stories"]);
 }
-
 
 // ── Channels ──────────────────────────────────────────────────────────────────
 static UIViewController *ChannelsSubVC(void) {
     return browserVC(@"Channels", @[@"channel", @"newsletter", @"broadcast"]);
 }
 
-
 // ── Groups & Interop ──────────────────────────────────────────────────────────
 static UIViewController *GroupsSubVC(void) {
     return browserVC(@"Groups & Interop", @[@"group", @"community", @"interop", @"poll", @"scheduled", @"recall"]);
 }
-
 
 // ── Privacy & Username ────────────────────────────────────────────────────────
 static UIViewController *PrivacySubVC(void) {
     return browserVC(@"Privacy & Username", @[@"privacy", @"username", @"passkey", @"defense", @"secure"]);
 }
 
-
 // ── Premium & Business ────────────────────────────────────────────────────────
 static UIViewController *PremiumSubVC(void) {
     return browserVC(@"Premium & Business", @[@"premium", @"business", @"smb", @"subscription", @"catalog", @"verified", @"waffle"]);
 }
-
 
 // ── System / Debug ────────────────────────────────────────────────────────────
 static UIViewController *SystemSubVC(void) {
@@ -648,8 +722,8 @@ static UIViewController *SystemSubVC(void) {
                @"isMetaEmployee · isInternalUser · graphQLEmpC1",
                ^(BOOL _){ WAGRDogfoodEnsureHooksInstalled(); }),
             SW(kWAGRInternalMaster, @"🧪  Internal Master",
-               @"Master interno global para gates e debug/internal flags",
-               ^(BOOL _){ WAGRDogfoodEnsureHooksInstalled(); WAGRDebugMenuEnsureHooksInstalled(); }),
+               @"Força gates internal/debug/dogfood complementares",
+               ^(BOOL _){ WAGRDogfoodEnsureHooksInstalled(); }),
             SW(kWAGRDebugMenuNative, @"🐛  Native Debug Menu",
                @"isDebugMenuAllowed = YES → Developer cell nas Settings",
                ^(BOOL _){ WAGRDebugMenuEnsureHooksInstalled(); }),
