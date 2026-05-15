@@ -25,6 +25,9 @@
 #define kWAGRLiquidGlassUserDefaults WA_PREF_LIQUID_GLASS_USERDEFAULTS
 #define kWAGRLiquidGlassMethodHooks  WA_PREF_LIQUID_GLASS_METHOD_HOOKS
 #define kWAGRDebugMode         @"wagr_debug_mode_enabled"
+#define kWAGRInternalMaster    @"wagr_internal_master_enabled"
+#define kWAGRDebugMenuNative   @"wagr_native_debug_menu_enabled"
+#define kWAGRDogfoodMaster     kWAGREmployeeMaster
 
 // ── Liquid Glass sub-flag pref keys (legacy, still used by WALiquidGlassHooks) ─
 #define kWAGRLG_enabled                      @"wa_lg_ios_liquid_glass_enabled"
