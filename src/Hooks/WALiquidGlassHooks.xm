@@ -27,6 +27,8 @@ static NSArray<NSString *> *WAGRLGDefaultBoolKeys(void) {
         @"ios_liquid_glass_media_editor_enabled",
         @"ios_liquid_glass_calling_improvement_enabled",
         @"ios_liquid_glass_workaround_attachment_tray",
+        @"ios_liquid_glass_chat_top_bar_m2_enabled",
+        @"ios_liquid_glass_enable_new_chatbar_ux",
         @"status_viewer_redesign_enabled"
     ];
 }
@@ -87,6 +89,8 @@ static void WAGRLGApplyNativeDefaults(void) {
 - (BOOL)ios_liquid_glass_media_editor_enabled { if (WAGRLGShouldForce()) return YES; return %orig; }
 - (BOOL)ios_liquid_glass_calling_improvement_enabled { if (WAGRLGShouldForce()) return YES; return %orig; }
 - (BOOL)ios_liquid_glass_workaround_attachment_tray { if (WAGRLGShouldForce()) return YES; return %orig; }
+- (BOOL)ios_liquid_glass_chat_top_bar_m2_enabled { if (WAGRLGShouldForce()) return YES; return %orig; }
+- (BOOL)ios_liquid_glass_enable_new_chatbar_ux { if (WAGRLGShouldForce()) return YES; return %orig; }
 - (BOOL)ios_liquid_glass_reduce_transparency { if (WAGRLGShouldForce()) return YES; return %orig; }
 - (BOOL)ios_liquid_glass_fixes_for_older_ios { if (WAGRLGShouldForce()) return YES; return %orig; }
 - (BOOL)status_viewer_redesign_enabled { if (WAGRLGShouldForce()) return YES; return %orig; }
