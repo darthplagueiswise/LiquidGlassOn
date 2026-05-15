@@ -1,10 +1,5 @@
 // WAGramPrefix.h
-// Shared compatibility header imported by Objective-C/Logos files that use WAGram aliases.
-// Compatible with WAKeychainPatch.xm, WAEmployeeDogfoodHooks.xm,
-// WAABPropsObserver.xm, WALiquidGlassHooks.xm.
-
 #pragma once
-
 #ifdef __OBJC__
 #import <Foundation/Foundation.h>
 #import <UIKit/UIKit.h>
@@ -12,11 +7,7 @@
 #import <objc/message.h>
 #import <substrate.h>
 #endif
-
-// ── WAPrefix compat (WAUtils.m uses WA_PREF_* defines from WAPrefix.h) ────────
 #import "WAPrefix.h"
-
-// ── Master pref keys (kWAGR* = new unified keys) ──────────────────────────────
 #define kWAGRKeychain          WA_PREF_KEYCHAIN_REWRITE
 #define kWAGRKeychainObserver  WA_PREF_KEYCHAIN_OBSERVER
 #define kWAGREmployeeMaster    WA_PREF_EMPLOYEE_MASTER
@@ -28,8 +19,10 @@
 #define kWAGRInternalMaster    @"wagr_internal_master_enabled"
 #define kWAGRDebugMenuNative   @"wagr_native_debug_menu_enabled"
 #define kWAGRDogfoodMaster     kWAGREmployeeMaster
-
-// ── Liquid Glass sub-flag pref keys (legacy, still used by WALiquidGlassHooks) ─
+#define kWAGRDogfoodGateMetaEmployee       @"wagr.dogfood.gate.isMetaEmployeeOrInternalTester"
+#define kWAGRDogfoodGateMetaEmployeeSnake  @"wagr.dogfood.gate.is_meta_employee_or_internal_tester"
+#define kWAGRDogfoodGateInternalUser       @"wagr.dogfood.gate.isInternalUser"
+#define kWAGRDogfoodGateGraphQLEmpC1       @"wagr.dogfood.gate.graphQLEmployeeC1Disabled"
 #define kWAGRLG_enabled                      @"wa_lg_ios_liquid_glass_enabled"
 #define kWAGRLG_launched                     @"wa_lg_ios_liquid_glass_launched"
 #define kWAGRLG_m1                           @"wa_lg_ios_liquid_glass_m1"
@@ -42,26 +35,9 @@
 #define kWAGRLG_workaround_attachment_tray   @"wa_lg_ios_liquid_glass_workaround_attachment_tray"
 #define kWAGRLG_workaround_hides_bottombar   @"wa_lg_ios_liquid_glass_workaround_hides_bottombar"
 #define kWAGRLG_workaround_topbar_appearance @"wa_lg_ios_liquid_glass_workaround_topbar_appearance"
-
-// ── WAAB override storage (used by WAABPropsObserver.xm) ─────────────────────
-// wagr.waab.<key>.mode   = NSInteger  0=system  1=force-OFF  2=force-ON
-// wagr.waab.<key>.number = NSNumber   typed override for integer/double keys
-// wagr.waab.<key>.string = NSString   typed override for string keys
-static inline NSString *WAGRWAABKeyMode(NSString *key) {
-    return key.length ? [@"wagr.waab." stringByAppendingFormat:@"%@.mode", key] : @"";
-}
-static inline NSString *WAGRWAABKeyNumber(NSString *key) {
-    return key.length ? [@"wagr.waab." stringByAppendingFormat:@"%@.number", key] : @"";
-}
-static inline NSString *WAGRWAABKeyString(NSString *key) {
-    return key.length ? [@"wagr.waab." stringByAppendingFormat:@"%@.string", key] : @"";
-}
-static inline NSString *WAGRWAABKeyRuntimeType(NSString *key) {
-    return key.length ? [@"wagr.waab.runtime." stringByAppendingFormat:@"%@.type", key] : @"";
-}
-static inline NSString *WAGRWAABKeyRuntimeValue(NSString *key) {
-    return key.length ? [@"wagr.waab.runtime." stringByAppendingFormat:@"%@.value", key] : @"";
-}
-
-// ── Convenience: read a BOOL pref ─────────────────────────────────────────────
+static inline NSString *WAGRWAABKeyMode(NSString *key) { return key.length ? [@"wagr.waab." stringByAppendingFormat:@"%@.mode", key] : @""; }
+static inline NSString *WAGRWAABKeyNumber(NSString *key) { return key.length ? [@"wagr.waab." stringByAppendingFormat:@"%@.number", key] : @""; }
+static inline NSString *WAGRWAABKeyString(NSString *key) { return key.length ? [@"wagr.waab." stringByAppendingFormat:@"%@.string", key] : @""; }
+static inline NSString *WAGRWAABKeyRuntimeType(NSString *key) { return key.length ? [@"wagr.waab.runtime." stringByAppendingFormat:@"%@.type", key] : @""; }
+static inline NSString *WAGRWAABKeyRuntimeValue(NSString *key) { return key.length ? [@"wagr.waab.runtime." stringByAppendingFormat:@"%@.value", key] : @""; }
 #define WAGRPref(key) [[NSUserDefaults standardUserDefaults] boolForKey:(key)]
