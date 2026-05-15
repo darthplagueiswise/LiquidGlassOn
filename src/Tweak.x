@@ -172,6 +172,10 @@ static void WAGRAttachLongPress(UITableView *tv) {
 }
 
 static void hook_settingsVDAppear(id self, SEL _cmd, BOOL animated) {
+    if (orig_settingsVDAppear) ((void (*)(id, SEL, BOOL))orig_settingsVDApAppear)(self, _cmd, animated);
+}
+
+static void hook_settingsVDAppear_fixed(id self, SEL _cmd, BOOL animated) {
     if (orig_settingsVDAppear) ((void (*)(id, SEL, BOOL))orig_settingsVDAppear)(self, _cmd, animated);
     if (![self isKindOfClass:UIViewController.class]) return;
     UITableView *tv = WAGRFindTableView(((UIViewController *)self).view);
@@ -188,7 +192,7 @@ static void WAGRHookViewDidAppearOnClass(Class cls) {
     if (!cls || gWAGRSettingsHookInstalled) return;
     SEL sel = @selector(viewDidAppear:);
     if (!class_getInstanceMethod(cls, sel)) return;
-    MSHookMessageEx(cls, sel, (IMP)hook_settingsVDAppear, &orig_settingsVDAppear);
+    MSHookMessageEx(cls, sel, (IMP)hook_settingsVDApAppear_fixed, &orig_settingsVDAppear);
     gWAGRSettingsHookInstalled = YES;
     NSLog(@"[WAGram] hooked safe viewDidAppear: on %@", NSStringFromClass(cls));
 }
@@ -240,11 +244,11 @@ static void WAGRInstallSettingsHooks(void) {
     }
 }
 
-extern "C" void WAGRDebugMenuEnsureHooksInstalled(void) {
+void WAGRDebugMenuEnsureHooksInstalled(void) {
     WAGRInstallSettingsHooks();
 }
 
-extern "C" NSString *WAGRDebugMenuDiagnosticText(void) {
+NSString *WAGRDebugMenuDiagnosticText(void) {
     return [NSString stringWithFormat:
         @"nativeDebug=%@\ninternal=%@\ndogfood=%@\nhooks: settings=%@ debugGate=%@\nlocation: WhatsApp Settings → Developer\nWAGram: long-press Developer or Help/Feedback",
         WAGRPref(kWAGRDebugMenuNative) ? @"ON" : @"OFF",
