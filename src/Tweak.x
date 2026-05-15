@@ -8,12 +8,13 @@
 //   isDebugMenuAllowed
 //   Open the <a href="developer-menu">Developer Menu</a>
 //
-// Fixes:
-//   • WASettingsViewController is a Swift UIViewController, not necessarily a
-//     UITableViewController. Never cast it to UITableViewController.
-//   • Locate the Settings table by walking the view hierarchy.
-//   • Keep WAGram long-press scoped to Help / Help & Feedback cells.
-//   • Expose WhatsApp's native Developer cell by forcing isDebugMenuAllowed = YES.
+// Runtime policy:
+//   • WASettingsViewController is Swift UIViewController, not UITableViewController.
+//     Never cast it to UITableViewController.
+//   • Find the Settings table by BFS in the view hierarchy.
+//   • Normal tap on Developer remains WhatsApp native Developer Menu.
+//   • Long-press on Developer OR Help/Feedback opens WAGram.
+//   • isDebugMenuAllowed returns YES when the native debug/internal gate pref is ON.
 // ─────────────────────────────────────────────────────────────────────────────
 
 #import <UIKit/UIKit.h>
@@ -28,6 +29,10 @@ static IMP orig_settingsVDAppear = NULL;
 static BOOL (*orig_isDebugMenuAllowed)(id, SEL) = NULL;
 static BOOL gWAGRSettingsHookInstalled = NO;
 static BOOL gWAGRDebugGateHookInstalled = NO;
+
+static BOOL WAGRNativeDebugAllowed(void) {
+    return WAGRPref(kWAGRDebugMenuNative) || WAGRPref(kWAGRInternalMaster) || WAGRPref(kWAGREmployeeMaster) || WAGRPref(kWAGRDebugMode);
+}
 
 static void WAGRPresentMenu(UIViewController *from) {
     if (!from) return;
@@ -49,15 +54,12 @@ static void WAGRPresentMenu(UIViewController *from) {
 static UITableView *WAGRFindTableView(UIView *root) {
     if (!root) return nil;
     if ([root isKindOfClass:UITableView.class]) return (UITableView *)root;
-
     NSMutableArray<UIView *> *queue = [NSMutableArray arrayWithObject:root];
     NSUInteger idx = 0;
     while (idx < queue.count) {
         UIView *v = queue[idx++];
         if ([v isKindOfClass:UITableView.class]) return (UITableView *)v;
-        for (UIView *sub in v.subviews) {
-            if (sub) [queue addObject:sub];
-        }
+        for (UIView *sub in v.subviews) if (sub) [queue addObject:sub];
         if (queue.count > 2048) break;
     }
     return nil;
@@ -69,13 +71,11 @@ static NSString *WAGRCellSearchText(UITableViewCell *cell) {
     void (^add)(id) = ^(id obj) {
         if ([obj isKindOfClass:NSString.class] && [obj length]) [parts addObject:[obj lowercaseString]];
     };
-
     add(cell.reuseIdentifier);
     add(cell.accessibilityIdentifier);
     add(cell.accessibilityLabel);
     add(cell.textLabel.text);
     add(cell.detailTextLabel.text);
-
     NSMutableArray<UIView *> *queue = [NSMutableArray arrayWithArray:cell.contentView.subviews ?: @[]];
     NSUInteger idx = 0;
     while (idx < queue.count && idx < 256) {
@@ -86,24 +86,40 @@ static NSString *WAGRCellSearchText(UITableViewCell *cell) {
         if ([v isKindOfClass:UIButton.class]) add([((UIButton *)v) titleForState:UIControlStateNormal]);
         for (UIView *sub in v.subviews) if (sub) [queue addObject:sub];
     }
-
     return [parts componentsJoinedByString:@" "];
 }
 
-static BOOL WAGRCellLooksLikeHelpFeedback(UITableViewCell *cell) {
-    NSString *s = WAGRCellSearchText(cell);
+static BOOL WAGRCellLooksLikeHelpFeedbackText(NSString *s) {
     if (!s.length) return NO;
-
     if ([s containsString:@"settingshelp"]) return YES;
     if ([s containsString:@"settingsview_helpcell"]) return YES;
     if ([s containsString:@"help and feedback"]) return YES;
     if ([s containsString:@"help & feedback"]) return YES;
     if ([s containsString:@"ajuda e feedback"]) return YES;
     if ([s containsString:@"ajuda"] && [s containsString:@"feedback"]) return YES;
-
-    // Deliberately avoid a bare “help” match unless paired with a Settings-ish
-    // identifier. This prevents unrelated Settings cells from opening WAGram.
     if ([s containsString:@"help"] && ([s containsString:@"settings"] || [s containsString:@"feedback"])) return YES;
+    return NO;
+}
+
+static BOOL WAGRCellLooksLikeNativeDeveloperText(NSString *s) {
+    if (!s.length) return NO;
+    if ([s containsString:@"settingsview_developercell"]) return YES;
+    if ([s containsString:@"developer menu"]) return YES;
+    if ([s containsString:@"developer"] && [s containsString:@"settings"]) return YES;
+    if ([s containsString:@"desenvolvedor"] && [s containsString:@"ajustes"]) return YES;
+    return NO;
+}
+
+static BOOL WAGRCellLooksLikeWAGramTrigger(UITableViewCell *cell, NSString **reasonOut) {
+    NSString *s = WAGRCellSearchText(cell);
+    if (WAGRCellLooksLikeHelpFeedbackText(s)) {
+        if (reasonOut) *reasonOut = @"Help/Feedback";
+        return YES;
+    }
+    if (WAGRCellLooksLikeNativeDeveloperText(s)) {
+        if (reasonOut) *reasonOut = @"native Developer cell";
+        return YES;
+    }
     return NO;
 }
 
@@ -120,18 +136,15 @@ static void WAGRLongPressFired(UILongPressGestureRecognizer *gr) {
     if (gr.state != UIGestureRecognizerStateBegan) return;
     UITableView *tv = (UITableView *)gr.view;
     if (![tv isKindOfClass:UITableView.class]) return;
-
     CGPoint pt = [gr locationInView:tv];
     NSIndexPath *ip = [tv indexPathForRowAtPoint:pt];
     if (!ip) return;
-
     UITableViewCell *cell = [tv cellForRowAtIndexPath:ip];
-    if (!WAGRCellLooksLikeHelpFeedback(cell)) return;
-
+    NSString *reason = nil;
+    if (!WAGRCellLooksLikeWAGramTrigger(cell, &reason)) return;
     UIViewController *vc = WAGRViewControllerForView(tv);
     if (!vc) return;
-
-    NSLog(@"[WAGram] long-press on Help/Feedback cell — presenting menu");
+    NSLog(@"[WAGram] long-press on %@ — presenting WAGram menu", reason ?: @"trigger cell");
     WAGRPresentMenu(vc);
 }
 
@@ -141,42 +154,34 @@ static void WAGRLongPressFired(UILongPressGestureRecognizer *gr) {
 @end
 
 @implementation WAGRGestureTarget
-+ (instancetype)shared {
-    static WAGRGestureTarget *s;
-    static dispatch_once_t once;
-    dispatch_once(&once, ^{ s = [self new]; });
-    return s;
-}
++ (instancetype)shared { static WAGRGestureTarget *s; static dispatch_once_t once; dispatch_once(&once, ^{ s = [self new]; }); return s; }
 - (void)handleLongPress:(UILongPressGestureRecognizer *)gr { WAGRLongPressFired(gr); }
 @end
 
 static void WAGRAttachLongPress(UITableView *tv) {
     if (!tv) return;
     if ([objc_getAssociatedObject(tv, kWAGRLPInstalledKey) boolValue]) return;
-
-    UILongPressGestureRecognizer *lp = [[UILongPressGestureRecognizer alloc]
-        initWithTarget:[WAGRGestureTarget shared] action:@selector(handleLongPress:)];
+    UILongPressGestureRecognizer *lp = [[UILongPressGestureRecognizer alloc] initWithTarget:[WAGRGestureTarget shared] action:@selector(handleLongPress:)];
     lp.minimumPressDuration = 0.65;
     lp.cancelsTouchesInView = NO;
     lp.delaysTouchesBegan = NO;
     lp.delaysTouchesEnded = NO;
-
     objc_setAssociatedObject(tv, kWAGRLPInstalledKey, @YES, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
     [tv addGestureRecognizer:lp];
-    NSLog(@"[WAGram] Help/Feedback long-press attached to %@", NSStringFromClass(tv.class));
+    NSLog(@"[WAGram] Settings long-press attached to %@", NSStringFromClass(tv.class));
 }
 
 static void hook_settingsVDAppear(id self, SEL _cmd, BOOL animated) {
     if (orig_settingsVDAppear) ((void (*)(id, SEL, BOOL))orig_settingsVDAppear)(self, _cmd, animated);
     if (![self isKindOfClass:UIViewController.class]) return;
-
-    UIView *root = ((UIViewController *)self).view;
-    UITableView *tv = WAGRFindTableView(root);
+    UITableView *tv = WAGRFindTableView(((UIViewController *)self).view);
     WAGRAttachLongPress(tv);
+    if (tv && WAGRNativeDebugAllowed()) [tv reloadData];
 }
 
 static BOOL hook_isDebugMenuAllowed(id self, SEL _cmd) {
-    return YES;
+    if (WAGRNativeDebugAllowed()) return YES;
+    return orig_isDebugMenuAllowed ? orig_isDebugMenuAllowed(self, _cmd) : NO;
 }
 
 static void WAGRHookViewDidAppearOnClass(Class cls) {
@@ -198,7 +203,6 @@ static void WAGRHookDebugGateOnClass(Class cls) {
         NSLog(@"[WAGram] hooked -isDebugMenuAllowed on %@", NSStringFromClass(cls));
         return;
     }
-
     Class meta = object_getClass(cls);
     Method cm = class_getClassMethod(cls, sel);
     if (meta && cm) {
@@ -209,23 +213,13 @@ static void WAGRHookDebugGateOnClass(Class cls) {
 }
 
 static void WAGRInstallSettingsHooks(void) {
-    NSArray<NSString *> *candidates = @[
-        @"WASettingsViewController",
-        @"WASettingsTableViewController",
-        @"WANewSettingsViewController",
-        @"WASettingsNavTableViewController",
-    ];
-
+    NSArray<NSString *> *candidates = @[@"WASettingsViewController", @"WASettingsTableViewController", @"WANewSettingsViewController", @"WASettingsNavTableViewController"];
     for (NSString *name in candidates) {
         Class cls = NSClassFromString(name);
         if (!cls) continue;
         WAGRHookDebugGateOnClass(cls);
         WAGRHookViewDidAppearOnClass(cls);
     }
-
-    // Conservative fallback: only classes with the exact debug gate are eligible.
-    // This avoids broad Settings-table hooks and prevents the Settings crash seen
-    // with the previous UITableViewController cast.
     if (!gWAGRSettingsHookInstalled || !gWAGRDebugGateHookInstalled) {
         unsigned int count = 0;
         Class *all = objc_copyClassList(&count);
@@ -246,14 +240,29 @@ static void WAGRInstallSettingsHooks(void) {
     }
 }
 
+extern "C" void WAGRDebugMenuEnsureHooksInstalled(void) {
+    WAGRInstallSettingsHooks();
+}
+
+extern "C" NSString *WAGRDebugMenuDiagnosticText(void) {
+    return [NSString stringWithFormat:
+        @"nativeDebug=%@\ninternal=%@\ndogfood=%@\nhooks: settings=%@ debugGate=%@\nlocation: WhatsApp Settings → Developer\nWAGram: long-press Developer or Help/Feedback",
+        WAGRPref(kWAGRDebugMenuNative) ? @"ON" : @"OFF",
+        WAGRPref(kWAGRInternalMaster) ? @"ON" : @"OFF",
+        WAGRPref(kWAGREmployeeMaster) ? @"ON" : @"OFF",
+        gWAGRSettingsHookInstalled ? @"YES" : @"NO",
+        gWAGRDebugGateHookInstalled ? @"YES" : @"NO"];
+}
+
 %ctor {
     @autoreleasepool {
         NSLog(@"[WAGram] loading — bundle=%@", [[NSBundle mainBundle] bundleIdentifier]);
-
         NSDictionary *defs = @{
             kWAGRKeychain          : @NO,
             kWAGRKeychainObserver  : @NO,
             kWAGREmployeeMaster    : @NO,
+            kWAGRInternalMaster    : @NO,
+            kWAGRDebugMenuNative   : @YES,
             kWAGRABPropsObserver   : @NO,
             kWAGRLiquidGlassMaster : @NO,
             kWAGRLiquidGlassUserDefaults : @YES,
@@ -273,7 +282,6 @@ static void WAGRInstallSettingsHooks(void) {
             kWAGRDebugMode         : @NO,
         };
         [[NSUserDefaults standardUserDefaults] registerDefaults:defs];
-
         WAGRInstallSettingsHooks();
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{ WAGRInstallSettingsHooks(); });
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(3.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{ WAGRInstallSettingsHooks(); });
