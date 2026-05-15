@@ -1,17 +1,10 @@
 // WAGramDirectFlagHooks.xm
-// DexKit-style direct selector runtime for WAAB-style flags.
-//
-// WAAB/MobileConfig-like generic getters are useful for observation, but many
-// WhatsApp flags are exposed as direct no-arg ObjC selectors too. This file
-// installs persistent direct hooks for selected wagr.waab.<key>.mode entries.
-// mode: 0 system, 1 force NO, 2 force YES.
-
 #import <Foundation/Foundation.h>
 #import <objc/runtime.h>
 #import <substrate.h>
 #import "../WAGramPrefix.h"
 
-static NSMutableDictionary<NSString *, NSValue *> *gWAGDirectOrig = nil;
+static NSMutableDictionary<NSString *, NSNumber *> *gWAGDirectOrig = nil;
 static NSMutableSet<NSString *> *gWAGDirectInstalled = nil;
 static dispatch_queue_t gWAGDirectQueue = nil;
 static BOOL gWAGDirectDidInit = NO;
@@ -30,10 +23,8 @@ static NSString *WAGDirectKeyFromModePref(NSString *pref) {
     NSString *prefix = @"wagr.waab.";
     NSString *suffix = @".mode";
     if (![pref hasPrefix:prefix] || ![pref hasSuffix:suffix]) return nil;
-    NSUInteger start = prefix.length;
     NSUInteger len = pref.length - prefix.length - suffix.length;
-    if (len == 0) return nil;
-    return [pref substringWithRange:NSMakeRange(start, len)];
+    return len ? [pref substringWithRange:NSMakeRange(prefix.length, len)] : nil;
 }
 
 static NSInteger WAGDirectModeForSelector(SEL sel) {
@@ -47,8 +38,8 @@ static BOOL WAGDirectBoolHook(id self, SEL _cmd) {
     if (mode == 2) return YES;
 
     NSString *sig = [NSString stringWithFormat:@"%@/%@", NSStringFromClass([self class]), NSStringFromSelector(_cmd)];
-    NSValue *v = gWAGDirectOrig[sig];
-    BOOL (*orig)(id, SEL) = v ? (BOOL (*)(id, SEL))[v pointerValue] : NULL;
+    NSNumber *stored = gWAGDirectOrig[sig];
+    BOOL (*orig)(id, SEL) = stored ? (BOOL (*)(id, SEL))(uintptr_t)[stored unsignedLongLongValue] : NULL;
     return orig ? orig(self, _cmd) : NO;
 }
 
@@ -68,8 +59,7 @@ static BOOL WAGDirectClassLooksRelevant(Class cls) {
 
 static BOOL WAGDirectMethodLooksBoolNoArg(Method m) {
     if (!m) return NO;
-    unsigned int args = method_getNumberOfArguments(m);
-    if (args != 2) return NO;
+    if (method_getNumberOfArguments(m) != 2) return NO;
     char ret[32] = {0};
     method_getReturnType(m, ret, sizeof(ret));
     return ret[0] == 'B' || ret[0] == 'c';
@@ -87,7 +77,7 @@ static void WAGDirectTryHook(Class cls, SEL sel, BOOL classMethod) {
 
     IMP orig = NULL;
     MSHookMessageEx(target, sel, (IMP)WAGDirectBoolHook, &orig);
-    if (orig) gWAGDirectOrig[sig] = [NSValue valueWithPointer:orig];
+    if (orig) gWAGDirectOrig[sig] = @((unsigned long long)(uintptr_t)orig);
     [gWAGDirectInstalled addObject:sig];
     gWAGDirectHookCount++;
     NSLog(@"[WAGram][DirectFlags] hooked %@[%@ %@]", classMethod ? @"+" : @"-", NSStringFromClass(cls), NSStringFromSelector(sel));
@@ -140,9 +130,8 @@ static void WAGDirectInstallForActiveKeys(void) {
 }
 
 extern "C" void WAGRDirectFlagsEnsureHooksInstalled(void) {
-    dispatch_async(gWAGDirectQueue ?: dispatch_get_main_queue(), ^{
-        WAGDirectInstallForActiveKeys();
-    });
+    WAGDirectInitStorage();
+    dispatch_async(gWAGDirectQueue, ^{ WAGDirectInstallForActiveKeys(); });
 }
 
 extern "C" NSString *WAGRDirectFlagsDiagnosticText(void) {
@@ -159,9 +148,7 @@ static void WAGDirectFlagsInit(void) {
         WAGDirectInitStorage();
         double delays[] = {0.2, 1.0, 3.0, 6.0};
         for (size_t i = 0; i < 4; i++) {
-            dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(delays[i] * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-                WAGDirectInstallForActiveKeys();
-            });
+            dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(delays[i] * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{ WAGDirectInstallForActiveKeys(); });
         }
     }
 }
