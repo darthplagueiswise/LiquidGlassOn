@@ -60,7 +60,7 @@ static BOOL WAGRWAABGenericBoolHook(id self, SEL _cmd) {
     } else {
         // Call original
         NSValue *origVal = gWAABOrigImps[flag];
-        BOOL (*orig)(id, SEL) = origVal ? (BOOL (*)(id, SEL))(uintptr_t)[origVal unsignedLongLongValue] : NULL;
+        BOOL (*orig)(id, SEL) = origVal ? (BOOL (*)(id, SEL))[origVal pointerValue] : NULL;
         result = orig ? orig(self, _cmd) : NO;
     }
 
