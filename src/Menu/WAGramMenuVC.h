@@ -5,12 +5,15 @@
 extern "C" {
 #endif
 
-// ── Functions exposed by hook files ──────────────────────────────────────────
 // WAABPropsObserver.xm
 void      WAGRWAABEnsureHooksInstalled(void);
 NSString *WAGRWAABDiagnosticText(void);
 NSString *WAGRABObsLog(void);
 void      WAGRABObsClear(void);
+
+// WAGramDirectFlagHooks.xm
+void      WAGRDirectFlagsEnsureHooksInstalled(void);
+NSString *WAGRDirectFlagsDiagnosticText(void);
 
 // WAEmployeeDogfoodHooks.xm
 void      WAGRDogfoodEnsureHooksInstalled(void);
@@ -32,23 +35,21 @@ NSString *WAGRDebugMenuDiagnosticText(void);
 }
 #endif
 
-// ── Row / Section model ────────────────────────────────────────────────────────
 typedef NS_ENUM(NSInteger, WAGramRowStyle) {
     WAGramRowStyleSwitch,
     WAGramRowStyleButton,
     WAGramRowStyleNavigation,
-    WAGramRowStyleWAABFlag,    // tri-state WAAB flag (mode 0/1/2)
+    WAGramRowStyleWAABFlag,
 };
 
 @interface WAGramRow : NSObject
 @property (nonatomic, copy)   NSString        *title;
 @property (nonatomic, copy)   NSString        *subtitle;
-@property (nonatomic, copy)   NSString        *prefsKey;   // for Switch rows (direct bool pref)
-@property (nonatomic, copy)   NSString        *waabKey;    // for WAAB tri-state rows
+@property (nonatomic, copy)   NSString        *prefsKey;
+@property (nonatomic, copy)   NSString        *waabKey;
 @property (nonatomic, assign) WAGramRowStyle   style;
 @property (nonatomic, copy)   void (^action)(BOOL isOn);
 @property (nonatomic, strong) UIViewController *navTarget;
-
 + (instancetype)switchWithTitle:(NSString *)title subtitle:(NSString *)subtitle key:(NSString *)key action:(void (^)(BOOL))action;
 + (instancetype)waabFlagWithTitle:(NSString *)title subtitle:(NSString *)subtitle waabKey:(NSString *)waabKey;
 + (instancetype)buttonWithTitle:(NSString *)title subtitle:(NSString *)subtitle action:(void (^)(BOOL))action;
