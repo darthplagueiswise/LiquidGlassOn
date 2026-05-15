@@ -28,6 +28,15 @@ NSString *WAGRLGDiagnosticText(void);
 void      WAGRDebugMenuEnsureHooksInstalled(void);
 NSString *WAGRDebugMenuDiagnosticText(void);
 
+// WAAuraHooks.xm
+void      WAGRAuraEnsureHooksInstalled(void);
+void      WAGRAuraActivateAllFlags(void);
+void      WAGRAuraDeactivateAllFlags(void);
+BOOL      WAGRPushAuraThemesVC(UIViewController *from);
+BOOL      WAGRPushAuraIconsVC(UIViewController *from);
+BOOL      WAGRPushAuraRingtonesVC(UIViewController *from);
+NSString *WAGRAuraDiagnostic(void);
+
 #ifdef __cplusplus
 }
 #endif
@@ -70,4 +79,5 @@ typedef NS_ENUM(NSInteger, WAGramRowStyle) {
 // Dynamic WAAB flag browser — shows ALL flags from binary with current state
 @interface WAGRABFlagBrowserVC : UITableViewController
 - (instancetype)initWithTitle:(NSString *)title flags:(NSArray<NSString *> *)flags;
++ (NSArray<NSString *> *)runtimeFlags;
 @end
