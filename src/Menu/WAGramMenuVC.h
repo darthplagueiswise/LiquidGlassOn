@@ -1,6 +1,7 @@
 // WAGramMenuVC.h
 #pragma once
 #import <UIKit/UIKit.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -10,10 +11,6 @@ void      WAGRWAABEnsureHooksInstalled(void);
 NSString *WAGRWAABDiagnosticText(void);
 NSString *WAGRABObsLog(void);
 void      WAGRABObsClear(void);
-
-// WAGramDirectFlagHooks.xm
-void      WAGRDirectFlagsEnsureHooksInstalled(void);
-NSString *WAGRDirectFlagsDiagnosticText(void);
 
 // WAEmployeeDogfoodHooks.xm
 void      WAGRDogfoodEnsureHooksInstalled(void);
@@ -27,7 +24,7 @@ NSString *WAKeychainAccessGroupDiagnostic(void);
 void      WAGRLGPrefsDidChange(void);
 NSString *WAGRLGDiagnosticText(void);
 
-// Tweak.x settings/debug bridge
+// Tweak.x
 void      WAGRDebugMenuEnsureHooksInstalled(void);
 NSString *WAGRDebugMenuDiagnosticText(void);
 
@@ -51,8 +48,8 @@ typedef NS_ENUM(NSInteger, WAGramRowStyle) {
 @property (nonatomic, copy)   void (^action)(BOOL isOn);
 @property (nonatomic, strong) UIViewController *navTarget;
 + (instancetype)switchWithTitle:(NSString *)title subtitle:(NSString *)subtitle key:(NSString *)key action:(void (^)(BOOL))action;
-+ (instancetype)waabFlagWithTitle:(NSString *)title subtitle:(NSString *)subtitle waabKey:(NSString *)waabKey;
-+ (instancetype)buttonWithTitle:(NSString *)title subtitle:(NSString *)subtitle action:(void (^)(BOOL))action;
++ (instancetype)waabWithTitle:(NSString *)title key:(NSString *)waabKey;
++ (instancetype)buttonWithTitle:(NSString *)title action:(void (^)(BOOL))action;
 + (instancetype)navWithTitle:(NSString *)title subtitle:(NSString *)subtitle target:(UIViewController *)target;
 @end
 
@@ -60,7 +57,7 @@ typedef NS_ENUM(NSInteger, WAGramRowStyle) {
 @property (nonatomic, copy)   NSString            *header;
 @property (nonatomic, copy)   NSString            *footer;
 @property (nonatomic, strong) NSArray<WAGramRow *> *rows;
-+ (instancetype)sectionWithHeader:(NSString *)header footer:(NSString *)footer rows:(NSArray<WAGramRow *> *)rows;
++ (instancetype)sectionWithHeader:(NSString *)h footer:(NSString *)f rows:(NSArray<WAGramRow *> *)rows;
 @end
 
 @interface WAGramMenuVC : UITableViewController
@@ -68,4 +65,9 @@ typedef NS_ENUM(NSInteger, WAGramRowStyle) {
 
 @interface WAGramSubMenuVC : UITableViewController
 - (instancetype)initWithSections:(NSArray<WAGramSectionDef *> *)sections title:(NSString *)title;
+@end
+
+// Dynamic WAAB flag browser — shows ALL flags from binary with current state
+@interface WAGRABFlagBrowserVC : UITableViewController
+- (instancetype)initWithTitle:(NSString *)title flags:(NSArray<NSString *> *)flags;
 @end
