@@ -21,8 +21,12 @@ void      WAInstallKeychainPatchIfNeeded(void);
 NSString *WAKeychainAccessGroupDiagnostic(void);
 
 // WALiquidGlassHooks.xm
-void      WAGRLGPrefsDidChange(void);  // call after any LG pref change
+void      WAGRLGPrefsDidChange(void);
+NSString *WAGRLGDiagnosticText(void);
 
+// Tweak.x settings/debug bridge
+void      WAGRDebugMenuEnsureHooksInstalled(void);
+NSString *WAGRDebugMenuDiagnosticText(void);
 
 #ifdef __cplusplus
 }
@@ -40,7 +44,7 @@ typedef NS_ENUM(NSInteger, WAGramRowStyle) {
 @property (nonatomic, copy)   NSString        *title;
 @property (nonatomic, copy)   NSString        *subtitle;
 @property (nonatomic, copy)   NSString        *prefsKey;   // for Switch rows (direct bool pref)
-@property (nonatomic, copy)   NSString        *waabKey;    // for WAGRFlagTypeBool rows (WAAB flag key)
+@property (nonatomic, copy)   NSString        *waabKey;    // for WAAB tri-state rows
 @property (nonatomic, assign) WAGramRowStyle   style;
 @property (nonatomic, copy)   void (^action)(BOOL isOn);
 @property (nonatomic, strong) UIViewController *navTarget;
