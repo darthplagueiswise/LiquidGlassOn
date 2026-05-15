@@ -1,21 +1,5 @@
 // Tweak.x
-// ─────────────────────────────────────────────────────────────────────────────
 // Entry point for WAGram.
-//
-// Verified WhatsApp main executable strings:
-//   SettingsView_DeveloperCell
-//   WADebugMenuMain / WADebugViewController
-//   isDebugMenuAllowed
-//   Open the <a href="developer-menu">Developer Menu</a>
-//
-// Runtime policy:
-//   • WASettingsViewController is Swift UIViewController, not UITableViewController.
-//     Never cast it to UITableViewController.
-//   • Find the Settings table by BFS in the view hierarchy.
-//   • Normal tap on Developer remains WhatsApp native Developer Menu.
-//   • Long-press on Developer OR Help/Feedback opens WAGram.
-//   • isDebugMenuAllowed returns YES when the native debug/internal gate pref is ON.
-// ─────────────────────────────────────────────────────────────────────────────
 
 #import <UIKit/UIKit.h>
 #import <Foundation/Foundation.h>
@@ -172,10 +156,6 @@ static void WAGRAttachLongPress(UITableView *tv) {
 }
 
 static void hook_settingsVDAppear(id self, SEL _cmd, BOOL animated) {
-    if (orig_settingsVDAppear) ((void (*)(id, SEL, BOOL))orig_settingsVDApAppear)(self, _cmd, animated);
-}
-
-static void hook_settingsVDAppear_fixed(id self, SEL _cmd, BOOL animated) {
     if (orig_settingsVDAppear) ((void (*)(id, SEL, BOOL))orig_settingsVDAppear)(self, _cmd, animated);
     if (![self isKindOfClass:UIViewController.class]) return;
     UITableView *tv = WAGRFindTableView(((UIViewController *)self).view);
@@ -192,7 +172,7 @@ static void WAGRHookViewDidAppearOnClass(Class cls) {
     if (!cls || gWAGRSettingsHookInstalled) return;
     SEL sel = @selector(viewDidAppear:);
     if (!class_getInstanceMethod(cls, sel)) return;
-    MSHookMessageEx(cls, sel, (IMP)hook_settingsVDApAppear_fixed, &orig_settingsVDAppear);
+    MSHookMessageEx(cls, sel, (IMP)hook_settingsVDAppear, &orig_settingsVDAppear);
     gWAGRSettingsHookInstalled = YES;
     NSLog(@"[WAGram] hooked safe viewDidAppear: on %@", NSStringFromClass(cls));
 }
