@@ -531,97 +531,40 @@ static UIViewController *DogfoodSubVC(void) {
     ] title:@"Dogfood / Internal"];
 }
 
-// ── AI & Meta AI (dynamic browser for the full AI set) ───────────────────────
+// ── AI / Artificial Intelligence ────────────────────────────────────────────
+static NSArray<NSString *> *AITokens(void) {
+    return @[
+        @"ai_", @"meta_ai", @"metaai", @"genai", @"llm", @"assistant", @"bot",
+        @"imagine", @"voice", @"prompt", @"hatch", @"incognito", @"side_chat",
+        @"chat_threads", @"rewrite", @"summarization", @"summarize", @"writing_help",
+        @"rich_response", @"image_creation", @"contextual_suggestion", @"psi_ux",
+        @"ai_tab", @"meta_ai_in_app_tab", @"tab_glyph", @"automator",
+        @"automation", @"ai_reply", @"rewrite_summary_for_smb", @"translate_messages"
+    ];
+}
+
 static UIViewController *AISubVC(void) {
-    // Curated important ones + dynamic runtime browser
+    // Tudo que é IA fica aqui: Meta AI, AI Tab, genAI, imagine, voice, hatch,
+    // incognito, side chat, chat threads, rewrite/summarize, SMB AI automation
+    // e tradução AI. A lista é dinâmica e vem do mesmo runtime do ALL WAAB.
     return [[WAGramSubMenuVC alloc] initWithSections:@[
-        SEC(@"WAAB Runtime — AI",
-            @"Lista dinâmica baseada no mesmo ALL WAABProperties FLAGS.",
-            NAV(@"Todas flags AI reais", @"ai_, meta_ai, incognito, side_chat, hatch", browserVC(@"AI Runtime", @[@"ai_", @"meta_ai", @"incognito", @"side_chat", @"hatch"]))
+        SEC(@"Runtime — AI / Artificial Intelligence",
+            @"Lista dinâmica baseada no mesmo ALL WAABProperties FLAGS. Mostra só selectors reais encontrados no runtime.",
+            NAV(@"Todas flags AI reais", @"Meta AI, genAI, imagine, voice, hatch, incognito, side chat, AI tab, SMB AI", browserVC(@"AI Runtime", AITokens()))
         ),
-        SEC(@"Meta AI — Main Gate",
-            @"Flags que controlam a aba/tab Meta AI.",
-            WAAB(@"ai_meta_ai_in_app_tab_main_gate_enabled", @"Meta AI Tab Main Gate"),
-            WAAB(@"ai_home_redesign_enabled",                @"AI Home Redesign"),
-            WAAB(@"ai_psi_ux_enabled",                       @"AI PSI UX"),
-            WAAB(@"ai_search_bar_2025_redesign_enabled",     @"AI Search Bar 2025"),
-            WAAB(@"ai_tab_glyph_icon_enabled",               @"AI Tab Glyph Icon"),
-            WAAB(@"ai_tab_perf_optimizations_enabled",       @"AI Tab Perf Optimizations")
+        SEC(@"Subcategorias", @"Todas ainda usam runtimeFlags; não há lista falsa/hardcoded sem selector real.",
+            NAV(@"Meta AI / Main Gate", @"meta_ai, in_app_tab, ai_home, psi", browserVC(@"Meta AI / Main Gate", @[@"meta_ai", @"meta_ai_in_app_tab", @"ai_home", @"psi_ux", @"ai_tab"])),
+            NAV(@"GenAI / Imagine / Media", @"genai, imagine, image, media input", browserVC(@"GenAI / Imagine / Media", @[@"genai", @"imagine", @"image_creation", @"media_input", @"voice_image", @"live_video"])),
+            NAV(@"Incognito AI", @"incognito", browserVC(@"Incognito AI", @[@"incognito"])),
+            NAV(@"Side Chat", @"side_chat, writing, summarize, suggestions", browserVC(@"AI Side Chat", @[@"side_chat", @"writing_help", @"summarization", @"summarize", @"contextual_suggestion"])),
+            NAV(@"Hatch", @"hatch", browserVC(@"AI Hatch", @[@"hatch"])),
+            NAV(@"AI Threads / Chat", @"chat_threads, rich_response, rewrite", browserVC(@"AI Threads / Chat", @[@"chat_threads", @"rich_response", @"rewrite", @"chat_list_search"])),
+            NAV(@"Voice / Assistant / Bot", @"voice, assistant, bot, prompt, llm", browserVC(@"Voice / Assistant / Bot", @[@"voice", @"assistant", @"bot", @"prompt", @"llm"])),
+            NAV(@"SMB AI / Automation", @"smb_ai, automator, ai_reply, rewrite_summary_for_smb", browserVC(@"SMB AI / Automation", @[@"smb_ai", @"automator", @"automation", @"ai_reply", @"rewrite_summary_for_smb"])),
+            NAV(@"AI Translation", @"ai_translate, translate_messages", browserVC(@"AI Translation", @[@"ai_translate", @"translate_messages", @"translation"])),
+            NAV(@"AI Tab", @"ai_tab, meta_ai_in_app_tab, tab_glyph", browserVC(@"AI Tab", @[@"ai_tab", @"meta_ai_in_app_tab", @"tab_glyph"]))
         ),
-        SEC(@"Incognito AI Chat",
-            @"Feature anunciada pelo Zuckerberg.",
-            WAAB(@"ai_incognito_mode_enabled",               @"Incognito AI Chat"),
-            WAAB(@"ai_incognito_mode_disappearing_messages_enabled", @"Incognito Disappearing Msgs"),
-            WAAB(@"ai_incognito_mode_personalization_enabled",@"Incognito Personalization"),
-            WAAB(@"ai_incognito_media_input_enabled",        @"Incognito Media Input")
-        ),
-        SEC(@"Translation",
-            @"Feature de tradução de mensagens.",
-            WAAB(@"ai_translate_messages_enabled",           @"Translate Messages")
-        ),
-        SEC(@"Side Chat",
-            @"",
-            WAAB(@"ai_side_chat_enabled",                    @"AI Side Chat"),
-            WAAB(@"ai_side_chat_search_starter_enabled",     @"Side Chat Search"),
-            WAAB(@"ai_side_chat_summarization_enabled",      @"Side Chat Summarize"),
-            WAAB(@"ai_side_chat_writing_help_enabled",       @"Side Chat Writing Help"),
-            WAAB(@"ai_side_chat_image_creation_enabled",     @"Side Chat Image Create"),
-            WAAB(@"ai_side_chat_media_input_enabled",        @"Side Chat Media Input"),
-            WAAB(@"ai_side_chat_contextual_suggestions_enabled", @"Side Chat Suggestions"),
-            WAAB(@"ai_side_chat_animation_enabled",          @"Side Chat Animation")
-        ),
-        SEC(@"Hatch",
-            @"",
-            WAAB(@"ai_hatch_integration_enabled",            @"AI Hatch Integration"),
-            WAAB(@"ai_hatch_integration_tab_enabled",        @"AI Hatch Tab"),
-            WAAB(@"ai_hatch_commands_enabled",               @"AI Hatch Commands"),
-            WAAB(@"ai_hatch_video_upload_enabled",           @"AI Hatch Video Upload")
-        ),
-        SEC(@"Threads & Chat",
-            @"",
-            WAAB(@"ai_chat_threads_enabled",                 @"AI Chat Threads"),
-            WAAB(@"ai_chat_threads_side_sheet_enabled",      @"AI Threads Side Sheet"),
-            WAAB(@"ai_chat_threads_multiplayer_enabled",     @"AI Threads Multiplayer"),
-            WAAB(@"ai_chat_threads_pin_enabled",             @"AI Threads Pin"),
-            WAAB(@"ai_chat_list_search_enabled",             @"AI Chat List Search"),
-            WAAB(@"ai_rewrite_in_edit_message_enabled",      @"AI Rewrite in Edit"),
-            WAAB(@"ai_rich_response_tables_enabled",         @"AI Rich Response Tables")
-        ),
-        SEC(@"Ver todos os 325+ flags AI",
-            @"",
-            [WAGramRow navWithTitle:@"Browser AI flags"
-                          subtitle:@"Lista dinâmica com search"
-                            target:browserVC(@"AI Flags", @[
-                @"ai_meta_ai_in_app_tab_main_gate_enabled", @"ai_home_redesign_enabled",
-                @"ai_incognito_mode_enabled", @"ai_incognito_mode_disappearing_messages_enabled",
-                @"ai_incognito_mode_personalization_enabled", @"ai_incognito_media_input_enabled",
-                @"ai_translate_messages_enabled", @"ai_side_chat_enabled",
-                @"ai_side_chat_search_starter_enabled", @"ai_side_chat_summarization_enabled",
-                @"ai_side_chat_writing_help_enabled", @"ai_side_chat_image_creation_enabled",
-                @"ai_side_chat_media_input_enabled", @"ai_side_chat_contextual_suggestions_enabled",
-                @"ai_hatch_integration_enabled", @"ai_hatch_integration_tab_enabled",
-                @"ai_hatch_commands_enabled", @"ai_chat_threads_enabled",
-                @"ai_chat_threads_side_sheet_enabled", @"ai_chat_threads_multiplayer_enabled",
-                @"ai_chat_threads_pin_enabled", @"ai_chat_list_search_enabled",
-                @"ai_rewrite_in_edit_message_enabled", @"ai_rich_response_tables_enabled",
-                @"ai_psi_ux_enabled", @"ai_bot_imagine_me_enabled",
-                @"ai_bot_imagine_me_auto_capture_enabled", @"ai_bot_integration_enabled",
-                @"ai_genai_imagine_intent_status_v3_enabled",
-                @"ai_genai_imagine_intent_ar_effects_v3_enabled",
-                @"ai_genai_imagine_intent_attachment_tray_enabled",
-                @"ai_group_participation_enabled", @"ai_group_participation_send_enabled",
-                @"ai_group_multi_modal_enabled",
-                @"ai_voice_image_input_enabled", @"ai_voice_live_video_input_enabled",
-                @"ai_voice_live_video_pip_enabled", @"ai_voice_ptt_coexistence_enabled",
-                @"ai_fab_chat_list_refactor_enabled",
-                @"ai_dynamic_mode_selector_enabled", @"ai_dynamic_model_branding_enabled",
-                @"ai_tab_glyph_icon_enabled", @"ai_tab_perf_optimizations_enabled",
-                @"ai_search_bar_2025_redesign_enabled",
-                @"ai_ask_meta_ai_in_media_viewer", @"ai_ask_metai_in_message_long_press",
-                @"ai_stickers_rebranding_enabled", @"ai_account_linking_enabled",
-            ])]
-        ),
-    ] title:@"AI & Meta AI"];
+    ] title:@"AI / Artificial Intelligence"];
 }
 
 // ── Calls ─────────────────────────────────────────────────────────────────────
@@ -649,9 +592,90 @@ static UIViewController *PrivacySubVC(void) {
     return browserVC(@"Privacy & Username", @[@"privacy", @"username", @"passkey", @"defense", @"secure"]);
 }
 
-// ── Premium & Business ────────────────────────────────────────────────────────
+// ── Tab Bar / Navigation ─────────────────────────────────────────────────────
+static UIViewController *TabBarSubVC(void) {
+    return [[WAGramSubMenuVC alloc] initWithSections:@[
+        SEC(@"Runtime — Tab Bar / Navigation",
+            @"Flags reais de navegação, abas inferiores/superiores, updates tab, calls tab, community tab, top bar e bottom bar.",
+            NAV(@"Todas flags de Tab Bar / Navigation", @"tab, calls_tab, updates_tab, community_tab, bottom_bar, top_bar",
+                browserVC(@"Tab Bar / Navigation", @[@"tab", @"tabbar", @"calls_tab", @"updates_tab", @"community_tab", @"navigation", @"bottom_bar", @"top_bar", @"nav_bar", @"navbar"]))
+        ),
+        SEC(@"Subcategorias", @"",
+            NAV(@"Updates Tab", @"updates_tab, status tiles", browserVC(@"Updates Tab", @[@"updates_tab", @"status_tiles", @"tiles_status"])),
+            NAV(@"Calls Tab", @"calls_tab, schedule_call", browserVC(@"Calls Tab", @[@"calls_tab", @"schedule_call", @"scheduled_call"])),
+            NAV(@"Community Tab", @"community_tab", browserVC(@"Community Tab", @[@"community_tab"]))
+        ),
+    ] title:@"Tab Bar / Navigation"];
+}
+
+// ── Status Bar / Top Chrome ──────────────────────────────────────────────────
+static UIViewController *StatusBarSubVC(void) {
+    return [[WAGramSubMenuVC alloc] initWithSections:@[
+        SEC(@"Runtime — Status Bar / Top Chrome",
+            @"Flags reais relacionadas a status bar, title bar, nav bar, top bar e chrome superior. Separado de Status/Stories.",
+            NAV(@"Todas flags Status Bar / Top Bar", @"status_bar, title_bar, top_bar, nav_bar",
+                browserVC(@"Status Bar / Top Bar", @[@"status_bar", @"statusbar", @"title_bar", @"top_bar", @"nav_bar", @"navbar", @"navigation_bar", @"header"]))
+        ),
+        SEC(@"Subcategorias", @"",
+            NAV(@"Top Bar", @"top_bar, chat_top_bar", browserVC(@"Top Bar", @[@"top_bar", @"chat_top_bar", @"title_bar"])),
+            NAV(@"Headers", @"header, title", browserVC(@"Headers", @[@"header", @"title_bar", @"navbar"]))
+        ),
+    ] title:@"Status Bar / Top Chrome"];
+}
+
+// ── Payments ─────────────────────────────────────────────────────────────────
+static UIViewController *PaymentsSubVC(void) {
+    return [[WAGramSubMenuVC alloc] initWithSections:@[
+        SEC(@"Runtime — Payments",
+            @"Flags reais de payments, PIX, UPI, payment links, billing, checkout, order details e seller payments.",
+            NAV(@"Todas flags de Payments", @"payment, payments, pix, upi, billing, checkout, order",
+                browserVC(@"Payments", @[@"payment", @"payments", @"pay_", @"_pay", @"pix", @"upi", @"billing", @"checkout", @"order_detail", @"order_details", @"seller", @"wallet"]))
+        ),
+        SEC(@"Subcategorias", @"",
+            NAV(@"PIX / Brazil", @"br_payments, pix", browserVC(@"PIX / Brazil", @[@"br_payment", @"br_payments", @"pix"])),
+            NAV(@"UPI", @"upi", browserVC(@"UPI", @[@"upi"])),
+            NAV(@"Payment Links", @"payment_links", browserVC(@"Payment Links", @[@"payment_links", @"payment_link"])),
+            NAV(@"Billing / Checkout", @"billing, checkout, order", browserVC(@"Billing / Checkout", @[@"billing", @"checkout", @"order_detail", @"order_details"]))
+        ),
+    ] title:@"Payments"];
+}
+
+// ── SMB / WhatsApp Business ──────────────────────────────────────────────────
+static UIViewController *SMBSubVC(void) {
+    return [[WAGramSubMenuVC alloc] initWithSections:@[
+        SEC(@"Runtime — SMB / Business",
+            @"Tudo que aponta para WhatsApp Business: smb, smbi, wabi/wabie, biz, catalog, merchant, seller e commerce.",
+            NAV(@"Todas flags SMB / Business", @"smb, smbi, wabi, wabie, business, biz, catalog",
+                browserVC(@"SMB / Business", @[@"smb", @"smbi", @"wabi", @"wabie", @"business", @"biz", @"catalog", @"merchant", @"seller", @"commerce", @"shop", @"cart", @"product"]))
+        ),
+        SEC(@"Subcategorias", @"",
+            NAV(@"Catalog / Products", @"catalog, product, cart", browserVC(@"Catalog / Products", @[@"catalog", @"product", @"cart", @"shop"])),
+            NAV(@"Business Profile", @"business_profile, biz_profile", browserVC(@"Business Profile", @[@"business_profile", @"biz_profile", @"profile_view"])),
+            NAV(@"Business Broadcast", @"broadcast, premium_broadcast", browserVC(@"Business Broadcast", @[@"business_broadcast", @"premium_broadcast", @"broadcast"]))
+        ),
+    ] title:@"SMB / WhatsApp Business"];
+}
+
+// ── Subscription / Plus / Themes ─────────────────────────────────────────────
+static UIViewController *SubscriptionSubVC(void) {
+    return [[WAGramSubMenuVC alloc] initWithSections:@[
+        SEC(@"Runtime — Subscription / Plus",
+            @"Assinatura/Plus, premium, benefícios, temas de chat, app themes, app icon e customizações visuais.",
+            NAV(@"Todas flags Subscription / Plus", @"subscription, premium, plus, theme, app_icon, aura",
+                browserVC(@"Subscription / Plus", @[@"subscription", @"subscribe", @"premium", @"plus", @"benefit", @"benefits", @"theme", @"themes", @"chat_theme", @"app_theme", @"app_icon", @"aura", @"icon"]))
+        ),
+        SEC(@"Subcategorias", @"",
+            NAV(@"Subscriptions", @"subscription, subscribe", browserVC(@"Subscriptions", @[@"subscription", @"subscribe", @"subscription_status", @"subscription_type"])),
+            NAV(@"Premium / Plus", @"premium, plus, benefits", browserVC(@"Premium / Plus", @[@"premium", @"plus", @"benefit", @"benefits"])),
+            NAV(@"Chat Themes", @"chat_theme, themes", browserVC(@"Chat Themes", @[@"chat_theme", @"chat_themes", @"themes", @"theme"])),
+            NAV(@"App Icon / App Theme", @"app_icon, app_theme, aura", browserVC(@"App Icon / App Theme", @[@"app_icon", @"app_theme", @"aura_app", @"aura_apple_watch", @"icon"]))
+        ),
+    ] title:@"Subscription / Plus"];
+}
+
+// ── Premium & Business legacy aggregate ───────────────────────────────────────
 static UIViewController *PremiumSubVC(void) {
-    return browserVC(@"Premium & Business", @[@"premium", @"business", @"smb", @"subscription", @"catalog", @"verified", @"waffle"]);
+    return browserVC(@"Premium & Business", @[@"premium", @"business", @"smb", @"subscription", @"catalog", @"verified", @"waffle", @"theme", @"app_icon"]);
 }
 
 // ── System / Debug ────────────────────────────────────────────────────────────
@@ -715,43 +739,48 @@ static UIViewController *SystemSubVC(void) {
         // ── Masters ──────────────────────────────────────────────────────────
         SEC(@"Masters",
             @"LiquidGlass: Logos %hook direto em WDSLiquidGlass + WAABProperties. Employee/Dogfood: MSHookMessageEx nos selectors ObjC. Quando uma feature pergunta 'sou internal?', o hook já está lá para responder SIM. Persistência via NSUserDefaults + restart.",
-            SW(WA_PREF_LIQUID_GLASS, @"🔵  Liquid Glass",
+            SW(WA_PREF_LIQUID_GLASS, @"Liquid Glass",
                @"WDSLiquidGlass + WAABProperties Logos hooks",
                ^(BOOL _){ WAGRLGPrefsDidChange(); }),
-            SW(kWAGREmployeeMaster, @"👤  Employee / Dogfood Gates",
+            SW(kWAGREmployeeMaster, @"Employee / Dogfood Gates",
                @"isMetaEmployee · isInternalUser · graphQLEmpC1",
                ^(BOOL _){ WAGRDogfoodEnsureHooksInstalled(); }),
-            SW(kWAGRInternalMaster, @"🧪  Internal Master",
+            SW(kWAGRInternalMaster, @"Internal Master",
                @"Força gates internal/debug/dogfood complementares",
                ^(BOOL _){ WAGRDogfoodEnsureHooksInstalled(); }),
-            SW(kWAGRDebugMenuNative, @"🐛  Native Debug Menu",
+            SW(kWAGRDebugMenuNative, @"Native Debug Menu",
                @"isDebugMenuAllowed = YES → Developer cell nas Settings",
                ^(BOOL _){ WAGRDebugMenuEnsureHooksInstalled(); }),
-            SW(WA_PREF_AB_OBSERVER, @"🔍  WAAB Observer",
+            SW(WA_PREF_AB_OBSERVER, @"WAAB Observer",
                @"Log all WAABProperties method calls",
                ^(BOOL _){ WAGRWAABEnsureHooksInstalled(); })
         ),
         // ── Feature Flags ─────────────────────────────────────────────────────
         SEC(@"Feature Flags",
             @"Toggle ON persiste em NSUserDefaults. Hook lê o valor e retorna YES/NO para a app. Para features que inicializam em ViewController, use Restart após ativar.",
-            NAV(@"🔵  Liquid Glass",        @"WDSLiquidGlass + WAABProperties — mirror exato do dylib",    LGSubVC()),
-            NAV(@"📝  About / Recado",      @"evolve_about_m1_receiver_enabled",                           AboutSubVC()),
-            NAV(@"🌐  Translation",         @"ai_translate_messages_enabled",                              TranslationSubVC()),
-            NAV(@"🐛  Debug / Dev Menu",    @"isDebugMenuAllowed · WADebugMenuMain",                        DebugMenuSubVC()),
-            NAV(@"👤  Dogfood / Internal",  @"4 direct hooks + WAAB flags",                                DogfoodSubVC()),
-            NAV(@"🤖  AI & Meta AI",        @"35+ flags: incognito, side chat, hatch, imagine, voice",     AISubVC()),
-            NAV(@"📞  Calls",               @"20 flags",                                                   CallsSubVC()),
-            NAV(@"✅  Status",              @"25 flags",                                                   StatusSubVC()),
-            NAV(@"📢  Channels",            @"20 flags",                                                   ChannelsSubVC()),
-            NAV(@"👥  Groups & Interop",    @"20 flags incl. polls, recall, scheduled",                    GroupsSubVC()),
-            NAV(@"🔐  Privacy & Username",  @"18 flags incl. passkey, defense mode",                       PrivacySubVC()),
-            NAV(@"⭐  Premium & Business",  @"16 flags",                                                   PremiumSubVC()),
-            NAV(@"⚙️  Sistema & Debug",     @"Keychain, WAAB log, reset",                                 SystemSubVC())
+            NAV(@"Liquid Glass",        @"WDSLiquidGlass + WAABProperties — mirror exato do dylib",    LGSubVC()),
+            NAV(@"About / Recado",      @"evolve_about_m1_receiver_enabled",                           AboutSubVC()),
+            NAV(@"Translation",         @"ai_translate_messages_enabled",                              TranslationSubVC()),
+            NAV(@"Debug / Dev Menu",    @"isDebugMenuAllowed · WADebugMenuMain",                        DebugMenuSubVC()),
+            NAV(@"Dogfood / Internal",  @"4 direct hooks + WAAB flags",                                DogfoodSubVC()),
+            NAV(@"AI / Artificial Intelligence", @"Tudo de IA: Meta AI, GenAI, Imagine, Voice, Hatch, Side Chat, SMB AI", AISubVC()),
+            NAV(@"Calls",               @"call, calling, callkit, scheduled_call",                         CallsSubVC()),
+            NAV(@"Status / Stories",    @"status, story, stories",                                    StatusSubVC()),
+            NAV(@"Tab Bar / Navigation",@"tab, updates_tab, calls_tab, bottom_bar, top_bar",           TabBarSubVC()),
+            NAV(@"Status Bar / Top Bar",@"status_bar, title_bar, top_bar, nav_bar",                    StatusBarSubVC()),
+            NAV(@"Channels",            @"channel, newsletter, broadcast",                            ChannelsSubVC()),
+            NAV(@"Groups & Interop",    @"group, community, poll, scheduled, recall",                  GroupsSubVC()),
+            NAV(@"Privacy & Username",  @"privacy, username, passkey, defense mode",                  PrivacySubVC()),
+            NAV(@"Payments",            @"payment, pix, upi, billing, checkout",                      PaymentsSubVC()),
+            NAV(@"SMB / WhatsApp Business", @"smb, smbi, wabi, business, catalog",                    SMBSubVC()),
+            NAV(@"Subscription / Plus", @"subscription, premium, themes, app icon",                    SubscriptionSubVC()),
+            NAV(@"Premium & Business",  @"legacy aggregate",                                          PremiumSubVC()),
+            NAV(@"Sistema & Debug",     @"Keychain, WAAB log, reset",                                 SystemSubVC())
         ),
         // ── Browser dinâmico ─────────────────────────────────────────────────
         SEC(@"All WAABProperties Flags",
             @"Lista dinâmica: escaneia WAABProperties em runtime e mostra TODOS os métodos booleanos com seu estado atual. Use search para encontrar qualquer flag.",
-            NAV(@"🔎  Browser — Todos os flags",
+            NAV(@"Browser — Todos os flags",
                 @"Runtime scan + search",
                 runtimeBrowser)
         ),
