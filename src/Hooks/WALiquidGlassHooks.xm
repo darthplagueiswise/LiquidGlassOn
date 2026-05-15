@@ -1,19 +1,5 @@
 // WALiquidGlassHooks.xm
-// ─────────────────────────────────────────────────────────────────────────────
 // Liquid Glass enablement for WhatsApp.
-//
-// Rebuilt from the working WALiquidGlass dylib behavior:
-//   • write the native LiquidGlass UserDefaults booleans;
-//   • call WALiquidGlassOverrideMethodUserDefaults.sharedInstance setEnabled:YES;
-//   • hook WDSLiquidGlass class methods directly;
-//   • hook WAABProperties direct LiquidGlass selector methods directly;
-//   • hook WALiquidGlassOverrideMethodUserDefaults -isEnabled;
-//   • hook IGLiquidGlassExperimentHelper +isEnabled when present.
-//
-// The previous implementation only observed generic WAAB getters and relied on
-// substring scans. That can show hooksInstalled=YES while missing the exact
-// LiquidGlass methods actually used by WhatsApp.
-// ─────────────────────────────────────────────────────────────────────────────
 
 #import <Foundation/Foundation.h>
 #import <objc/runtime.h>
@@ -79,8 +65,7 @@ static void WAGRLGApplyUserDefaultsOverride(void) {
     NSLog(@"[WAGram][LiquidGlass] native defaults %@", enabled ? @"enabled" : @"removed");
 }
 
-#define WAGR_LG_TRUE_ORIG(origFn) \
-    do { if (WAGRLGEnabled()) return YES; return origFn ? origFn(self, _cmd) : NO; } while (0)
+#define WAGR_LG_TRUE_ORIG(origFn) do { if (WAGRLGEnabled()) return YES; return origFn ? origFn(self, _cmd) : NO; } while (0)
 
 static BOOL (*orig_WDSLiquidGlass_hasLiquidGlassLaunched)(id, SEL) = NULL;
 static BOOL (*orig_WDSLiquidGlass_isM0Enabled)(id, SEL) = NULL;
@@ -138,7 +123,7 @@ static BOOL hook_WALGOverride_isEnabled(id self, SEL _cmd) { WAGR_LG_TRUE_ORIG(o
 static BOOL (*orig_IGLGExperimentHelper_isEnabled)(id, SEL) = NULL;
 static BOOL hook_IGLGExperimentHelper_isEnabled(id self, SEL _cmd) { WAGR_LG_TRUE_ORIG(orig_IGLGExperimentHelper_isEnabled); }
 
-static void WAGRLGHookInstanceMethod(Class cls, SEL sel, IMP hook, void **orig) {
+static void WAGRLGHookInstanceMethod(Class cls, SEL sel, IMP hook, IMP *orig) {
     if (!cls || !sel || !hook || !orig || *orig) return;
     Method m = class_getInstanceMethod(cls, sel);
     if (!m) return;
@@ -146,7 +131,7 @@ static void WAGRLGHookInstanceMethod(Class cls, SEL sel, IMP hook, void **orig) 
     NSLog(@"[WAGram][LiquidGlass] hooked -[%@ %@]", NSStringFromClass(cls), NSStringFromSelector(sel));
 }
 
-static void WAGRLGHookClassMethod(Class cls, SEL sel, IMP hook, void **orig) {
+static void WAGRLGHookClassMethod(Class cls, SEL sel, IMP hook, IMP *orig) {
     if (!cls || !sel || !hook || !orig || *orig) return;
     Method m = class_getClassMethod(cls, sel);
     if (!m) return;
@@ -160,37 +145,37 @@ static void WAGRLGInstallAllHooks(void) {
     if (_wagrLGHooksInstalled) return;
 
     Class wdslg = NSClassFromString(@"WDSLiquidGlass");
-    WAGRLGHookClassMethod(wdslg, NSSelectorFromString(@"hasLiquidGlassLaunched"), (IMP)hook_WDSLiquidGlass_hasLiquidGlassLaunched, (void **)&orig_WDSLiquidGlass_hasLiquidGlassLaunched);
-    WAGRLGHookClassMethod(wdslg, NSSelectorFromString(@"isM0Enabled"), (IMP)hook_WDSLiquidGlass_isM0Enabled, (void **)&orig_WDSLiquidGlass_isM0Enabled);
-    WAGRLGHookClassMethod(wdslg, NSSelectorFromString(@"isM1Enabled"), (IMP)hook_WDSLiquidGlass_isM1Enabled, (void **)&orig_WDSLiquidGlass_isM1Enabled);
-    WAGRLGHookClassMethod(wdslg, NSSelectorFromString(@"isM1_5Enabled"), (IMP)hook_WDSLiquidGlass_isM1_5Enabled, (void **)&orig_WDSLiquidGlass_isM1_5Enabled);
-    WAGRLGHookClassMethod(wdslg, NSSelectorFromString(@"isM1_5ContextMenuEnabled"), (IMP)hook_WDSLiquidGlass_isM1_5ContextMenuEnabled, (void **)&orig_WDSLiquidGlass_isM1_5ContextMenuEnabled);
-    WAGRLGHookClassMethod(wdslg, NSSelectorFromString(@"isLargerComposerEnabled"), (IMP)hook_WDSLiquidGlass_isLargerComposerEnabled, (void **)&orig_WDSLiquidGlass_isLargerComposerEnabled);
-    WAGRLGHookClassMethod(wdslg, NSSelectorFromString(@"isNativeSidebarEnabled"), (IMP)hook_WDSLiquidGlass_isNativeSidebarEnabled, (void **)&orig_WDSLiquidGlass_isNativeSidebarEnabled);
-    WAGRLGHookClassMethod(wdslg, NSSelectorFromString(@"shouldUseNativeSwipeActions"), (IMP)hook_WDSLiquidGlass_shouldUseNativeSwipeActions, (void **)&orig_WDSLiquidGlass_shouldUseNativeSwipeActions);
+    WAGRLGHookClassMethod(wdslg, NSSelectorFromString(@"hasLiquidGlassLaunched"), (IMP)hook_WDSLiquidGlass_hasLiquidGlassLaunched, (IMP *)&orig_WDSLiquidGlass_hasLiquidGlassLaunched);
+    WAGRLGHookClassMethod(wdslg, NSSelectorFromString(@"isM0Enabled"), (IMP)hook_WDSLiquidGlass_isM0Enabled, (IMP *)&orig_WDSLiquidGlass_isM0Enabled);
+    WAGRLGHookClassMethod(wdslg, NSSelectorFromString(@"isM1Enabled"), (IMP)hook_WDSLiquidGlass_isM1Enabled, (IMP *)&orig_WDSLiquidGlass_isM1Enabled);
+    WAGRLGHookClassMethod(wdslg, NSSelectorFromString(@"isM1_5Enabled"), (IMP)hook_WDSLiquidGlass_isM1_5Enabled, (IMP *)&orig_WDSLiquidGlass_isM1_5Enabled);
+    WAGRLGHookClassMethod(wdslg, NSSelectorFromString(@"isM1_5ContextMenuEnabled"), (IMP)hook_WDSLiquidGlass_isM1_5ContextMenuEnabled, (IMP *)&orig_WDSLiquidGlass_isM1_5ContextMenuEnabled);
+    WAGRLGHookClassMethod(wdslg, NSSelectorFromString(@"isLargerComposerEnabled"), (IMP)hook_WDSLiquidGlass_isLargerComposerEnabled, (IMP *)&orig_WDSLiquidGlass_isLargerComposerEnabled);
+    WAGRLGHookClassMethod(wdslg, NSSelectorFromString(@"isNativeSidebarEnabled"), (IMP)hook_WDSLiquidGlass_isNativeSidebarEnabled, (IMP *)&orig_WDSLiquidGlass_isNativeSidebarEnabled);
+    WAGRLGHookClassMethod(wdslg, NSSelectorFromString(@"shouldUseNativeSwipeActions"), (IMP)hook_WDSLiquidGlass_shouldUseNativeSwipeActions, (IMP *)&orig_WDSLiquidGlass_shouldUseNativeSwipeActions);
 
     Class waab = NSClassFromString(@"WAABProperties");
-    WAGRLGHookInstanceMethod(waab, NSSelectorFromString(@"ios_liquid_glass_enabled"), (IMP)hook_WAAB_ios_liquid_glass_enabled, (void **)&orig_WAAB_ios_liquid_glass_enabled);
-    WAGRLGHookInstanceMethod(waab, NSSelectorFromString(@"ios_liquid_glass_launched"), (IMP)hook_WAAB_ios_liquid_glass_launched, (void **)&orig_WAAB_ios_liquid_glass_launched);
-    WAGRLGHookInstanceMethod(waab, NSSelectorFromString(@"ios_liquid_glass_m1"), (IMP)hook_WAAB_ios_liquid_glass_m1, (void **)&orig_WAAB_ios_liquid_glass_m1);
-    WAGRLGHookInstanceMethod(waab, NSSelectorFromString(@"ios_liquid_glass_m_1_5"), (IMP)hook_WAAB_ios_liquid_glass_m_1_5, (void **)&orig_WAAB_ios_liquid_glass_m_1_5);
-    WAGRLGHookInstanceMethod(waab, NSSelectorFromString(@"ios_liquid_glass_m_1_5_context_menu"), (IMP)hook_WAAB_ios_liquid_glass_m_1_5_context_menu, (void **)&orig_WAAB_ios_liquid_glass_m_1_5_context_menu);
-    WAGRLGHookInstanceMethod(waab, NSSelectorFromString(@"ios_liquid_glass_media_m0"), (IMP)hook_WAAB_ios_liquid_glass_media_m0, (void **)&orig_WAAB_ios_liquid_glass_media_m0);
-    WAGRLGHookInstanceMethod(waab, NSSelectorFromString(@"ios_liquid_glass_larger_composer"), (IMP)hook_WAAB_ios_liquid_glass_larger_composer, (void **)&orig_WAAB_ios_liquid_glass_larger_composer);
-    WAGRLGHookInstanceMethod(waab, NSSelectorFromString(@"ios_liquid_glass_media_editor_enabled"), (IMP)hook_WAAB_ios_liquid_glass_media_editor_enabled, (void **)&orig_WAAB_ios_liquid_glass_media_editor_enabled);
-    WAGRLGHookInstanceMethod(waab, NSSelectorFromString(@"ios_liquid_glass_calling_improvement_enabled"), (IMP)hook_WAAB_ios_liquid_glass_calling_improvement_enabled, (void **)&orig_WAAB_ios_liquid_glass_calling_improvement_enabled);
-    WAGRLGHookInstanceMethod(waab, NSSelectorFromString(@"ios_liquid_glass_workaround_attachment_tray"), (IMP)hook_WAAB_ios_liquid_glass_workaround_attachment_tray, (void **)&orig_WAAB_ios_liquid_glass_workaround_attachment_tray);
-    WAGRLGHookInstanceMethod(waab, NSSelectorFromString(@"ios_liquid_glass_reduce_transparency"), (IMP)hook_WAAB_ios_liquid_glass_reduce_transparency, (void **)&orig_WAAB_ios_liquid_glass_reduce_transparency);
-    WAGRLGHookInstanceMethod(waab, NSSelectorFromString(@"ios_liquid_glass_fixes_for_older_ios"), (IMP)hook_WAAB_ios_liquid_glass_fixes_for_older_ios, (void **)&orig_WAAB_ios_liquid_glass_fixes_for_older_ios);
-    WAGRLGHookInstanceMethod(waab, NSSelectorFromString(@"status_viewer_redesign_enabled"), (IMP)hook_WAAB_status_viewer_redesign_enabled, (void **)&orig_WAAB_status_viewer_redesign_enabled);
-    WAGRLGHookInstanceMethod(waab, NSSelectorFromString(@"ios_liquid_glass_chat_top_bar_m2_enabled"), (IMP)hook_WAAB_ios_liquid_glass_chat_top_bar_m2_enabled, (void **)&orig_WAAB_ios_liquid_glass_chat_top_bar_m2_enabled);
-    WAGRLGHookInstanceMethod(waab, NSSelectorFromString(@"ios_liquid_glass_enable_new_chatbar_ux"), (IMP)hook_WAAB_ios_liquid_glass_enable_new_chatbar_ux, (void **)&orig_WAAB_ios_liquid_glass_enable_new_chatbar_ux);
+    WAGRLGHookInstanceMethod(waab, NSSelectorFromString(@"ios_liquid_glass_enabled"), (IMP)hook_WAAB_ios_liquid_glass_enabled, (IMP *)&orig_WAAB_ios_liquid_glass_enabled);
+    WAGRLGHookInstanceMethod(waab, NSSelectorFromString(@"ios_liquid_glass_launched"), (IMP)hook_WAAB_ios_liquid_glass_launched, (IMP *)&orig_WAAB_ios_liquid_glass_launched);
+    WAGRLGHookInstanceMethod(waab, NSSelectorFromString(@"ios_liquid_glass_m1"), (IMP)hook_WAAB_ios_liquid_glass_m1, (IMP *)&orig_WAAB_ios_liquid_glass_m1);
+    WAGRLGHookInstanceMethod(waab, NSSelectorFromString(@"ios_liquid_glass_m_1_5"), (IMP)hook_WAAB_ios_liquid_glass_m_1_5, (IMP *)&orig_WAAB_ios_liquid_glass_m_1_5);
+    WAGRLGHookInstanceMethod(waab, NSSelectorFromString(@"ios_liquid_glass_m_1_5_context_menu"), (IMP)hook_WAAB_ios_liquid_glass_m_1_5_context_menu, (IMP *)&orig_WAAB_ios_liquid_glass_m_1_5_context_menu);
+    WAGRLGHookInstanceMethod(waab, NSSelectorFromString(@"ios_liquid_glass_media_m0"), (IMP)hook_WAAB_ios_liquid_glass_media_m0, (IMP *)&orig_WAAB_ios_liquid_glass_media_m0);
+    WAGRLGHookInstanceMethod(waab, NSSelectorFromString(@"ios_liquid_glass_larger_composer"), (IMP)hook_WAAB_ios_liquid_glass_larger_composer, (IMP *)&orig_WAAB_ios_liquid_glass_larger_composer);
+    WAGRLGHookInstanceMethod(waab, NSSelectorFromString(@"ios_liquid_glass_media_editor_enabled"), (IMP)hook_WAAB_ios_liquid_glass_media_editor_enabled, (IMP *)&orig_WAAB_ios_liquid_glass_media_editor_enabled);
+    WAGRLGHookInstanceMethod(waab, NSSelectorFromString(@"ios_liquid_glass_calling_improvement_enabled"), (IMP)hook_WAAB_ios_liquid_glass_calling_improvement_enabled, (IMP *)&orig_WAAB_ios_liquid_glass_calling_improvement_enabled);
+    WAGRLGHookInstanceMethod(waab, NSSelectorFromString(@"ios_liquid_glass_workaround_attachment_tray"), (IMP)hook_WAAB_ios_liquid_glass_workaround_attachment_tray, (IMP *)&orig_WAAB_ios_liquid_glass_workaround_attachment_tray);
+    WAGRLGHookInstanceMethod(waab, NSSelectorFromString(@"ios_liquid_glass_reduce_transparency"), (IMP)hook_WAAB_ios_liquid_glass_reduce_transparency, (IMP *)&orig_WAAB_ios_liquid_glass_reduce_transparency);
+    WAGRLGHookInstanceMethod(waab, NSSelectorFromString(@"ios_liquid_glass_fixes_for_older_ios"), (IMP)hook_WAAB_ios_liquid_glass_fixes_for_older_ios, (IMP *)&orig_WAAB_ios_liquid_glass_fixes_for_older_ios);
+    WAGRLGHookInstanceMethod(waab, NSSelectorFromString(@"status_viewer_redesign_enabled"), (IMP)hook_WAAB_status_viewer_redesign_enabled, (IMP *)&orig_WAAB_status_viewer_redesign_enabled);
+    WAGRLGHookInstanceMethod(waab, NSSelectorFromString(@"ios_liquid_glass_chat_top_bar_m2_enabled"), (IMP)hook_WAAB_ios_liquid_glass_chat_top_bar_m2_enabled, (IMP *)&orig_WAAB_ios_liquid_glass_chat_top_bar_m2_enabled);
+    WAGRLGHookInstanceMethod(waab, NSSelectorFromString(@"ios_liquid_glass_enable_new_chatbar_ux"), (IMP)hook_WAAB_ios_liquid_glass_enable_new_chatbar_ux, (IMP *)&orig_WAAB_ios_liquid_glass_enable_new_chatbar_ux);
 
     Class overrideClass = NSClassFromString(@"WALiquidGlassOverrideMethodUserDefaults");
-    WAGRLGHookInstanceMethod(overrideClass, NSSelectorFromString(@"isEnabled"), (IMP)hook_WALGOverride_isEnabled, (void **)&orig_WALGOverride_isEnabled);
+    WAGRLGHookInstanceMethod(overrideClass, NSSelectorFromString(@"isEnabled"), (IMP)hook_WALGOverride_isEnabled, (IMP *)&orig_WALGOverride_isEnabled);
 
     Class igHelper = NSClassFromString(@"IGLiquidGlassExperimentHelper");
-    WAGRLGHookClassMethod(igHelper, NSSelectorFromString(@"isEnabled"), (IMP)hook_IGLGExperimentHelper_isEnabled, (void **)&orig_IGLGExperimentHelper_isEnabled);
+    WAGRLGHookClassMethod(igHelper, NSSelectorFromString(@"isEnabled"), (IMP)hook_IGLGExperimentHelper_isEnabled, (IMP *)&orig_IGLGExperimentHelper_isEnabled);
 
     _wagrLGHooksInstalled = YES;
 }
@@ -199,11 +184,6 @@ __attribute__((constructor))
 static void WAGRLiquidGlassInit(void) {
     @autoreleasepool {
         WAGRLGApplyUserDefaultsOverride();
-
-        // Hooks are cheap and selector-targeted. Install them early even if the
-        // master is OFF; each hook falls back to %orig until the user enables LG.
-        // This avoids the old failure where toggling ON after startup never found
-        // WDSLiquidGlass / WAABProperties in time.
         WAGRLGInstallAllHooks();
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{ WAGRLGInstallAllHooks(); });
     }
