@@ -720,12 +720,12 @@ struct RowDef { RowType type; NSString *title; NSString *detail; id target; NSSt
             WAGRABFlagBrowserVC *vc=[[WAGRABFlagBrowserVC alloc]initWithTitle:@"Todos os Flags WAAB" flags:@[]];
             [self.navigationController pushViewController:vc animated:YES];
         } else if (ip.row==1) {
-            WAGRRuntimeMethodBrowserVC *vc=[[WAGRRuntimeMethodBrowserVC alloc]initWithTitle:@"Runtime não-WAAB" tokens:@[@"aura",@"subscription",@"benefit",@"premium",@"liquid",@"theme",@"icon",@"ringtone",@"sticker",@"business",@"smb",@"ai",@"plus",@"debug",@"internal",@"dogfood"]];
+            WAGRRuntimeMethodBrowserVC *vc=[[WAGRRuntimeMethodBrowserVC alloc]initWithTitle:@"Runtime não-WAAB" tokens:@[@"aura",@"subscription",@"benefit",@"premium",@"liquid",@"theme",@"icon",@"ringtone",@"sticker",@"business",@"smb",@"ai",@"plus",@"debug",@"internal",@"dogfood",@"multiaccount",@"accountswitcher",@"waffle",@"paa"]];
             [self.navigationController pushViewController:vc animated:YES];
         } else if (ip.row==2) {
             [self showDogfoodVC];
         } else {
-            Alert(@"Sistema", [NSString stringWithFormat:@"%@\n\n%@", WAGRWAABDiagnosticText(), WAGRDogfoodDiagnosticText()]);
+            Alert(@"Sistema", [NSString stringWithFormat:@"%@\n\n%@\n\n%@", WAGRWAABDiagnosticText(), WAGRDogfoodDiagnosticText(), WAGRNativeSurfaceDiagnosticText()]);
         }
         return;
     }

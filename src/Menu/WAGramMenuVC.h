@@ -26,6 +26,9 @@ NSString *WAGRAuraDiagnostic(void);
 void      WAGRBundleHooksInstall(void);
 void      WAGRNativeSurfaceEnsureHooksInstalled(void);
 NSString *WAGRNativeSurfaceDiagnosticText(void);
+void      WAGRNativeBoolOverrideSet(NSString *className, BOOL meta, NSString *selectorName, NSString *value);
+NSString *WAGRNativeBoolOverrideGet(NSString *className, BOOL meta, NSString *selectorName);
+NSUInteger WAGRNativeBoolOverrideInstallPersisted(void);
 #ifdef __cplusplus
 }
 #endif
@@ -37,12 +40,16 @@ static inline void WAGRActivateBundle(NSArray<NSString *> *flags) {
     for (NSString *f in flags)
         [ud setObject:@"on" forKey:[NSString stringWithFormat:@"wagr.waab.%@", f]];
     [ud synchronize];
+    WAGRWAABEnsureHooksInstalled();
+    WAGRNativeSurfaceEnsureHooksInstalled();
 }
 static inline void WAGRDeactivateBundle(NSArray<NSString *> *flags) {
     NSUserDefaults *ud = NSUserDefaults.standardUserDefaults;
     for (NSString *f in flags)
         [ud removeObjectForKey:[NSString stringWithFormat:@"wagr.waab.%@", f]];
     [ud synchronize];
+    WAGRWAABEnsureHooksInstalled();
+    WAGRNativeSurfaceEnsureHooksInstalled();
 }
 static inline NSUInteger WAGRBundleActiveCount(NSArray<NSString *> *flags) {
     NSUserDefaults *ud = NSUserDefaults.standardUserDefaults;
@@ -65,7 +72,7 @@ static inline BOOL WAGRBundleAllActive(NSArray<NSString *> *flags) {
 @interface WAGramMenuVC : UITableViewController
 @end
 
-// Non-WAAB runtime method browser — read-only catalog of bool-ish methods outside WAABProperties.
+// Non-WAAB runtime method browser — tri-state exact override for bool-ish methods outside WAABProperties.
 @interface WAGRRuntimeMethodBrowserVC : UITableViewController <UISearchResultsUpdating>
 - (instancetype)initWithTitle:(NSString *)title tokens:(NSArray<NSString *> *)tokens;
 + (NSArray<NSString *> *)runtimeMethodsMatchingTokens:(NSArray<NSString *> *)tokens;
