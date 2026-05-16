@@ -72,6 +72,9 @@ static inline BOOL WAGRBundleAllActive(NSArray<NSString *> *flags) {
 @interface WAGramMenuVC : UITableViewController
 @end
 
+@interface WAGramWAABRuntimeCategoriesVC : UITableViewController
+@end
+
 // Non-WAAB runtime method browser — tri-state exact override for bool-ish methods outside WAABProperties.
 @interface WAGRRuntimeMethodBrowserVC : UITableViewController <UISearchResultsUpdating>
 - (instancetype)initWithTitle:(NSString *)title tokens:(NSArray<NSString *> *)tokens;

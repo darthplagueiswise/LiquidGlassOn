@@ -619,7 +619,7 @@ struct RowDef { RowType type; NSString *title; NSString *detail; id target; NSSt
 - (NSInteger)tableView:(UITableView*)tv numberOfRowsInSection:(NSInteger)s{
     if (s==0) return 4;   // Masters (switches)
     if (s==1) return 9;   // Feature bundles
-    if (s==2) return 4;   // More features
+    if (s==2) return 5;   // More features
     return 2;              // Actions
 }
 - (UIView*)tableView:(UITableView*)tv viewForHeaderInSection:(NSInteger)s {
@@ -679,7 +679,7 @@ struct RowDef { RowType type; NSString *title; NSString *detail; id target; NSSt
         return c;
     }
     if (ip.section==2) {
-        NSArray *names=@[@"🔎  Todos os Flags WAAB",@"🧬  Runtime não-WAAB",@"👤  Dogfood / Internal",@"🐛  Debug & Sistema"];
+        NSArray *names=@[@"🔎  Todos os Flags WAAB",@"🧩  WAAB Categorias Runtime",@"🧬  Runtime não-WAAB",@"👤  Dogfood / Internal",@"🐛  Debug & Sistema"];
         UITableViewCell *c=[[UITableViewCell alloc]initWithStyle:UITableViewCellStyleDefault reuseIdentifier:nil];
         c.backgroundColor=CELLBG(); c.textLabel.text=names[ip.row]; c.textLabel.textColor=UIColor.labelColor;
         c.accessoryType=UITableViewCellAccessoryDisclosureIndicator; return c;
