@@ -204,7 +204,6 @@ static const char kBKey = 0;
 // ═══════════════════════════════════════════════════════════════════════════════
 // WAGramSubMenuVC — for master switch sections only
 // ═══════════════════════════════════════════════════════════════════════════════
-static const char kSubKey=0;
 @interface WAGramSubMenuVC ()
 @property (nonatomic, strong) NSArray<WAGramSectionDef *> *sections;
 @end
@@ -600,8 +599,8 @@ static WAGRABFlagBrowserVC *PrivacyBrowser(void) {
     ]);
 }
 
-static WAGRABFlagBrowserVC *PremiumBrowser(void) {
-    return browser(@"Premium & Business", @[
+static WAGRABFlagBrowserVC *SubscriptionPlusBrowser(void) {
+    return browser(@"Subscription / Plus", @[
         @"smbi_premium_broadcast_enabled",
         @"smbi_subscription_content_models_enabled",
         @"waffle_companions_enabled",
@@ -731,7 +730,7 @@ static UIViewController *SystemVC(void) {
             [WAGramRow navWithTitle:@"Channels"           subtitle:@"11 flags" target:ChannelsBrowser()],
             [WAGramRow navWithTitle:@"Groups & Interop"   subtitle:@"15 flags" target:GroupsBrowser()],
             [WAGramRow navWithTitle:@"Privacy & Username" subtitle:@"12 flags" target:PrivacyBrowser()],
-            [WAGramRow navWithTitle:@"Premium & Business" subtitle:@"12 flags" target:PremiumBrowser()],
+            [WAGramRow navWithTitle:@"Subscription / Plus" subtitle:@"Plus, themes, icons" target:SubscriptionPlusBrowser()],
             [WAGramRow navWithTitle:@"Dogfood / Internal" subtitle:@""         target:DogfoodVC()],
             [WAGramRow navWithTitle:@"Sistema"            subtitle:@""         target:SystemVC()]
         ),

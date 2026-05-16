@@ -38,7 +38,7 @@ static BOOL (*orig_isExpandedFormattingPlusEnabled)(id, SEL) = NULL;
 
 #define BENEFIT_HOOK(name, orig) \
 static BOOL hook_##name(id s, SEL c) { \
-    if (WAGRIsOn(@#name) || WAGRPref(kWAGRLiquidGlassMaster)) return YES; \
+    if ([[NSUserDefaults standardUserDefaults] boolForKey:@"wagr_aura_simulation_enabled"] || WAGRIsOn(@#name)) return YES; \
     return orig ? orig(s, c) : NO; \
 }
 
@@ -51,12 +51,8 @@ BENEFIT_HOOK(isStickersBenefitActive, orig_isStickersBenefitActive)
 BENEFIT_HOOK(isEligibleForSubscriptions, orig_isEligibleForSubscriptions)
 BENEFIT_HOOK(isExpandedFormattingPlusEnabled, orig_isExpandedFormattingPlusEnabled)
 
-// ── Kill-switch override (aura_kill_switch must return NO) ─────────────────────
-static BOOL WAGRWAABGenericBoolHookExternal(id self, SEL _cmd);
-
-// aura_kill_switch → force NO (it's a KILL switch, so NO = Aura enabled)
-// This is handled generically by WAABPropsObserver with @"off" storage.
-// WAGRSet(@"aura_kill_switch", NO) sets it to @"off" which returns NO.
+// ── Kill-switch override notes ──────────────────────────────────────────────
+// aura_kill_switch returns NO through WAABPropsObserver when stored as @"off".
 
 // ── Hook installer ─────────────────────────────────────────────────────────────
 static void WAGRHookBenefitSel(const char *selName, IMP hook, IMP *orig) {
@@ -115,6 +111,7 @@ static void WAGRAuraSetBoolOverride(NSString *flag, NSString *value) {
 
 // ── Activate all Aura WAAB flags at once ──────────────────────────────────────
 extern "C" void WAGRAuraActivateAllFlags(void) {
+    [[NSUserDefaults standardUserDefaults] setBool:YES forKey:@"wagr_aura_simulation_enabled"];
     // These go through WAABPropsObserver's generic hook
     NSArray *forceOn = @[
         @"aura_enabled",
@@ -135,7 +132,20 @@ extern "C" void WAGRAuraActivateAllFlags(void) {
         @"aura_ringtones_benefit_active",
         @"aura_stickers_enabled",
         @"aura_stickers_benefit_active",
+        @"aura_stickers_overlay_animation_enabled",
+        @"aura_painted_door_stickers_enabled",
         @"ai_subscription_enabled",
+        @"ai_subscription_imagine_intent_enabled",
+        @"isAppIconsBenefitActive",
+        @"isAppThemesBenefitActive",
+        @"isRingtonesBenefitActive",
+        @"isEnhancedListsBenefitActive",
+        @"isExtendedPinnedChatBenefitActive",
+        @"isStickersBenefitActive",
+        @"isEligibleForSubscriptions",
+        @"isExpandedFormattingPlusEnabled",
+        @"isAISubscriptionEnabled",
+        @"isSubscribedToAiBenefit",
     ];
     NSArray *forceOff = @[
         @"aura_kill_switch",            // kill switch → OFF = enabled
@@ -151,6 +161,7 @@ extern "C" void WAGRAuraActivateAllFlags(void) {
 
 // ── Deactivate all Aura flags ──────────────────────────────────────────────────
 extern "C" void WAGRAuraDeactivateAllFlags(void) {
+    [[NSUserDefaults standardUserDefaults] removeObjectForKey:@"wagr_aura_simulation_enabled"];
     NSArray *flags = @[
         @"aura_enabled", @"aura_settings_row_enabled", @"aura_subscription_simulation_enabled",
         @"aura_kill_switch", @"aura_premium_stickers_killswitch",
@@ -160,7 +171,10 @@ extern "C" void WAGRAuraDeactivateAllFlags(void) {
         @"aura_enhanced_lists_enabled", @"aura_enhanced_lists_benefit_active",
         @"aura_ringtones_enabled", @"aura_ringtones_benefit_active",
         @"aura_stickers_enabled", @"aura_stickers_benefit_active",
-        @"ai_subscription_enabled",
+        @"ai_subscription_enabled", @"ai_subscription_imagine_intent_enabled",
+        @"isAppIconsBenefitActive", @"isAppThemesBenefitActive", @"isRingtonesBenefitActive",
+        @"isEnhancedListsBenefitActive", @"isExtendedPinnedChatBenefitActive", @"isStickersBenefitActive",
+        @"isEligibleForSubscriptions", @"isExpandedFormattingPlusEnabled", @"isAISubscriptionEnabled", @"isSubscribedToAiBenefit",
     ];
     NSUserDefaults *ud = NSUserDefaults.standardUserDefaults;
     for (NSString *f in flags) WAGRAuraSetBoolOverride(f, nil);
@@ -229,4 +243,13 @@ extern "C" NSString *WAGRAuraDiagnostic(void) {
         themes?@"YES":@"NO", icons?@"YES":@"NO",
         themesVC?@"YES":@"NO", iconsVC?@"YES":@"NO",
         gAuraHooksInstalled?@"YES":@"NO"];
+}
+
+__attribute__((constructor))
+static void WAGRAuraInit(void) {
+    @autoreleasepool {
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+            if ([[NSUserDefaults standardUserDefaults] boolForKey:@"wagr_aura_simulation_enabled"]) WAGRAuraEnsureHooksInstalled();
+        });
+    }
 }
