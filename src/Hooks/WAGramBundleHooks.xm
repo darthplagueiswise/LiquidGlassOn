@@ -1,6 +1,6 @@
 // WAGramBundleHooks.xm
-// Direct per-method hooks on WAABProperties for bundled feature groups.
-// MSHookMessageEx implementation; avoids Logos original-call macro expansion.
+// Direct per-method hooks on WAABProperties for all visible WAGram bundles.
+// MSHookMessageEx implementation; no Logos original-call macro.
 
 #import <Foundation/Foundation.h>
 #import <objc/runtime.h>
@@ -20,7 +20,7 @@ static BOOL WAGRBundleBoolHook(id self, SEL _cmd) {
     if ([v isEqualToString:@"off"]) return NO;
 
     WAGRWAABOrigBoolIMP orig = NULL;
-    NSValue *val = gWAGRBundleOrig[flag];
+    NSValue *val = [gWAGRBundleOrig objectForKey:flag];
     if (val) orig = (WAGRWAABOrigBoolIMP)[val pointerValue];
 
     return orig ? orig(self, _cmd) : NO;
@@ -30,7 +30,7 @@ static void WAGRHookOneWAABBundleFlag(Class cls, const char *name) {
     if (!cls || !name || !*name) return;
 
     NSString *key = [NSString stringWithUTF8String:name];
-    if (gWAGRBundleOrig[key]) return;
+    if ([gWAGRBundleOrig objectForKey:key]) return;
 
     SEL sel = sel_registerName(name);
     Method m = class_getInstanceMethod(cls, sel);
@@ -44,7 +44,7 @@ static void WAGRHookOneWAABBundleFlag(Class cls, const char *name) {
 
     IMP orig = NULL;
     MSHookMessageEx(cls, sel, (IMP)WAGRBundleBoolHook, &orig);
-    if (orig) gWAGRBundleOrig[key] = [NSValue valueWithPointer:(void *)orig];
+    if (orig) [gWAGRBundleOrig setObject:[NSValue valueWithPointer:(void *)orig] forKey:key];
 }
 
 extern "C" void WAGRBundleEnsureHooksInstalled(void) {
@@ -211,6 +211,132 @@ extern "C" void WAGRBundleEnsureHooksInstalled(void) {
     WAGRHookOneWAABBundleFlag(cls, "isAfterReadReceiverEnabled");
     WAGRHookOneWAABBundleFlag(cls, "reactionsChatPreview");
     WAGRHookOneWAABBundleFlag(cls, "username_contact_display");
+    WAGRHookOneWAABBundleFlag(cls, "liquid_glass");
+    WAGRHookOneWAABBundleFlag(cls, "aura_");
+    WAGRHookOneWAABBundleFlag(cls, "ios_liquid_glass_enabled");
+    WAGRHookOneWAABBundleFlag(cls, "ios_liquid_glass_launched");
+    WAGRHookOneWAABBundleFlag(cls, "ios_liquid_glass_media_m0");
+    WAGRHookOneWAABBundleFlag(cls, "ios_liquid_glass_m1");
+    WAGRHookOneWAABBundleFlag(cls, "ios_liquid_glass_m_1_5");
+    WAGRHookOneWAABBundleFlag(cls, "ios_liquid_glass_m_1_5_context_menu");
+    WAGRHookOneWAABBundleFlag(cls, "ios_liquid_glass_m_2_action_tile");
+    WAGRHookOneWAABBundleFlag(cls, "ios_liquid_glass_m_2_chips");
+    WAGRHookOneWAABBundleFlag(cls, "ios_liquid_glass_m_2_lightweight_dialogs");
+    WAGRHookOneWAABBundleFlag(cls, "ios_liquid_glass_m_2_text_layout");
+    WAGRHookOneWAABBundleFlag(cls, "ios_liquid_glass_larger_composer");
+    WAGRHookOneWAABBundleFlag(cls, "ios_liquid_glass_media_editor_enabled");
+    WAGRHookOneWAABBundleFlag(cls, "ios_liquid_glass_calling_improvement_enabled");
+    WAGRHookOneWAABBundleFlag(cls, "ios_liquid_glass_chat_top_bar_m2_enabled");
+    WAGRHookOneWAABBundleFlag(cls, "ios_liquid_glass_enable_new_chatbar_ux");
+    WAGRHookOneWAABBundleFlag(cls, "ios_liquid_glass_reduce_transparency");
+    WAGRHookOneWAABBundleFlag(cls, "ios_liquid_glass_ptt_oot");
+    WAGRHookOneWAABBundleFlag(cls, "ios_liquid_glass_fixes_for_older_ios");
+    WAGRHookOneWAABBundleFlag(cls, "ios_liquid_glass_fix_context_menu_on_disappear");
+    WAGRHookOneWAABBundleFlag(cls, "ios_liquid_glass_fix_context_menu_transition_safety");
+    WAGRHookOneWAABBundleFlag(cls, "ios_liquid_glass_fix_feedback_generator_retain");
+    WAGRHookOneWAABBundleFlag(cls, "ios_liquid_glass_fix_forward_picker_share_extension_crash");
+    WAGRHookOneWAABBundleFlag(cls, "ios_liquid_glass_fix_me_tab_profile_render_throttle_enabled");
+    WAGRHookOneWAABBundleFlag(cls, "ios_liquid_glass_fix_multisend_preview_dealloc");
+    WAGRHookOneWAABBundleFlag(cls, "ios_liquid_glass_fix_status_dismiss_when_locked");
+    WAGRHookOneWAABBundleFlag(cls, "ios_liquid_glass_fix_tabbar_badge_offthread");
+    WAGRHookOneWAABBundleFlag(cls, "ios_liquid_glass_fix_uiimage_trait_collection");
+    WAGRHookOneWAABBundleFlag(cls, "ios_liquid_glass_fix_updates_table_dynamic_color");
+    WAGRHookOneWAABBundleFlag(cls, "ios_liquid_glass_fix_weak_hashtable_snapshot");
+    WAGRHookOneWAABBundleFlag(cls, "ios_liquid_glass_workaround_attachment_tray");
+    WAGRHookOneWAABBundleFlag(cls, "ios_liquid_glass_workaround_hides_bottombar");
+    WAGRHookOneWAABBundleFlag(cls, "ios_liquid_glass_workaround_topbar_appearance");
+    WAGRHookOneWAABBundleFlag(cls, "status_viewer_redesign_enabled");
+    WAGRHookOneWAABBundleFlag(cls, "privacy_setting_relay_all_calls");
+    WAGRHookOneWAABBundleFlag(cls, "group_status_receiver_enabled");
+    WAGRHookOneWAABBundleFlag(cls, "is_status_opt_in_notification_enabled");
+    WAGRHookOneWAABBundleFlag(cls, "notification_highlight_sync");
+    WAGRHookOneWAABBundleFlag(cls, "sg_ios_multi_account_enabled");
+    WAGRHookOneWAABBundleFlag(cls, "wa_xfam_ios_switcher_multiaccount_enabled");
+    WAGRHookOneWAABBundleFlag(cls, "foa_bridges_account_switcher_ios_enabled");
+    WAGRHookOneWAABBundleFlag(cls, "deletion_reason_multi_account_enabled");
+    WAGRHookOneWAABBundleFlag(cls, "ai_subscription_enabled");
+    WAGRHookOneWAABBundleFlag(cls, "ai_subscription_imagine_intent_enabled");
+    WAGRHookOneWAABBundleFlag(cls, "ai_genai_imagine_intent_attachment_tray_enabled");
+    WAGRHookOneWAABBundleFlag(cls, "ai_group_multi_modal_enabled");
+    WAGRHookOneWAABBundleFlag(cls, "ai_imagine_intents_status_mimicry_receiver_enabled");
+    WAGRHookOneWAABBundleFlag(cls, "ai_imagine_intents_status_mimicry_sender_enabled");
+    WAGRHookOneWAABBundleFlag(cls, "ai_imagine_video_edit_in_media_editor_enabled");
+    WAGRHookOneWAABBundleFlag(cls, "ai_rewrite_in_context_menu_enabled");
+    WAGRHookOneWAABBundleFlag(cls, "ai_voice_fab_call_history_entry_enabled");
+    WAGRHookOneWAABBundleFlag(cls, "ai_voice_live_video_pip_enabled");
+    WAGRHookOneWAABBundleFlag(cls, "calling_voicemail_enabled");
+    WAGRHookOneWAABBundleFlag(cls, "channel_poll_status_card_enabled");
+    WAGRHookOneWAABBundleFlag(cls, "channel_status_consumption_music_enabled");
+    WAGRHookOneWAABBundleFlag(cls, "channel_status_creation_music_enabled");
+    WAGRHookOneWAABBundleFlag(cls, "context_menu_keyboard_fix_enabled");
+    WAGRHookOneWAABBundleFlag(cls, "enable_call_transfer_notification");
+    WAGRHookOneWAABBundleFlag(cls, "enable_in_call_more_menu_ios");
+    WAGRHookOneWAABBundleFlag(cls, "enable_in_call_picker_merged_list");
+    WAGRHookOneWAABBundleFlag(cls, "enable_more_menu_in_vc");
+    WAGRHookOneWAABBundleFlag(cls, "enable_new_call_invite");
+    WAGRHookOneWAABBundleFlag(cls, "enable_new_call_link_representation");
+    WAGRHookOneWAABBundleFlag(cls, "enable_reasoning_status");
+    WAGRHookOneWAABBundleFlag(cls, "enable_schedule_call_from_calls_tab");
+    WAGRHookOneWAABBundleFlag(cls, "enable_scheduled_calls_v2_entry_points_creation");
+    WAGRHookOneWAABBundleFlag(cls, "enable_sticker_lottie_reader_in_tray");
+    WAGRHookOneWAABBundleFlag(cls, "group_invite_contacts_count_enabled");
+    WAGRHookOneWAABBundleFlag(cls, "group_status_forward_to_channels_enabled");
+    WAGRHookOneWAABBundleFlag(cls, "ios_enable_klipy_sticker_search");
+    WAGRHookOneWAABBundleFlag(cls, "ios_guest_calling_representation_enabled");
+    WAGRHookOneWAABBundleFlag(cls, "ios_klipy_logging_enabled");
+    WAGRHookOneWAABBundleFlag(cls, "ios_linked_devices_empty_states_ui_refresh_enabled");
+    WAGRHookOneWAABBundleFlag(cls, "ios_reaction_keyboard_uilabel_enabled");
+    WAGRHookOneWAABBundleFlag(cls, "is_meta_employee_or_internal_tester");
+    WAGRHookOneWAABBundleFlag(cls, "meta_catalog_linking_m3_enabled");
+    WAGRHookOneWAABBundleFlag(cls, "newsletter_forward_counter_ui_enabled");
+    WAGRHookOneWAABBundleFlag(cls, "payments_selection_ui_updates_enabled");
+    WAGRHookOneWAABBundleFlag(cls, "push_name_in_community_groups_picker_enabled");
+    WAGRHookOneWAABBundleFlag(cls, "should_use_select_multiple_context_menu");
+    WAGRHookOneWAABBundleFlag(cls, "smb_custom_url_display_v2_enabled");
+    WAGRHookOneWAABBundleFlag(cls, "smb_verified_badge_parity_changes_enabled");
+    WAGRHookOneWAABBundleFlag(cls, "smbi_premium_broadcast_enabled");
+    WAGRHookOneWAABBundleFlag(cls, "status_animated_music_stickers_enabled");
+    WAGRHookOneWAABBundleFlag(cls, "status_animated_sticker_with_static_media_enabled");
+    WAGRHookOneWAABBundleFlag(cls, "status_viewer_redesign");
+    WAGRHookOneWAABBundleFlag(cls, "view_replies_follow_up_ui_enabled");
+    WAGRHookOneWAABBundleFlag(cls, "waffle_companions_enabled");
+    WAGRHookOneWAABBundleFlag(cls, "wagr_debug_mode_enabled");
+    WAGRHookOneWAABBundleFlag(cls, "wb_standard_layout_enabled_ios");
+    WAGRHookOneWAABBundleFlag(cls, "ai_home_redesign_enabled");
+    WAGRHookOneWAABBundleFlag(cls, "ai_psi_ux_enabled");
+    WAGRHookOneWAABBundleFlag(cls, "ai_dynamic_mode_selector_enabled");
+    WAGRHookOneWAABBundleFlag(cls, "ai_dynamic_model_branding_enabled");
+    WAGRHookOneWAABBundleFlag(cls, "ai_incognito_mode_enabled");
+    WAGRHookOneWAABBundleFlag(cls, "ai_incognito_mode_disappearing_messages_enabled");
+    WAGRHookOneWAABBundleFlag(cls, "ai_incognito_mode_personalization_enabled");
+    WAGRHookOneWAABBundleFlag(cls, "ai_incognito_media_input_enabled");
+    WAGRHookOneWAABBundleFlag(cls, "non_anonymous_incognito_enable");
+    WAGRHookOneWAABBundleFlag(cls, "ai_side_chat_enabled");
+    WAGRHookOneWAABBundleFlag(cls, "ai_side_chat_search_starter_enabled");
+    WAGRHookOneWAABBundleFlag(cls, "ai_side_chat_summarization_enabled");
+    WAGRHookOneWAABBundleFlag(cls, "ai_side_chat_writing_help_enabled");
+    WAGRHookOneWAABBundleFlag(cls, "ai_side_chat_image_creation_enabled");
+    WAGRHookOneWAABBundleFlag(cls, "ai_side_chat_media_input_enabled");
+    WAGRHookOneWAABBundleFlag(cls, "ai_hatch_integration_enabled");
+    WAGRHookOneWAABBundleFlag(cls, "ai_hatch_commands_enabled");
+    WAGRHookOneWAABBundleFlag(cls, "ai_rewrite_in_edit_message_enabled");
+    WAGRHookOneWAABBundleFlag(cls, "ai_rich_response_tables_enabled");
+    WAGRHookOneWAABBundleFlag(cls, "ai_contextual_writing_help_enabled");
+    WAGRHookOneWAABBundleFlag(cls, "ai_group_participation_enabled");
+    WAGRHookOneWAABBundleFlag(cls, "ai_group_participation_send_enabled");
+    WAGRHookOneWAABBundleFlag(cls, "ai_voice_image_input_enabled");
+    WAGRHookOneWAABBundleFlag(cls, "ai_voice_live_video_input_enabled");
+    WAGRHookOneWAABBundleFlag(cls, "ai_voice_ptt_coexistence_enabled");
+    WAGRHookOneWAABBundleFlag(cls, "ai_imagine_bottom_sheet_enabled");
+    WAGRHookOneWAABBundleFlag(cls, "ai_genai_imagine_intent_ar_effects_v3_enabled");
+    WAGRHookOneWAABBundleFlag(cls, "ai_genai_imagine_intent_status_v3_enabled");
+    WAGRHookOneWAABBundleFlag(cls, "ai_bot_imagine_me_enabled");
+    WAGRHookOneWAABBundleFlag(cls, "ai_llama_premium_model_main_gate_enabled");
+    WAGRHookOneWAABBundleFlag(cls, "is_internal_tester");
+    WAGRHookOneWAABBundleFlag(cls, "mobile_config_debug_internal");
+    WAGRHookOneWAABBundleFlag(cls, "dogfooder_diagnostics");
+    WAGRHookOneWAABBundleFlag(cls, "ios_internal_hall_enabled");
+    WAGRHookOneWAABBundleFlag(cls, "visible_message_drop_placeholder_enabled_internal_only");
 
     NSLog(@"[WAGram][BundleHooks] installed %lu direct WAAB bundle hooks",
           (unsigned long)gWAGRBundleOrig.count);

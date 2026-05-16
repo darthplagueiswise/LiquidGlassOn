@@ -24,6 +24,8 @@ BOOL      WAGRPushAuraIconsVC(UIViewController *from);
 BOOL      WAGRPushAuraRingtonesVC(UIViewController *from);
 NSString *WAGRAuraDiagnostic(void);
 void      WAGRBundleHooksInstall(void);
+void      WAGRNativeSurfaceEnsureHooksInstalled(void);
+NSString *WAGRNativeSurfaceDiagnosticText(void);
 #ifdef __cplusplus
 }
 #endif

@@ -418,6 +418,7 @@ static NSArray *TabBarFlags(void) {
         @"status_archive_updates_tab_entryoint_enabled",
         @"group_status_creation_updates_tab_entrypoint_enabled",
         @"status_quick_replies_v2_stickers_tab_enabled",
+             @"sg_ios_multi_account_enabled",@"wa_xfam_ios_switcher_multiaccount_enabled",@"foa_bridges_account_switcher_ios_enabled",
     ];
 }
 
@@ -451,6 +452,7 @@ static NSArray *SettingsRowFlags(void) {
         @"wa_subscriptions_entry_point_settings_enabled",
         @"wa_subscriptions_settings_green_dot_enabled",
         @"verified_badge_in_chats_list_enabled",
+             @"aura_settings_row_enabled",@"aura_enabled",@"sg_ios_multi_account_enabled",@"wa_xfam_ios_switcher_multiaccount_enabled",@"foa_bridges_account_switcher_ios_enabled",@"deletion_reason_multi_account_enabled",
     ];
 }
 
@@ -697,8 +699,8 @@ struct RowDef { RowType type; NSString *title; NSString *detail; id target; NSSt
     WASetEnabled(keys[sw.tag], sw.isOn);
     switch (sw.tag) {
         case 0: WAGRLGPrefsDidChange(); break;
-        case 1: WAGRDogfoodEnsureHooksInstalled(); break;
-        case 2: WAGRDebugMenuEnsureHooksInstalled(); break;
+        case 1: WAGRDogfoodEnsureHooksInstalled(); WAGRNativeSurfaceEnsureHooksInstalled(); break;
+        case 2: WAGRDebugMenuEnsureHooksInstalled(); WAGRNativeSurfaceEnsureHooksInstalled(); break;
         case 3: WAGRWAABEnsureHooksInstalled(); break;
     }
     [self.tableView reloadSections:[NSIndexSet indexSetWithIndex:0] withRowAnimation:UITableViewRowAnimationNone];

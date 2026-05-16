@@ -3,9 +3,6 @@
 #import <objc/runtime.h>
 #import "WAGramMenuVC.h"
 
-static UIColor *WAGRRTBG(void) { return UIColor.systemBackgroundColor; }
-static UIColor *WAGRRTCellBG(void) { return UIColor.secondarySystemBackgroundColor; }
-
 @interface WAGRRuntimeMethodBrowserVC ()
 @property (nonatomic, strong) NSArray<NSString *> *allItems;
 @property (nonatomic, strong) NSArray<NSString *> *filtered;
@@ -16,13 +13,12 @@ static UIColor *WAGRRTCellBG(void) { return UIColor.secondarySystemBackgroundCol
 @implementation WAGRRuntimeMethodBrowserVC
 - (instancetype)initWithTitle:(NSString *)title tokens:(NSArray<NSString *> *)tokens {
     if (!(self=[super initWithStyle:UITableViewStylePlain])) return nil;
-    self.title = title ?: @"Runtime Methods";
+    self.title = title ?: @"Runtime";
     _tokens = tokens ?: @[];
     _allItems = [[self class] runtimeMethodsMatchingTokens:_tokens];
     _filtered = _allItems;
     return self;
 }
-
 + (BOOL)methodNameLooksFeatureLike:(NSString *)name {
     if (!name.length || [name containsString:@":"]) return NO;
     NSString *l = name.lowercaseString;
@@ -30,37 +26,33 @@ static UIColor *WAGRRTCellBG(void) { return UIColor.secondarySystemBackgroundCol
     if ([l containsString:@"enabled"] || [l containsString:@"eligible"] || [l containsString:@"benefit"] || [l containsString:@"killswitch"] || [l containsString:@"kill_switch"]) return YES;
     return NO;
 }
-
 + (NSArray<NSString *> *)runtimeMethodsMatchingTokens:(NSArray<NSString *> *)tokens {
-    NSMutableArray<NSString *> *out = [NSMutableArray arrayWithCapacity:1024];
-    unsigned int classCount = 0;
-    Class *classes = objc_copyClassList(&classCount);
+    NSMutableArray<NSString *> *out = [NSMutableArray array];
+    NSArray<NSString *> *effective = tokens.count ? tokens : @[@"aura",@"subscription",@"benefit",@"premium",@"liquid",@"theme",@"icon",@"ringtone",@"sticker",@"business",@"smb",@"ai",@"plus",@"debug",@"internal",@"dogfood",@"multiaccount",@"accountswitcher"];
+    unsigned int count = 0;
+    Class *classes = objc_copyClassList(&count);
     if (!classes) return @[];
-    NSArray<NSString *> *effective = tokens.count ? tokens : @[@"aura", @"subscription", @"benefit", @"premium", @"liquid", @"theme", @"icon", @"ringtone", @"sticker", @"business", @"smb", @"ai", @"plus"];
-    for (unsigned int ci=0; ci<classCount; ci++) {
+    for (unsigned int ci=0; ci<count; ci++) {
         Class cls = classes[ci];
         NSString *cn = NSStringFromClass(cls);
-        if (!cn.length) continue;
-        if ([cn isEqualToString:@"WAABProperties"] || [cn containsString:@"WAABProperties"] || [cn containsString:@"ABProperties"]) continue;
-        NSString *cnl = cn.lowercaseString;
-        BOOL classHit = NO;
-        for (NSString *t in effective) if ([cnl containsString:t.lowercaseString]) { classHit = YES; break; }
-        for (int metaPass=0; metaPass<2; metaPass++) {
-            Class target = metaPass ? object_getClass(cls) : cls;
-            unsigned int mc=0; Method *methods = class_copyMethodList(target, &mc);
+        if (!cn.length || [cn containsString:@"WAABProperties"]) continue;
+        for (int meta=0; meta<2; meta++) {
+            Class target = meta ? object_getClass(cls) : cls;
+            unsigned int mc = 0;
+            Method *methods = class_copyMethodList(target, &mc);
             if (!methods) continue;
             for (unsigned int mi=0; mi<mc; mi++) {
                 Method m = methods[mi];
                 if (method_getNumberOfArguments(m) != 2) continue;
                 char ret[8]={0}; method_getReturnType(m, ret, sizeof(ret));
-                if (!(ret[0]=='B' || ret[0]=='c')) continue;
+                if (ret[0] != 'B' && ret[0] != 'c') continue;
                 NSString *mn = NSStringFromSelector(method_getName(m));
                 if (![self methodNameLooksFeatureLike:mn]) continue;
-                NSString *hay = [[cn stringByAppendingString:@" "] stringByAppendingString:mn].lowercaseString;
-                BOOL hit = classHit;
-                if (!hit) for (NSString *t in effective) if ([hay containsString:t.lowercaseString]) { hit = YES; break; }
+                NSString *hay = [[cn stringByAppendingFormat:@" %@", mn] lowercaseString];
+                BOOL hit = NO;
+                for (NSString *t in effective) if ([hay containsString:t.lowercaseString]) { hit = YES; break; }
                 if (!hit) continue;
-                [out addObject:[NSString stringWithFormat:@"%@ %@%@", cn, metaPass?@"+":@"-", mn]];
+                [out addObject:[NSString stringWithFormat:@"%@ %@%@", cn, meta ? @"+" : @"-", mn]];
             }
             free(methods);
         }
@@ -68,11 +60,9 @@ static UIColor *WAGRRTCellBG(void) { return UIColor.secondarySystemBackgroundCol
     free(classes);
     return [[NSSet setWithArray:out].allObjects sortedArrayUsingSelector:@selector(compare:)];
 }
-
 - (void)viewDidLoad {
     [super viewDidLoad];
-    self.tableView.backgroundColor = WAGRRTBG();
-    self.tableView.separatorInset = UIEdgeInsetsMake(0, 16, 0, 0);
+    self.tableView.backgroundColor = UIColor.systemBackgroundColor;
     self.search = [[UISearchController alloc] initWithSearchResultsController:nil];
     self.search.searchResultsUpdater = self;
     self.search.obscuresBackgroundDuringPresentation = NO;
@@ -81,18 +71,17 @@ static UIColor *WAGRRTCellBG(void) { return UIColor.secondarySystemBackgroundCol
     self.navigationItem.hidesSearchBarWhenScrolling = NO;
     self.title = [NSString stringWithFormat:@"%@ (%lu)", self.title ?: @"Runtime", (unsigned long)self.allItems.count];
 }
-
-- (void)updateSearchResultsForSearchController:(UISearchController *)searchController {
-    NSString *q = searchController.searchBar.text ?: @"";
+- (void)updateSearchResultsForSearchController:(UISearchController *)sc {
+    NSString *q = sc.searchBar.text ?: @"";
     self.filtered = q.length ? [self.allItems filteredArrayUsingPredicate:[NSPredicate predicateWithFormat:@"SELF contains[c] %@", q]] : self.allItems;
     [self.tableView reloadData];
 }
 - (NSInteger)tableView:(UITableView *)tv numberOfRowsInSection:(NSInteger)section { return (NSInteger)self.filtered.count; }
-- (CGFloat)tableView:(UITableView *)tv heightForRowAtIndexPath:(NSIndexPath *)ip { return 58.0; }
+- (CGFloat)tableView:(UITableView *)tv heightForRowAtIndexPath:(NSIndexPath *)ip { return 58; }
 - (UITableViewCell *)tableView:(UITableView *)tv cellForRowAtIndexPath:(NSIndexPath *)ip {
     UITableViewCell *cell = [tv dequeueReusableCellWithIdentifier:@"rt"];
     if (!cell) cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleDefault reuseIdentifier:@"rt"];
-    cell.backgroundColor = WAGRRTCellBG();
+    cell.backgroundColor = UIColor.secondarySystemBackgroundColor;
     cell.textLabel.text = self.filtered[(NSUInteger)ip.row];
     cell.textLabel.font = [UIFont monospacedSystemFontOfSize:11 weight:UIFontWeightRegular];
     cell.textLabel.numberOfLines = 2;
