@@ -21,14 +21,45 @@ static NSString *WAGRWAABState(NSString *flag) {
 
 static void WAGRWAABSetState(NSString *flag, NSString *state) {
     if (!flag.length) return;
+
     NSUserDefaults *ud = [NSUserDefaults standardUserDefaults];
-    if ([state isEqualToString:@"on"] || [state isEqualToString:@"off"]) [ud setObject:state forKey:WAGRKey(flag)];
-    else [ud removeObjectForKey:WAGRKey(flag)];
+
+    if ([state isEqualToString:@"on"]) {
+        // WAAB hook namespace.
+        [ud setObject:@"on" forKey:WAGRKey(flag)];
+
+        // Native mirror for code paths that read NSUserDefaults directly.
+        [ud setBool:YES forKey:flag];
+    } else if ([state isEqualToString:@"off"]) {
+        // WAAB hook namespace.
+        [ud setObject:@"off" forKey:WAGRKey(flag)];
+
+        // Native mirror. Important for negative gates/killswitches too:
+        // category master ON on a negative group writes state="off" -> native BOOL NO.
+        [ud setBool:NO forKey:flag];
+    } else {
+        // System/default: remove both override namespaces.
+        [ud removeObjectForKey:WAGRKey(flag)];
+        [ud removeObjectForKey:flag];
+    }
+
     [ud synchronize];
+
     WAGRWAABEnsureHooksInstalled();
+
     if ([flag containsString:@"liquid_glass"]) WAGRLGPrefsDidChange();
-    if ([flag hasPrefix:@"aura_"] || [flag containsString:@"subscription"] || [flag containsString:@"benefit"]) WAGRAuraEnsureHooksInstalled();
-    if ([flag containsString:@"dogfood"] || [flag containsString:@"internal"] || [flag containsString:@"employee"]) WAGRDogfoodEnsureHooksInstalled();
+
+    if ([flag hasPrefix:@"aura_"] ||
+        [flag containsString:@"subscription"] ||
+        [flag containsString:@"benefit"]) {
+        WAGRAuraEnsureHooksInstalled();
+    }
+
+    if ([flag containsString:@"dogfood"] ||
+        [flag containsString:@"internal"] ||
+        [flag containsString:@"employee"]) {
+        WAGRDogfoodEnsureHooksInstalled();
+    }
 }
 
 static BOOL WAGRContainsAnyToken(NSString *s, NSArray<NSString *> *tokens) {
