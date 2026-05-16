@@ -3,7 +3,7 @@ name: Build WAGram dev
 on:
   push:
     branches:
-      - 'dev'
+      - 'dev2'
   workflow_dispatch:
 
 concurrency:
