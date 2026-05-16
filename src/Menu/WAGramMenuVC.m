@@ -210,8 +210,9 @@ static const char kBrowserKey = 0;
     c.textLabel.text  = flag;
     c.textLabel.font  = [UIFont monospacedSystemFontOfSize:13 weight:UIFontWeightRegular];
     c.textLabel.textColor = UIColor.labelColor;
-    c.detailTextLabel.text = WAGRFlagIsOn(flag) ? @"force ON" : @"";
-    c.detailTextLabel.textColor = UIColor.systemGreenColor;
+    if (WAGRIsOn(flag)) { c.detailTextLabel.text = @"force ON"; c.detailTextLabel.textColor = UIColor.systemGreenColor; }
+    else if (WAGRIsOff(flag)) { c.detailTextLabel.text = @"force OFF"; c.detailTextLabel.textColor = UIColor.systemRedColor; }
+    else { c.detailTextLabel.text = @"system"; c.detailTextLabel.textColor = UIColor.secondaryLabelColor; }
     c.selectionStyle = UITableViewCellSelectionStyleNone;
 
     UISwitch *sw = [[UISwitch alloc] init];
@@ -227,15 +228,37 @@ static const char kBrowserKey = 0;
     NSString *flag = objc_getAssociatedObject(sw, &kBrowserKey);
     if (!flag) return;
     WAGRFlagSet(flag, sw.isOn);
-    // Update detail label
-    for (UITableViewCell *c in self.tableView.visibleCells) {
-        UISwitch *csw = (UISwitch *)c.accessoryView;
-        if ([csw isKindOfClass:UISwitch.class] &&
-            [objc_getAssociatedObject(csw, &kBrowserKey) isEqualToString:flag]) {
-            c.detailTextLabel.text = sw.isOn ? @"force ON" : @"";
-        }
-    }
+    [self.tableView reloadData];
     [self updateTitle];
+}
+
+- (void)tableView:(UITableView *)tv didSelectRowAtIndexPath:(NSIndexPath *)ip {
+    [tv deselectRowAtIndexPath:ip animated:YES];
+    if ((NSUInteger)ip.row >= _filtered.count) return;
+    NSString *flag = _filtered[(NSUInteger)ip.row];
+    UIAlertController *a = [UIAlertController alertControllerWithTitle:flag
+                                                               message:@"Escolha o estado do override. System remove a chave do NSUserDefaults."
+                                                        preferredStyle:UIAlertControllerStyleActionSheet];
+    [a addAction:[UIAlertAction actionWithTitle:@"Force ON" style:UIAlertActionStyleDefault handler:^(__unused id _) {
+        WAGRSet(flag, @"on");
+        WAGRWAABEnsureHooksInstalled();
+        if ([flag containsString:@"liquid_glass"] || [flag isEqualToString:@"status_viewer_redesign_enabled"]) WAGRLGPrefsDidChange();
+        [self.tableView reloadData];
+    }]];
+    [a addAction:[UIAlertAction actionWithTitle:@"Force OFF" style:UIAlertActionStyleDefault handler:^(__unused id _) {
+        WAGRSet(flag, @"off");
+        WAGRWAABEnsureHooksInstalled();
+        if ([flag containsString:@"liquid_glass"] || [flag isEqualToString:@"status_viewer_redesign_enabled"]) WAGRLGPrefsDidChange();
+        [self.tableView reloadData];
+    }]];
+    [a addAction:[UIAlertAction actionWithTitle:@"System / remover override" style:UIAlertActionStyleDestructive handler:^(__unused id _) {
+        WAGRSet(flag, nil);
+        WAGRWAABEnsureHooksInstalled();
+        if ([flag containsString:@"liquid_glass"] || [flag isEqualToString:@"status_viewer_redesign_enabled"]) WAGRLGPrefsDidChange();
+        [self.tableView reloadData];
+    }]];
+    [a addAction:[UIAlertAction actionWithTitle:@"Cancelar" style:UIAlertActionStyleCancel handler:nil]];
+    [self presentViewController:a animated:YES completion:nil];
 }
 @end
 
@@ -720,6 +743,73 @@ static WAGRABFlagBrowserVC *PremiumBrowser(void) {
 }
 
 // ── Dogfood / Internal direct hooks ──────────────────────────────────────────
+
+static WAGRABFlagBrowserVC *SettingsRowsBrowser(void) {
+    return [[WAGRABFlagBrowserVC alloc] initWithTitle:@"Settings Rows" flags:@[
+        @"lists_feature_enabled",
+        @"call_favorites_enabled_companions",
+        @"events_global_list",
+        @"waffle_mobile_companions_enabled",
+        @"waffle_enabled_for_unlinked_users",
+        @"waffle_foa_to_wa_linking_enabled",
+        @"isPAAEligibleForWaffle",
+        @"aura_settings_row_enabled",
+        @"aura_enabled",
+        @"sections_in_help_menu",
+        @"foa_threads_bookmarks_enabled",
+        @"foa_bridges_bookmark_meta_horizon",
+        @"ai_rich_response_vibes_promotion_enabled",
+        @"ios_me_tab_new_user_checklist_enabled",
+        @"me_tab_settings_header_enabled",
+        @"wa_subscriptions_entry_point_settings_enabled",
+        @"wa_subscriptions_settings_green_dot_enabled"
+    ]];
+}
+
+static WAGRABFlagBrowserVC *TabBarBrowser(void) {
+    return [[WAGRABFlagBrowserVC alloc] initWithTitle:@"Tab Bar / Multi Account" flags:@[
+        @"sg_ios_multi_account_enabled",
+        @"wa_xfam_ios_switcher_multiaccount_enabled",
+        @"foa_bridges_account_switcher_ios_enabled",
+        @"deletion_reason_multi_account_enabled",
+        @"ai_meta_ai_in_app_tab_main_gate_enabled",
+        @"ai_home_in_tab_main_gate_enabled",
+        @"ai_hatch_integration_tab_enabled",
+        @"ai_tab_glyph_icon_enabled",
+        @"community_tab_v2_enabled",
+        @"communities_remove_from_app_tab_enabled",
+        @"channels_creation_entrypoint_in_updates_tab_enabled",
+        @"channels_pinning_nudge_updates_tab_enabled",
+        @"updates_tab_filter_pills_enabled"
+    ]];
+}
+
+static WAGRABFlagBrowserVC *KillSwitchBrowser(void) {
+    return [[WAGRABFlagBrowserVC alloc] initWithTitle:@"Kill Switches / Disable" flags:@[
+        @"aura_kill_switch",
+        @"aura_premium_stickers_killswitch",
+        @"aura_stickers_old_client_block_enabled",
+        @"lottie_sticker_rendering_killswitch",
+        @"label_storage_chat_session_cleanup_killswitch",
+        @"killswitch_vault_backup",
+        @"killswitch_vault_media_offload",
+        @"killswitch_vault_restore",
+        @"kill_switch_groups_creation_banner_smb_enabled"
+    ]];
+}
+
+static WAGRRuntimeMethodBrowserVC *RuntimeAuraBrowser(void) {
+    return [[WAGRRuntimeMethodBrowserVC alloc] initWithTitle:@"Aura / Subscription Getters" tokens:@[@"aura", @"subscription", @"benefit", @"premium", @"theme", @"icon", @"ringtone", @"sticker"]];
+}
+
+static WAGRRuntimeMethodBrowserVC *RuntimeDebugBrowser(void) {
+    return [[WAGRRuntimeMethodBrowserVC alloc] initWithTitle:@"Internal / Debug Getters" tokens:@[@"internal", @"debug", @"dogfood", @"employee", @"alpha", @"beta", @"developer", @"isdebug", @"isinternal"]];
+}
+
+static WAGRRuntimeMethodBrowserVC *RuntimeAllWABrowser(void) {
+    return [[WAGRRuntimeMethodBrowserVC alloc] initWithTitle:@"Runtime BOOL Getters" tokens:@[@"aura", @"subscription", @"benefit", @"premium", @"liquid", @"debug", @"internal", @"dogfood", @"multiaccount", @"accountswitcher", @"waffle", @"settings", @"tab", @"chat", @"profile"]];
+}
+
 static UIViewController *DogfoodVC(void) {
     return [[WAGramSubMenuVC alloc] initWithSections:@[
         SEC(@"Direct ObjC Selector Hooks",
@@ -834,6 +924,10 @@ static UIViewController *SystemVC(void) {
             @"Todos os menus usam WAGRABFlagBrowserVC — mesma lógica que o browser completo que funciona. Toggle ON = wagr.waab.<flag> = 'on' em NSUserDefaults. Restart para features que inicializam em viewDidLoad.",
             NAV(@"🔵  Liquid Glass",        @"13 direct methods — mirror do dylib funcional",         LGBrowser()),
             NAV(@"⭐  WhatsApp Plus",        @"WAAuraGating + aura_* WAAB flags",                     PlusBrowser()),
+            NAV(@"🧬  Aura Runtime Getters", @"benefits/subscription getters fora do WAAB",             RuntimeAuraBrowser()),
+            NAV(@"🧩  Settings Rows",        @"subscriptions, waffle, bookmarks, help sections",         SettingsRowsBrowser()),
+            NAV(@"⊞  Tab Bar / Multi Account", @"account switcher + tabs",                              TabBarBrowser()),
+            NAV(@"🛑  Kill Switches",        @"force OFF para permitir, ON para bloquear",              KillSwitchBrowser()),
             NAV(@"📝  About / Recado",       @"evolve_about_m1_receiver_enabled",                      AboutBrowser()),
             NAV(@"🌐  Translation",          @"ai_translate_messages_enabled",                          TranslateBrowser()),
             NAV(@"🤖  AI & Meta AI",         @"60+ flags: incognito, side chat, hatch, imagine, voice", AIBrowser()),
@@ -851,7 +945,10 @@ static UIViewController *SystemVC(void) {
         ),
         SEC(@"All WAABProperties Flags",
             @"Escaneia WAABProperties em runtime (~6892 métodos). Search integrado.",
-            NAV(@"🔎  Browser — Todos os Flags", @"Runtime scan + search", runtimeBrowser)
+            NAV(@"🔎  Browser — Todos os Flags", @"Runtime scan + search", runtimeBrowser),
+            NAV(@"🧬  Runtime BOOL Getters", @"on-demand scan; exact class+selector overrides", RuntimeAllWABrowser()),
+            NAV(@"🐛  Runtime Internal/Debug", @"debug/internal/alpha/dogfood getters", RuntimeDebugBrowser()),
+            NAV(@"📚  Catálogo WAAB Validado", @"lê JSON staged e agrupa bools validadas", [WAGRWAABCatalogBrowserVC new])
         ),
         SEC(@"", @"Restart fecha o WhatsApp. Necessário para features que inicializam em viewDidLoad.",
             BTN(@"Reiniciar WhatsApp", ^(BOOL _){

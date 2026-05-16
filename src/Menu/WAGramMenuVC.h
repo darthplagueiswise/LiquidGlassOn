@@ -81,3 +81,21 @@ typedef NS_ENUM(NSInteger, WAGramRowStyle) {
 - (instancetype)initWithTitle:(NSString *)title flags:(NSArray<NSString *> *)flags;
 + (NSArray<NSString *> *)runtimeFlags;
 @end
+
+// On-demand runtime BOOL getter browser for non-WAAB/framework surfaces.
+@interface WAGRRuntimeMethodBrowserVC : UITableViewController
+- (instancetype)initWithTitle:(NSString *)title tokens:(NSArray<NSString *> *)tokens;
+@end
+
+// JSON-backed WAAB category browser; reads staged WAGram catalog if present.
+@interface WAGRWAABCatalogBrowserVC : UITableViewController
+@end
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+NSString *WAGRRuntimeBoolDiagnosticText(void);
+void WAGRRuntimeRestorePersistedOverrides(void);
+#ifdef __cplusplus
+}
+#endif
