@@ -7,6 +7,8 @@
 #import <objc/message.h>
 #import "../WAGramPrefix.h"
 
+extern "C" void WAGRWAABEnsureHooksInstalled(void);
+
 static NSString * const kWAGRAuraSimulationMaster = @"wagr_aura_simulation_enabled";
 
 static NSArray<NSString *> *WAGRAuraPositiveFlags(void) {
