@@ -640,7 +640,7 @@ static UIViewController *DogfoodVC(void) {
         ),
         SEC(@"WAAB Flags",
             @"Via WAABPropsObserver generic hook.",
-            browser(@"Dogfood Flags", @[
+            NAV(@"Dogfood Flags", @"runtime WAAB", browser(@"Dogfood Flags", @[
                 @"is_internal_tester",
                 @"mobile_config_debug_internal",
                 @"dogfooder_diagnostics",
@@ -648,7 +648,7 @@ static UIViewController *DogfoodVC(void) {
                 @"defense_mode_available",
                 @"visible_message_drop_placeholder_enabled_internal_only",
                 @"sections_in_help_menu",
-            ])
+            ]))
         ),
     ] title:@"Dogfood / Internal"];
 }
