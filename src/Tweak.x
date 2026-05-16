@@ -15,7 +15,7 @@ static BOOL gWAGRSettingsHookInstalled = NO;
 static BOOL gWAGRDebugGateHookInstalled = NO;
 
 static BOOL WAGRNativeDebugAllowed(void) {
-    return WAGRPref(kWAGRDebugMenuNative) || WAGRPref(kWAGRInternalMaster) || WAGRPref(kWAGREmployeeMaster) || WAGRPref(kWAGRDebugMode);
+    return WAGRPref(kWAGRDebugMenuNative);
 }
 
 static void WAGRPresentMenu(UIViewController *from) {

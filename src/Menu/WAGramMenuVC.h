@@ -1,4 +1,3 @@
-// WAGramMenuVC.h — WAGram v6 header
 #pragma once
 #import <UIKit/UIKit.h>
 
@@ -24,44 +23,47 @@ BOOL      WAGRPushAuraThemesVC(UIViewController *from);
 BOOL      WAGRPushAuraIconsVC(UIViewController *from);
 BOOL      WAGRPushAuraRingtonesVC(UIViewController *from);
 NSString *WAGRAuraDiagnostic(void);
+void      WAGRBundleHooksInstall(void);
 #ifdef __cplusplus
 }
 #endif
 
-typedef NS_ENUM(NSInteger, WAGramRowStyle) {
-    WAGramRowStyleSwitch,
-    WAGramRowStyleButton,
-    WAGramRowStyleNavigation,
-    WAGramRowStyleWAABFlag,
-};
-@interface WAGramRow : NSObject
-@property (nonatomic, copy)   NSString        *title;
-@property (nonatomic, copy)   NSString        *subtitle;
-@property (nonatomic, copy)   NSString        *prefsKey;
-@property (nonatomic, copy)   NSString        *waabKey;
-@property (nonatomic, assign) WAGramRowStyle   style;
-@property (nonatomic, copy)   void (^action)(BOOL);
-@property (nonatomic, strong) UIViewController *navTarget;
-+ (instancetype)switchWithTitle:(NSString *)t subtitle:(NSString *)s key:(NSString *)k action:(void(^)(BOOL))a;
-+ (instancetype)waabWithTitle:(NSString *)t key:(NSString *)k;
-+ (instancetype)buttonWithTitle:(NSString *)t action:(void(^)(BOOL))a;
-+ (instancetype)navWithTitle:(NSString *)t subtitle:(NSString *)s target:(UIViewController *)vc;
-@end
-@interface WAGramSectionDef : NSObject
-@property (nonatomic, copy)   NSString         *header;
-@property (nonatomic, copy)   NSString         *footer;
-@property (nonatomic, strong) NSArray<WAGramRow *> *rows;
-+ (instancetype)sectionWithHeader:(NSString *)h footer:(NSString *)f rows:(NSArray<WAGramRow *> *)rows;
-@end
-@interface WAGramMenuVC : UITableViewController
-@end
-@interface WAGramSubMenuVC : UITableViewController
-- (instancetype)initWithSections:(NSArray<WAGramSectionDef *> *)s title:(NSString *)t;
-@end
+// ─── Bundle activation (writes all flags for a feature at once) ───────────────
+// Same pattern as LiquidGlass master toggle.
+static inline void WAGRActivateBundle(NSArray<NSString *> *flags) {
+    NSUserDefaults *ud = NSUserDefaults.standardUserDefaults;
+    for (NSString *f in flags)
+        [ud setObject:@"on" forKey:[NSString stringWithFormat:@"wagr.waab.%@", f]];
+    [ud synchronize];
+}
+static inline void WAGRDeactivateBundle(NSArray<NSString *> *flags) {
+    NSUserDefaults *ud = NSUserDefaults.standardUserDefaults;
+    for (NSString *f in flags)
+        [ud removeObjectForKey:[NSString stringWithFormat:@"wagr.waab.%@", f]];
+    [ud synchronize];
+}
+static inline NSUInteger WAGRBundleActiveCount(NSArray<NSString *> *flags) {
+    NSUserDefaults *ud = NSUserDefaults.standardUserDefaults;
+    NSUInteger n = 0;
+    for (NSString *f in flags)
+        if ([[ud stringForKey:[NSString stringWithFormat:@"wagr.waab.%@", f]] isEqualToString:@"on"]) n++;
+    return n;
+}
+static inline BOOL WAGRBundleAllActive(NSArray<NSString *> *flags) {
+    return WAGRBundleActiveCount(flags) == flags.count;
+}
+
 @interface WAGRABFlagBrowserVC : UITableViewController <UISearchResultsUpdating>
+@property (nonatomic, strong, readonly) NSArray<NSString *> *allFlags;
 - (instancetype)initWithTitle:(NSString *)title flags:(NSArray<NSString *> *)flags;
 + (NSArray<NSString *> *)runtimeFlags;
+- (void)reload;
 @end
+
+@interface WAGramMenuVC : UITableViewController
+@end
+
+// Non-WAAB runtime method browser — read-only catalog of bool-ish methods outside WAABProperties.
 @interface WAGRRuntimeMethodBrowserVC : UITableViewController <UISearchResultsUpdating>
 - (instancetype)initWithTitle:(NSString *)title tokens:(NSArray<NSString *> *)tokens;
 + (NSArray<NSString *> *)runtimeMethodsMatchingTokens:(NSArray<NSString *> *)tokens;

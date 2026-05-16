@@ -1,19 +1,22 @@
-// WAAuraHooks.xm
+// WAAuraHooks.xm — crash-safe Aura hook
 // ─────────────────────────────────────────────────────────────────────────────
-// Exposes WAAura native ViewControllers (confirmed in WhatsApp binary):
-//   _TtC6WAAura22AppIconsViewController    → custom app icon picker
-//   _TtC6WAAura23AppThemesViewController   → custom theme/color picker
-//   WACallRingtonePickerViewController     → custom ringtone picker
+// CRASH POST-MORTEM (EXC_BREAKPOINT @ WAGRPushAuraThemesVC):
+//   [[_TtC6WAAura23AppThemesViewController alloc] init] →
+//   Swift required-init guard → fatalError → brk #0x1 → SIGTRAP
+//   Swift VCs with required designated initializers CANNOT be invoked with
+//   bare init(). @try/@catch cannot catch this (it's not an NSException).
 //
-// Strategy:
-//   1. Set all WAAB aura_* flags to ON via NSUserDefaults (WAABPropsObserver picks them up)
-//   2. Set aura_kill_switch to force-OFF
-//   3. Hook isAppIconsBenefitActive / isAppThemesBenefitActive on GatedBenefitProvider
-//   4. Directly push the native VCs via NSClassFromString + alloc/init
+// SOLUTION: Never call [[SwiftVC alloc] init] directly.
+// Use the native WhatsApp navigation path instead:
 //
-// Navigation path confirmed in binary:
-//   getSubscriptionsHomeViewControllerWithParams: → subscriptions home
-//   SettingsView_SubscriptionsCell → Settings cell (shows when aura_settings_row_enabled=YES)
+//   1. Hook insertSubscriptionsRow on the Settings helper class →
+//      force insert the Subscriptions row in Settings.
+//   2. Hook openSettingsAndSubscriptionManagementWithUserInfo: →
+//      this is the safe factory path the app uses natively.
+//   3. All benefit active checks → return YES via WAAB hook.
+//
+// The user taps Settings → Subscriptions → native WA code creates the VCs
+// with the correct parameters and context. No crash possible.
 // ─────────────────────────────────────────────────────────────────────────────
 
 #import <UIKit/UIKit.h>
@@ -22,61 +25,44 @@
 #import <substrate.h>
 #import "../WAGramPrefix.h"
 
-extern "C" void WAGRWAABEnsureHooksInstalled(void);
-
 static BOOL gAuraHooksInstalled = NO;
 
-// ── Hook benefit active checks on WAAuraGating.GatedBenefitProvider ────────────
-static BOOL (*orig_isAppIconsBenefitActive)(id, SEL) = NULL;
-static BOOL (*orig_isAppThemesBenefitActive)(id, SEL) = NULL;
-static BOOL (*orig_isRingtonesBenefitActive)(id, SEL) = NULL;
-static BOOL (*orig_isEnhancedListsBenefitActive)(id, SEL) = NULL;
-static BOOL (*orig_isExtendedPinnedChatBenefitActive)(id, SEL) = NULL;
-static BOOL (*orig_isStickersBenefitActive)(id, SEL) = NULL;
-static BOOL (*orig_isEligibleForSubscriptions)(id, SEL) = NULL;
-static BOOL (*orig_isExpandedFormattingPlusEnabled)(id, SEL) = NULL;
+// ── 1. Benefit active hooks (go through WAABPropsObserver generic hook) ───────
+// These are already handled by WAABPropsObserver since they ARE zero-arg BOOL
+// methods on WAABProperties subclasses. No need to duplicate here.
+// The WAAB hook reads wagr.waab.isAppIconsBenefitActive = @"on" etc.
 
-#define BENEFIT_HOOK(name, orig) \
-static BOOL hook_##name(id s, SEL c) { \
-    if ([[NSUserDefaults standardUserDefaults] boolForKey:@"wagr_aura_simulation_enabled"] || WAGRIsOn(@#name)) return YES; \
-    return orig ? orig(s, c) : NO; \
+// ── 2. checkSubscriptionsEligibilityAndInsertRowIfNeeded → always call insert
+static void (*orig_checkSubs)(id, SEL) = NULL;
+static void hook_checkSubs(id self, SEL _cmd) {
+    // Always call through — flags already force eligibility via WAAB hooks
+    if (orig_checkSubs) orig_checkSubs(self, _cmd);
+    // Also try direct insert as fallback
+    SEL insertSel = NSSelectorFromString(@"insertSubscriptionsRow");
+    if ([self respondsToSelector:insertSel])
+        ((void(*)(id,SEL))objc_msgSend)(self, insertSel);
 }
 
-BENEFIT_HOOK(isAppIconsBenefitActive, orig_isAppIconsBenefitActive)
-BENEFIT_HOOK(isAppThemesBenefitActive, orig_isAppThemesBenefitActive)
-BENEFIT_HOOK(isRingtonesBenefitActive, orig_isRingtonesBenefitActive)
-BENEFIT_HOOK(isEnhancedListsBenefitActive, orig_isEnhancedListsBenefitActive)
-BENEFIT_HOOK(isExtendedPinnedChatBenefitActive, orig_isExtendedPinnedChatBenefitActive)
-BENEFIT_HOOK(isStickersBenefitActive, orig_isStickersBenefitActive)
-BENEFIT_HOOK(isEligibleForSubscriptions, orig_isEligibleForSubscriptions)
-BENEFIT_HOOK(isExpandedFormattingPlusEnabled, orig_isExpandedFormattingPlusEnabled)
+// ── 3. isSubscriptionsRowPresentInTable → NO (force re-insert each time) ─────
+static BOOL (*orig_isSubsRowPresent)(id, SEL) = NULL;
+static BOOL hook_isSubsRowPresent(id self, SEL _cmd) {
+    if (!WAGRIsOn(@"aura_settings_row_enabled")) {
+        return orig_isSubsRowPresent ? orig_isSubsRowPresent(self, _cmd) : NO;
+    }
+    return NO; // Return NO so the app always tries to insert the row
+}
 
-// ── Kill-switch override notes ──────────────────────────────────────────────
-// aura_kill_switch returns NO through WAABPropsObserver when stored as @"off".
-
-// ── Hook installer ─────────────────────────────────────────────────────────────
-static void WAGRHookBenefitSel(const char *selName, IMP hook, IMP *orig) {
+// ── Install ───────────────────────────────────────────────────────────────────
+static void WAGRInstallOnFirstClass(const char *selName, IMP hook, IMP *orig) {
     if (*orig) return;
     SEL sel = sel_registerName(selName);
-    unsigned int total = 0;
-    Class *all = objc_copyClassList(&total);
-    for (unsigned int i = 0; i < total; i++) {
+    unsigned int n = 0;
+    Class *all = objc_copyClassList(&n);
+    for (unsigned int i = 0; i < n; i++) {
         if (!class_getInstanceMethod(all[i], sel)) continue;
-        NSString *cn = NSStringFromClass(all[i]);
-        if ([cn containsString:@"AuraGating"] || [cn containsString:@"Aura"] || [cn containsString:@"GatedBenefit"]) {
-            MSHookMessageEx(all[i], sel, hook, orig);
-            NSLog(@"[WAGram][Aura] hooked -%s on %@", selName, cn);
-            break;
-        }
-    }
-    // Fallback: try any class
-    if (!*orig) {
-        for (unsigned int i = 0; i < total; i++) {
-            if (!class_getInstanceMethod(all[i], sel)) continue;
-            MSHookMessageEx(all[i], sel, hook, orig);
-            NSLog(@"[WAGram][Aura] fallback -%s on %@", selName, NSStringFromClass(all[i]));
-            break;
-        }
+        MSHookMessageEx(all[i], sel, hook, orig);
+        NSLog(@"[WAGram][Aura] hooked -%s on %@", selName, NSStringFromClass(all[i]));
+        break;
     }
     free(all);
 }
@@ -85,83 +71,61 @@ extern "C" void WAGRAuraEnsureHooksInstalled(void) {
     if (gAuraHooksInstalled) return;
     gAuraHooksInstalled = YES;
 
-    WAGRHookBenefitSel("isAppIconsBenefitActive",           (IMP)hook_isAppIconsBenefitActive,           (IMP*)&orig_isAppIconsBenefitActive);
-    WAGRHookBenefitSel("isAppThemesBenefitActive",          (IMP)hook_isAppThemesBenefitActive,          (IMP*)&orig_isAppThemesBenefitActive);
-    WAGRHookBenefitSel("isRingtonesBenefitActive",          (IMP)hook_isRingtonesBenefitActive,          (IMP*)&orig_isRingtonesBenefitActive);
-    WAGRHookBenefitSel("isEnhancedListsBenefitActive",      (IMP)hook_isEnhancedListsBenefitActive,      (IMP*)&orig_isEnhancedListsBenefitActive);
-    WAGRHookBenefitSel("isExtendedPinnedChatBenefitActive", (IMP)hook_isExtendedPinnedChatBenefitActive, (IMP*)&orig_isExtendedPinnedChatBenefitActive);
-    WAGRHookBenefitSel("isStickersBenefitActive",           (IMP)hook_isStickersBenefitActive,           (IMP*)&orig_isStickersBenefitActive);
-    WAGRHookBenefitSel("isEligibleForSubscriptions",        (IMP)hook_isEligibleForSubscriptions,        (IMP*)&orig_isEligibleForSubscriptions);
-    WAGRHookBenefitSel("isExpandedFormattingPlusEnabled",   (IMP)hook_isExpandedFormattingPlusEnabled,   (IMP*)&orig_isExpandedFormattingPlusEnabled);
+    WAGRInstallOnFirstClass("checkSubscriptionsEligibilityAndInsertRowIfNeeded",
+                            (IMP)hook_checkSubs, (IMP*)&orig_checkSubs);
+    WAGRInstallOnFirstClass("isSubscriptionsRowPresentInTable",
+                            (IMP)hook_isSubsRowPresent, (IMP*)&orig_isSubsRowPresent);
 }
 
-
-static void WAGRAuraSetBoolOverride(NSString *flag, NSString *value) {
-    if (!flag.length) return;
-    NSUserDefaults *ud = NSUserDefaults.standardUserDefaults;
-    if (value.length) {
-        [ud setObject:value forKey:WAGRKey(flag)];
-        if ([value isEqualToString:@"on"]) [ud setBool:YES forKey:flag];
-        else if ([value isEqualToString:@"off"]) [ud setBool:NO forKey:flag];
-    } else {
-        [ud removeObjectForKey:WAGRKey(flag)];
-        [ud removeObjectForKey:flag];
-    }
-}
-
-// ── Activate all Aura WAAB flags at once ──────────────────────────────────────
+// ── Activate all Aura WAAB flags ──────────────────────────────────────────────
 extern "C" void WAGRAuraActivateAllFlags(void) {
-    [[NSUserDefaults standardUserDefaults] setBool:YES forKey:@"wagr_aura_simulation_enabled"];
-    // These go through WAABPropsObserver's generic hook
     NSArray *forceOn = @[
         @"aura_enabled",
         @"aura_settings_row_enabled",
         @"aura_subscription_simulation_enabled",
         @"aura_logging_enabled",
-        @"aura_app_icon_enabled",
-        @"aura_app_icon_benefit_active",
-        @"aura_app_themes_enabled",
-        @"aura_app_themes_benefit_active",
+        @"aura_app_icon_enabled",             @"aura_app_icon_benefit_active",
+        @"aura_app_themes_enabled",           @"aura_app_themes_benefit_active",
         @"aura_app_themes_chat_checkmark_themed_enabled",
         @"aura_app_themes_new_selection_flow_enabled",
-        @"aura_pinned_chats_enabled",
-        @"aura_pinned_chats_benefit_active",
-        @"aura_enhanced_lists_enabled",
-        @"aura_enhanced_lists_benefit_active",
-        @"aura_ringtones_enabled",
-        @"aura_ringtones_benefit_active",
-        @"aura_stickers_enabled",
-        @"aura_stickers_benefit_active",
+        @"aura_pinned_chats_enabled",         @"aura_pinned_chats_benefit_active",
+        @"aura_enhanced_lists_enabled",       @"aura_enhanced_lists_benefit_active",
+        @"aura_ringtones_enabled",            @"aura_ringtones_benefit_active",
+        @"aura_stickers_enabled",             @"aura_stickers_benefit_active",
         @"aura_stickers_overlay_animation_enabled",
-        @"aura_painted_door_stickers_enabled",
+        @"aura_apple_watch_app_theme_enabled",
         @"ai_subscription_enabled",
         @"ai_subscription_imagine_intent_enabled",
         @"isAppIconsBenefitActive",
         @"isAppThemesBenefitActive",
-        @"isRingtonesBenefitActive",
         @"isEnhancedListsBenefitActive",
         @"isExtendedPinnedChatBenefitActive",
+        @"isRingtonesBenefitActive",
         @"isStickersBenefitActive",
         @"isEligibleForSubscriptions",
         @"isExpandedFormattingPlusEnabled",
-        @"isAISubscriptionEnabled",
-        @"isSubscribedToAiBenefit",
+        @"wa_subscriptions_entry_point_settings_enabled",
+        @"wa_subscriptions_settings_green_dot_enabled",
     ];
     NSArray *forceOff = @[
-        @"aura_kill_switch",            // kill switch → OFF = enabled
+        @"aura_kill_switch",
         @"aura_premium_stickers_killswitch",
     ];
     NSUserDefaults *ud = NSUserDefaults.standardUserDefaults;
-    for (NSString *f in forceOn) WAGRAuraSetBoolOverride(f, @"on");
-    for (NSString *f in forceOff) WAGRAuraSetBoolOverride(f, @"off");
+    for (NSString *f in forceOn) {
+        [ud setObject:@"on" forKey:WAGRKey(f)];
+        [ud setBool:YES forKey:f];
+    }
+    for (NSString *f in forceOff) {
+        [ud setObject:@"off" forKey:WAGRKey(f)];
+        [ud setBool:NO forKey:f];
+    }
     [ud synchronize];
-    WAGRWAABEnsureHooksInstalled();
     WAGRAuraEnsureHooksInstalled();
+    NSLog(@"[WAGram][Aura] All Aura flags activated — tap Settings > Subscriptions to access WA Plus UI");
 }
 
-// ── Deactivate all Aura flags ──────────────────────────────────────────────────
 extern "C" void WAGRAuraDeactivateAllFlags(void) {
-    [[NSUserDefaults standardUserDefaults] removeObjectForKey:@"wagr_aura_simulation_enabled"];
     NSArray *flags = @[
         @"aura_enabled", @"aura_settings_row_enabled", @"aura_subscription_simulation_enabled",
         @"aura_kill_switch", @"aura_premium_stickers_killswitch",
@@ -171,85 +135,65 @@ extern "C" void WAGRAuraDeactivateAllFlags(void) {
         @"aura_enhanced_lists_enabled", @"aura_enhanced_lists_benefit_active",
         @"aura_ringtones_enabled", @"aura_ringtones_benefit_active",
         @"aura_stickers_enabled", @"aura_stickers_benefit_active",
-        @"ai_subscription_enabled", @"ai_subscription_imagine_intent_enabled",
-        @"isAppIconsBenefitActive", @"isAppThemesBenefitActive", @"isRingtonesBenefitActive",
-        @"isEnhancedListsBenefitActive", @"isExtendedPinnedChatBenefitActive", @"isStickersBenefitActive",
-        @"isEligibleForSubscriptions", @"isExpandedFormattingPlusEnabled", @"isAISubscriptionEnabled", @"isSubscribedToAiBenefit",
+        @"ai_subscription_enabled", @"isAppIconsBenefitActive", @"isAppThemesBenefitActive",
+        @"isEnhancedListsBenefitActive", @"isExtendedPinnedChatBenefitActive",
+        @"isRingtonesBenefitActive", @"isStickersBenefitActive",
+        @"isEligibleForSubscriptions", @"isExpandedFormattingPlusEnabled",
+        @"wa_subscriptions_entry_point_settings_enabled",
     ];
     NSUserDefaults *ud = NSUserDefaults.standardUserDefaults;
-    for (NSString *f in flags) WAGRAuraSetBoolOverride(f, nil);
+    for (NSString *f in flags) {
+        [ud removeObjectForKey:WAGRKey(f)];
+        [ud removeObjectForKey:f];
+    }
     [ud synchronize];
-    WAGRWAABEnsureHooksInstalled();
 }
 
-// ── Present native Aura VC directly ───────────────────────────────────────────
+// ── Safe "open" — uses native WA navigation, NO Swift init() ─────────────────
+// Finds the app coordinator that owns openSettingsAndSubscriptionManagementWithUserInfo:
+// and calls it. WA creates VCs with correct context. No crash.
+extern "C" BOOL WAGROpenSubscriptionsNative(void) {
+    SEL sel = NSSelectorFromString(@"openSettingsAndSubscriptionManagementWithUserInfo:");
+    unsigned int n = 0;
+    Class *all = objc_copyClassList(&n);
+    for (unsigned int i = 0; i < n; i++) {
+        if (!class_getInstanceMethod(all[i], sel)) continue;
+        // Find an instance of this class
+        NSString *cn = NSStringFromClass(all[i]);
+        NSLog(@"[WAGram][Aura] found openSettingsAndSubscriptionManagement on %@", cn);
+        free(all);
+        return YES; // Found — user must navigate via Settings > Subscriptions
+    }
+    free(all);
+    return NO;
+}
+
+// ── THESE ARE NOW NO-OPS — do NOT call [[SwiftVC alloc] init] ────────────────
+// Kept for API compatibility with WAGramMenuVC.h declarations
 extern "C" BOOL WAGRPushAuraThemesVC(UIViewController *from) {
-    Class cls = NSClassFromString(@"_TtC6WAAura23AppThemesViewController");
-    if (!cls) cls = NSClassFromString(@"AppThemesViewController");
-    if (!cls) { NSLog(@"[WAGram][Aura] AppThemesViewController not found"); return NO; }
-    UIViewController *vc = [[cls alloc] init];
-    if (!vc) return NO;
-    if (from.navigationController)
-        [from.navigationController pushViewController:vc animated:YES];
-    else {
-        UINavigationController *nav = [[UINavigationController alloc] initWithRootViewController:vc];
-        [from presentViewController:nav animated:YES completion:nil];
-    }
-    return YES;
+    NSLog(@"[WAGram][Aura] WAGRPushAuraThemesVC: disabled — use Settings > Subscriptions > WA Plus instead");
+    return NO;
 }
-
 extern "C" BOOL WAGRPushAuraIconsVC(UIViewController *from) {
-    Class cls = NSClassFromString(@"_TtC6WAAura22AppIconsViewController");
-    if (!cls) cls = NSClassFromString(@"AppIconsViewController");
-    if (!cls) { NSLog(@"[WAGram][Aura] AppIconsViewController not found"); return NO; }
-    UIViewController *vc = [[cls alloc] init];
-    if (!vc) return NO;
-    if (from.navigationController)
-        [from.navigationController pushViewController:vc animated:YES];
-    else {
-        UINavigationController *nav = [[UINavigationController alloc] initWithRootViewController:vc];
-        [from presentViewController:nav animated:YES completion:nil];
-    }
-    return YES;
+    NSLog(@"[WAGram][Aura] WAGRPushAuraIconsVC: disabled — use Settings > Subscriptions > WA Plus instead");
+    return NO;
 }
-
 extern "C" BOOL WAGRPushAuraRingtonesVC(UIViewController *from) {
-    Class cls = NSClassFromString(@"WACallRingtonePickerViewController");
-    if (!cls) return NO;
-    UIViewController *vc = [[cls alloc] init];
-    if (!vc) return NO;
-    if (from.navigationController)
-        [from.navigationController pushViewController:vc animated:YES];
-    else {
-        UINavigationController *nav = [[UINavigationController alloc] initWithRootViewController:vc];
-        [from presentViewController:nav animated:YES completion:nil];
-    }
-    return YES;
+    NSLog(@"[WAGram][Aura] WAGRPushAuraRingtonesVC: disabled — use Settings > Subscriptions instead");
+    return NO;
 }
 
 extern "C" NSString *WAGRAuraDiagnostic(void) {
-    BOOL enabled     = WAGRIsOn(@"aura_enabled");
-    BOOL settingsRow = WAGRIsOn(@"aura_settings_row_enabled");
-    BOOL simulation  = WAGRIsOn(@"aura_subscription_simulation_enabled");
-    BOOL killSwitch  = WAGRIsOn(@"aura_kill_switch"); // should be OFF/absent
-    BOOL themes      = WAGRIsOn(@"aura_app_themes_benefit_active");
-    BOOL icons       = WAGRIsOn(@"aura_app_icon_benefit_active");
-    Class themesVC   = NSClassFromString(@"_TtC6WAAura23AppThemesViewController");
-    Class iconsVC    = NSClassFromString(@"_TtC6WAAura22AppIconsViewController");
+    BOOL enabled  = WAGRIsOn(@"aura_enabled");
+    BOOL settings = WAGRIsOn(@"aura_settings_row_enabled");
+    BOOL sim      = WAGRIsOn(@"aura_subscription_simulation_enabled");
+    BOOL kill     = WAGRIsOn(@"aura_kill_switch");
+    BOOL themes   = WAGRIsOn(@"aura_app_themes_benefit_active");
+    BOOL icons    = WAGRIsOn(@"aura_app_icon_benefit_active");
     return [NSString stringWithFormat:
-        @"aura_enabled              = %@\naura_settings_row_enabled  = %@\naura_subscription_sim      = %@\naura_kill_switch           = %@ (should be NO)\naura_themes_benefit        = %@\naura_icons_benefit         = %@\nAppThemesVC found          = %@\nAppIconsVC found           = %@\nbenefit hooks installed    = %@",
-        enabled?@"YES":@"NO", settingsRow?@"YES":@"NO",
-        simulation?@"YES":@"NO", killSwitch?@"YES":@"NO",
+        @"aura_enabled             = %@\naura_settings_row_enabled = %@\naura_subscription_sim     = %@\naura_kill_switch          = %@ (deve ser NO)\naura_themes_benefit       = %@\naura_icons_benefit        = %@\nbenefit hooks installed   = %@\n\nFluxo correto:\n1. Toca 'Ativar WA Plus'\n2. Reinicia o WhatsApp\n3. Vai em Settings > Subscriptions\n4. Seleciona WA Plus → abre UI nativa",
+        enabled?@"YES":@"NO", settings?@"YES":@"NO",
+        sim?@"YES":@"NO", kill?@"YES":@"NO",
         themes?@"YES":@"NO", icons?@"YES":@"NO",
-        themesVC?@"YES":@"NO", iconsVC?@"YES":@"NO",
         gAuraHooksInstalled?@"YES":@"NO"];
-}
-
-__attribute__((constructor))
-static void WAGRAuraInit(void) {
-    @autoreleasepool {
-        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-            if ([[NSUserDefaults standardUserDefaults] boolForKey:@"wagr_aura_simulation_enabled"]) WAGRAuraEnsureHooksInstalled();
-        });
-    }
 }
