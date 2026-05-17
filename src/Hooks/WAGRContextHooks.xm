@@ -191,19 +191,12 @@ extern "C" NSString *WAGRContextDiagnosticText(void) {
         (unsigned long)gContextHooked];
 }
 
-static BOOL WAGRContextHasPersistedOverride(void) {
-    NSUserDefaults *ud = NSUserDefaults.standardUserDefaults;
-    for (NSString *k in [ud dictionaryRepresentation]) {
-        if ([k hasPrefix:@"wagr.context."]) return YES;
-    }
-    return WAGRPref(kWAGREmployeeMaster) || WAGRPref(kWAGRInternalMaster) || WAGRPref(kWAGRDebugMode);
-}
-
 __attribute__((constructor))
 static void WAGRContextCtor(void) {
     @autoreleasepool {
-        if (!WAGRContextHasPersistedOverride()) return;
-        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.5 * NSEC_PER_SEC)),
-                       dispatch_get_main_queue(), ^{ WAGRContextEnsureHooksInstalled(); });
+        double delays[] = { 0.3, 1.0, 3.0 };
+        for (int i = 0; i < 3; i++)
+            dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(delays[i] * NSEC_PER_SEC)),
+                           dispatch_get_main_queue(), ^{ WAGRContextEnsureHooksInstalled(); });
     }
 }

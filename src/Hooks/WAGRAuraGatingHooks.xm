@@ -147,27 +147,16 @@ extern "C" void WAGRAuraGatingEnsureHooksInstalled(void) {
 
 extern "C" void WAGRAuraGatingActivate(BOOL on) {
     NSUserDefaults *ud = NSUserDefaults.standardUserDefaults;
-    [ud setObject:(on ? @"on" : @"off") forKey:kWAGRAuraSimulation];
+    if (on) [ud setObject:@"on" forKey:kWAGRAuraSimulation];
+    else    [ud removeObjectForKey:kWAGRAuraSimulation];
     [ud synchronize];
     WAGRAuraGatingEnsureHooksInstalled();
-}
-
-static BOOL WAGRAuraHasPersistedOverride(void) {
-    NSUserDefaults *ud = NSUserDefaults.standardUserDefaults;
-    for (NSString *k in [ud dictionaryRepresentation]) {
-        if ([k isEqualToString:kWAGRAuraSimulation] ||
-            [k hasPrefix:@"wagr.waab.aura_"] ||
-            [k containsString:@"benefit"] ||
-            [k containsString:@"subscription"]) return YES;
-    }
-    return NO;
 }
 
 __attribute__((constructor))
 static void WAGRAuraGatingCtor(void) {
     @autoreleasepool {
-        if (!WAGRAuraHasPersistedOverride()) return;
-        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.5 * NSEC_PER_SEC)),
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.5 * NSEC_PER_SEC)),
                        dispatch_get_main_queue(), ^{ WAGRAuraGatingEnsureHooksInstalled(); });
     }
 }
