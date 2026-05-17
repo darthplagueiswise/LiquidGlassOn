@@ -536,7 +536,6 @@ static WAGramBundleVC *DogfoodBundle(void) {
 }
 
 // ── Section 0: Master switches ─────────────────────────────────────────────────
-static const char kMasterKey = 0;
 - (UITableViewCell*)masterCellForRow:(NSInteger)row {
     struct { NSString *title,*detail,*icon,*key; UIColor *clr; } m[] = {
         {@"Liquid Glass",     @"WDSLiquidGlass + 32 WAABProperties hooks", @"drop.fill",                  WA_PREF_LIQUID_GLASS,   WAGR_ACCENT()},
