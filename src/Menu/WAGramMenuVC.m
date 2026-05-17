@@ -9,6 +9,7 @@
 #import "../WAUtils.h"
 #import "../WAGramPrefix.h"
 #import "../WAGramUI.h"
+#import "../Backup/WAGRBackup.h"
 #import <CoreFoundation/CoreFoundation.h>
 
 extern BOOL WAGRWAABCurrentValue(NSString *flag, BOOL *known, BOOL *overridden);
@@ -32,7 +33,17 @@ static BOOL FlagOn(NSString *f) {
 }
 static void FlagSet(NSString *f, BOOL on) {
     NSUserDefaults *ud = NSUserDefaults.standardUserDefaults;
-    [ud setObject:(on ? @"on" : @"off") forKey:WAGRKey(f)];
+    if (on) [ud setObject:@"on" forKey:WAGRKey(f)];
+    else    [ud removeObjectForKey:WAGRKey(f)];
+    [ud synchronize];
+    WAGRWAABEnsureHooksInstalled();
+    if ([f containsString:@"liquid_glass"]) WAGRLGPrefsDidChange();
+    if ([f hasPrefix:@"aura_"] || [f containsString:@"benefit"] || [f containsString:@"subscription"]) WAGRAuraGatingEnsureHooksInstalled();
+    if ([f containsString:@"dogfood"] || [f containsString:@"internal"] || [f containsString:@"employee"]) WAGRDogfoodEnsureHooksInstalled();
+}
+static void FlagClear(NSString *f) {
+    NSUserDefaults *ud = NSUserDefaults.standardUserDefaults;
+    [ud removeObjectForKey:WAGRKey(f)];
     [ud synchronize];
     WAGRWAABEnsureHooksInstalled();
     if ([f containsString:@"liquid_glass"]) WAGRLGPrefsDidChange();
@@ -49,8 +60,10 @@ static BOOL CtxOn(NSString *k) {
 }
 static void CtxSet(NSString *k, BOOL v) {
     NSUserDefaults *ud = NSUserDefaults.standardUserDefaults;
-    [ud setObject:(v ? @"on" : @"off") forKey:k];
+    if (v) [ud setObject:@"on" forKey:k];
+    else   [ud removeObjectForKey:k];
     [ud synchronize];
+    WAGRContextEnsureHooksInstalled();
 }
 
 
@@ -164,12 +177,33 @@ static const char kSwKey = 0;
         objc_setAssociatedObject(c,&kSwKey,sw,OBJC_ASSOCIATION_RETAIN_NONATOMIC);
         c.accessoryView = sw;
     }
-    sw.on = on; sw.tag = ip.row; return c;
+    sw.on = on; sw.tag = ip.row;
+    if (!objc_getAssociatedObject(c, "wagrLP")) {
+        UILongPressGestureRecognizer *lp = [[UILongPressGestureRecognizer alloc]
+            initWithTarget:self action:@selector(longPressFlag:)];
+        lp.minimumPressDuration = 0.5;
+        [c addGestureRecognizer:lp];
+        objc_setAssociatedObject(c, "wagrLP", lp, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    }
+    return c;
 }
 - (void)togFlag:(UISwitch*)sw {
     NSString *flag = _filtered[(NSUInteger)sw.tag];
     FlagSet(flag, sw.isOn);
     [self.tableView reloadRowsAtIndexPaths:@[[NSIndexPath indexPathForRow:sw.tag inSection:0]] withRowAnimation:UITableViewRowAnimationNone];
+    [self updateTitle];
+}
+- (void)longPressFlag:(UILongPressGestureRecognizer *)g {
+    if (g.state != UIGestureRecognizerStateBegan) return;
+    UITableViewCell *c = (UITableViewCell *)g.view;
+    if (![c isKindOfClass:UITableViewCell.class]) return;
+    NSIndexPath *ip = [self.tableView indexPathForCell:c];
+    if (!ip || ip.row >= (NSInteger)_filtered.count) return;
+    NSString *flag = _filtered[(NSUInteger)ip.row];
+    FlagClear(flag);
+    UIImpactFeedbackGenerator *fb = [[UIImpactFeedbackGenerator alloc] initWithStyle:UIImpactFeedbackStyleMedium];
+    [fb impactOccurred];
+    [self.tableView reloadRowsAtIndexPaths:@[ip] withRowAnimation:UITableViewRowAnimationFade];
     [self updateTitle];
 }
 @end
@@ -207,7 +241,9 @@ static const char kBundleAssoc = 0;
 - (NSInteger)numberOfSectionsInTableView:(UITableView*)tv { return 3; }
 - (NSInteger)tableView:(UITableView*)tv numberOfRowsInSection:(NSInteger)s { return 1; }
 - (NSString*)tableView:(UITableView*)tv titleForFooterInSection:(NSInteger)s {
-    return s==0 ? [NSString stringWithFormat:@"%@\n\nPersiste como wagr.waab.<flag> = \"on\"/\"off\" em NSUserDefaults. Reiniciar para aplicar na interface.", _desc?:@""] : nil;
+    if (s==0) return [NSString stringWithFormat:@"%@\n\nPersiste como wagr.waab.<flag> em NSUserDefaults. Switch OFF apaga a chave (volta ao default do sistema).", _desc?:@""];
+    if (s==1) return @"Toque longo numa flag = remover override (volta ao default do sistema).";
+    return nil;
 }
 - (UIView*)tableView:(UITableView*)tv viewForHeaderInSection:(NSInteger)s {
     NSString *titles[] = {@"Ativar Grupo", @"Flags Individuais", @"Diagnóstico"};
@@ -241,9 +277,10 @@ static const char kBundleAssoc = 0;
 }
 - (void)masterTog:(UISwitch*)sw {
     NSUserDefaults *ud = NSUserDefaults.standardUserDefaults;
-    for (NSString *f in _flags)  [ud setObject:(sw.isOn ? @"on" : @"off") forKey:WAGRKey(f)];
-    for (NSString *f in _kills)  [ud setObject:(sw.isOn ? @"off" : @"on") forKey:WAGRKey(f)];
+    for (NSString *f in _flags)  sw.isOn ? [ud setObject:@"on"  forKey:WAGRKey(f)] : [ud removeObjectForKey:WAGRKey(f)];
+    for (NSString *f in _kills)  sw.isOn ? [ud setObject:@"off" forKey:WAGRKey(f)] : [ud removeObjectForKey:WAGRKey(f)];
     [ud synchronize]; WAGRWAABEnsureHooksInstalled();
+    if (_kills.count) WAGRAuraGatingEnsureHooksInstalled();
     [self reload]; [_browser reload];
 }
 - (void)tableView:(UITableView*)tv didSelectRowAtIndexPath:(NSIndexPath*)ip {
@@ -540,7 +577,7 @@ static WAGramBundleVC *DogfoodBundle(void) {
 
 - (NSInteger)numberOfSectionsInTableView:(UITableView*)tv { return 6; }
 - (NSInteger)tableView:(UITableView*)tv numberOfRowsInSection:(NSInteger)s {
-    NSInteger counts[] = {4, 7, 3, 1, 1, 2};
+    NSInteger counts[] = {4, 7, 3, 1, 1, 4};
     return counts[s];
 }
 - (UIView*)tableView:(UITableView*)tv viewForHeaderInSection:(NSInteger)s {
@@ -634,12 +671,14 @@ static WAGramBundleVC *DogfoodBundle(void) {
     if(ip.section==3)return WAGRIconCell(@"hammer.fill",WAGR_ORANGE(),@"Debug Build Gates",@"isDebugBuild, RC, TestFlight, Beta — tudo toggleável",UITableViewCellAccessoryDisclosureIndicator);
     if(ip.section==4)return WAGRIconCell(@"square.grid.2x2",WAGR_ACCENT(),@"Settings Rows",@"31 células com gates — ligar e desligar",UITableViewCellAccessoryDisclosureIndicator);
     // Section 5: Actions
-    struct{NSString*t,*i;UIColor*c;}a[]={
-        {@"Reiniciar WhatsApp", @"arrow.counterclockwise.circle.fill", WAGR_RED()},
-        {@"Reset completo (wagr.* + native)", @"trash.fill",           WAGR_ORANGE()},
+    struct{NSString*t,*s,*i;UIColor*c;UITableViewCellAccessoryType acc;}a[]={
+        {@"Exportar backup",                  @"Copia overrides para clipboard",      @"square.and.arrow.up",                WAGR_ACCENT(), UITableViewCellAccessoryNone},
+        {@"Importar backup",                  @"Cola overrides do clipboard",         @"square.and.arrow.down",              WAGR_TEAL(),   UITableViewCellAccessoryNone},
+        {@"Reiniciar WhatsApp",               @"",                                    @"arrow.counterclockwise.circle.fill", WAGR_RED(),    UITableViewCellAccessoryNone},
+        {@"Reset completo (wagr.* + native)", @"",                                    @"trash.fill",                         WAGR_ORANGE(), UITableViewCellAccessoryNone},
     };
-    UITableViewCell *c=WAGRIconCell(a[ip.row].i,a[ip.row].c,a[ip.row].t,@"",UITableViewCellAccessoryNone);
-    c.textLabel.textAlignment=NSTextAlignmentCenter;
+    UITableViewCell *c=WAGRIconCell(a[ip.row].i,a[ip.row].c,a[ip.row].t,a[ip.row].s,a[ip.row].acc);
+    if (!a[ip.row].s.length) c.textLabel.textAlignment=NSTextAlignmentCenter;
     return c;
 }
 
@@ -665,6 +704,10 @@ static WAGramBundleVC *DogfoodBundle(void) {
     if(ip.section==4)[self.navigationController pushViewController:[[WAGRSettingsRowsVC alloc]init] animated:YES];
     if(ip.section==5) {
         if(ip.row==0) {
+            [WAGRBackup presentExportFromVC:self];
+        } else if(ip.row==1) {
+            [WAGRBackup presentImportFromVC:self];
+        } else if(ip.row==2) {
             UIAlertController *a=[UIAlertController alertControllerWithTitle:@"Reiniciar?" message:nil preferredStyle:UIAlertControllerStyleAlert];
             [a addAction:[UIAlertAction actionWithTitle:@"Reiniciar" style:UIAlertActionStyleDestructive handler:^(id _){dispatch_after(dispatch_time(DISPATCH_TIME_NOW,(int64_t)(.3*NSEC_PER_SEC)),dispatch_get_main_queue(),^{exit(0);});}]];
             [a addAction:[UIAlertAction actionWithTitle:@"Cancelar" style:UIAlertActionStyleCancel handler:nil]];
