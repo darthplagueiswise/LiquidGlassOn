@@ -121,7 +121,7 @@ static void WAGRContextHookOne(Class cls, BOOL meta, const char *selStr, IMP hoo
 
 extern "C" void WAGRContextEnsureHooksInstalled(void) {
     if (gContextHooksInstalled) return;
-    gContextHooksInstalled = YES;
+    // Do NOT set gContextHooksInstalled = YES yet — only after confirming hooks landed.
 
     struct { const char *sel; IMP hook; IMP *orig; } entries[] = {
         { "isDebugBuild",              (IMP)hookIsDebugBuild,           (IMP *)&origIsDebugBuild },
@@ -145,6 +145,10 @@ extern "C" void WAGRContextEnsureHooksInstalled(void) {
         }
     }
     free(all);
+    // Only mark installed when at least one hook was placed.
+    if (gContextHooked > 0) {
+        gContextHooksInstalled = YES;
+    }
     NSLog(@"[WAGram][Context] hooks installed, count=%lu", (unsigned long)gContextHooked);
 }
 
