@@ -35,3 +35,17 @@ NSString *WAGRContextDiagnosticText(void);
 #ifdef __cplusplus
 }
 #endif
+
+// Root menu exposed to Tweak.x / long-press presenter.
+@interface WAGramMenuVC : UITableViewController
+@end
+
+// Working WAAB flag browser. The implementation lives in WAGramMenuVC.m.
+// Keep this declaration here so clang treats the class extension in .m as a real extension,
+// not as a root-class category.
+@interface WAGRABFlagBrowserVC : UITableViewController <UISearchResultsUpdating>
+@property (nonatomic, strong, readonly) NSArray<NSString *> *allFlags;
+- (instancetype)initWithTitle:(NSString *)title flags:(NSArray<NSString *> *)flags;
+- (void)reload;
+- (void)updateTitle;
+@end
