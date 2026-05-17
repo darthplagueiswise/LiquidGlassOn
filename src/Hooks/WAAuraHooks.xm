@@ -8,6 +8,7 @@
 #import "../WAGramPrefix.h"
 
 extern "C" void WAGRWAABEnsureHooksInstalled(void);
+extern "C" BOOL WAGRWAABOriginalBoolForFlag(NSString *flag, BOOL *knownOut);
 
 static NSString * const kWAGRAuraSimulationMaster = @"wagr_aura_simulation_enabled";
 
@@ -67,10 +68,30 @@ static BOOL WAGRAuraSimulationEnabled(void) {
     return [[NSUserDefaults standardUserDefaults] boolForKey:kWAGRAuraSimulationMaster];
 }
 
+static BOOL WAGRAuraSystemDefaultForFlag(NSString *flag, BOOL *knownOut) {
+    BOOL known = NO;
+    BOOL value = WAGRWAABOriginalBoolForFlag(flag, &known);
+    if (knownOut) *knownOut = known;
+    return known ? value : NO;
+}
+
 static void WAGRSetWAABOverride(NSString *flag, NSString *value) {
     if (!flag.length) return;
     if (value.length) [[NSUserDefaults standardUserDefaults] setObject:value forKey:WAGRKey(flag)];
     else [[NSUserDefaults standardUserDefaults] removeObjectForKey:WAGRKey(flag)];
+}
+
+static void WAGRSetWAABEffective(NSString *flag, BOOL desired) {
+    if (!flag.length) return;
+    BOOL known = NO;
+    BOOL sys = WAGRAuraSystemDefaultForFlag(flag, &known);
+    if (desired) {
+        if (known && sys) WAGRSetWAABOverride(flag, nil);
+        else WAGRSetWAABOverride(flag, @"on");
+    } else {
+        if (known && sys) WAGRSetWAABOverride(flag, @"off");
+        else WAGRSetWAABOverride(flag, nil);
+    }
 }
 
 extern "C" void WAGRAuraEnsureHooksInstalled(void) {
@@ -80,8 +101,8 @@ extern "C" void WAGRAuraEnsureHooksInstalled(void) {
 extern "C" void WAGRAuraActivateAllFlags(void) {
     NSUserDefaults *ud = [NSUserDefaults standardUserDefaults];
     [ud setBool:YES forKey:kWAGRAuraSimulationMaster];
-    for (NSString *flag in WAGRAuraPositiveFlags()) WAGRSetWAABOverride(flag, @"on");
-    for (NSString *flag in WAGRAuraNegativeFlags()) WAGRSetWAABOverride(flag, @"off");
+    for (NSString *flag in WAGRAuraPositiveFlags()) WAGRSetWAABEffective(flag, YES);
+    for (NSString *flag in WAGRAuraNegativeFlags()) WAGRSetWAABEffective(flag, NO);
     [ud synchronize];
     WAGRWAABEnsureHooksInstalled();
 }

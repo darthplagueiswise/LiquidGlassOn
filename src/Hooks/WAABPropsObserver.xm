@@ -14,11 +14,13 @@
 
 #import <Foundation/Foundation.h>
 #import <objc/runtime.h>
+#import <objc/message.h>
 #import <substrate.h>
 #import "../WAGramPrefix.h"
 
 // ── Storage for original IMPs ─────────────────────────────────────────────────
 static NSMutableDictionary<NSString *, NSValue *> *gWAABOrigImps  = nil;
+static NSMutableDictionary<NSString *, Class>   *gWAABOrigClasses = nil;
 static NSUInteger gWAABHookedCount = 0;
 static BOOL gWAABHooksInstalled = NO;
 
@@ -33,6 +35,7 @@ static void WAGRLogEnsure(void) {
         gWAABLog   = [NSMutableArray arrayWithCapacity:WAGR_LOG_SIZE];
         gWAABQueue = dispatch_queue_create("com.wagr.waab", DISPATCH_QUEUE_SERIAL);
         gWAABOrigImps = [NSMutableDictionary dictionaryWithCapacity:512];
+        gWAABOrigClasses = [NSMutableDictionary dictionaryWithCapacity:512];
     });
 }
 static void WAGRLogAppend(NSString *e) {
@@ -48,7 +51,7 @@ static void WAGRLogAppend(NSString *e) {
 static BOOL WAGRWAABGenericBoolHook(id self, SEL _cmd) {
     NSString *flag   = NSStringFromSelector(_cmd);
     NSString *udKey  = WAGRKey(flag);
-    NSString *stored = [[NSUserDefaults standardUserDefaults] stringForKey:udKey];
+    NSString *stored = WAGRStateStringFromObject(WAGRPersistentObjectForKey(udKey));
 
     BOOL result;
     BOOL overridden = NO;
@@ -79,7 +82,7 @@ static BOOL WAGRBoolForKeyHook(id self, SEL _cmd, NSString *key, BOOL defaultVal
     BOOL original = gOrigBoolForKey ? gOrigBoolForKey(self, _cmd, key, defaultVal) : defaultVal;
     if (!key.length) return original;
 
-    NSString *stored = [[NSUserDefaults standardUserDefaults] stringForKey:WAGRKey(key)];
+    NSString *stored = WAGRStateStringFromObject(WAGRPersistentObjectForKey(WAGRKey(key)));
     if ([stored isEqualToString:@"on"]) {
         WAGRLogAppend([NSString stringWithFormat:@"[OVERRIDE/boolKey] %@ → YES", key]);
         return YES;
@@ -100,7 +103,7 @@ static id WAGRStringForKeyHook(id self, SEL _cmd, NSString *key, id defaultVal) 
     id original = gOrigStringForKey ? gOrigStringForKey(self, _cmd, key, defaultVal) : defaultVal;
     if (!key.length) return original;
 
-    NSString *stored = [[NSUserDefaults standardUserDefaults] stringForKey:WAGRKey(key)];
+    NSString *stored = WAGRStateStringFromObject(WAGRPersistentObjectForKey(WAGRKey(key)));
     if ([stored isEqualToString:@"on"])  return @"enabled";
     if ([stored isEqualToString:@"off"]) return @"";
     return original;
@@ -149,7 +152,10 @@ static void WAGRHookWAABProperties(Class cls) {
 
         IMP orig = NULL;
         MSHookMessageEx(cls, sel, (IMP)WAGRWAABGenericBoolHook, &orig);
-        if (orig) gWAABOrigImps[selName] = [NSValue valueWithPointer:(void *)orig];
+        if (orig) {
+            gWAABOrigImps[selName] = [NSValue valueWithPointer:(void *)orig];
+            gWAABOrigClasses[selName] = cls;
+        }
         gWAABHookedCount++;
     }
     free(methods);
@@ -158,7 +164,7 @@ static void WAGRHookWAABProperties(Class cls) {
 extern "C" void WAGRWAABEnsureHooksInstalled(void) {
     WAGRLogEnsure();
     if (gWAABHooksInstalled) return;
-    gWAABHooksInstalled = YES;
+    NSUInteger before = gWAABHookedCount;
 
     // Primary class
     Class waab = NSClassFromString(@"WAABProperties");
@@ -178,7 +184,51 @@ extern "C" void WAGRWAABEnsureHooksInstalled(void) {
         }
         free(all);
     }
-    NSLog(@"[WAGram][WAAB] hooked %lu direct bool methods on WAABProperties", (unsigned long)gWAABHookedCount);
+    gWAABHooksInstalled = (gWAABHookedCount > 0) || gOrigBoolForKey || gOrigStringForKey;
+    NSLog(@"[WAGram][WAAB] installed=%@ hooked %lu direct bool methods on WAABProperties (delta=%lu)",
+          gWAABHooksInstalled ? @"YES" : @"NO",
+          (unsigned long)gWAABHookedCount,
+          (unsigned long)(gWAABHookedCount - before));
+}
+
+
+static id WAGRWAABProbeObjectForClass(Class cls) {
+    if (!cls) return nil;
+    NSArray<NSString *> *candidates = @[
+        @"sharedInstance", @"shared", @"defaultInstance", @"defaultProperties",
+        @"sharedProperties", @"sharedABProperties", @"currentProperties",
+        @"properties", @"instance"
+    ];
+    for (NSString *name in candidates) {
+        SEL sel = NSSelectorFromString(name);
+        if (!class_respondsToSelector(object_getClass(cls), sel)) continue;
+        @try {
+            id obj = ((id (*)(id, SEL))objc_msgSend)((id)cls, sel);
+            if (obj) return obj;
+        } @catch (__unused id ex) {}
+    }
+    return nil;
+}
+
+extern "C" BOOL WAGRWAABOriginalBoolForFlag(NSString *flag, BOOL *knownOut) {
+    if (knownOut) *knownOut = NO;
+    if (!flag.length) return NO;
+    WAGRWAABEnsureHooksInstalled();
+    NSValue *origVal = gWAABOrigImps[flag];
+    Class cls = gWAABOrigClasses[flag];
+    if (!origVal || !cls) return NO;
+    SEL sel = NSSelectorFromString(flag);
+    id target = WAGRWAABProbeObjectForClass(cls);
+    if (!target || ![target respondsToSelector:sel]) return NO;
+    BOOL (*orig)(id, SEL) = (BOOL (*)(id, SEL))[origVal pointerValue];
+    if (!orig) return NO;
+    @try {
+        BOOL value = orig(target, sel);
+        if (knownOut) *knownOut = YES;
+        return value;
+    } @catch (__unused id ex) {
+        return NO;
+    }
 }
 
 // ── Public API ────────────────────────────────────────────────────────────────
@@ -207,15 +257,27 @@ extern "C" NSString *WAGRWAABDiagnosticText(void) {
         WAGRPref(kWAGRABPropsObserver) ? @"ON" : @"OFF"];
 }
 
+static BOOL WAGRWAABHasStartupReason(void) {
+    if (WAGRPref(kWAGRABPropsObserver)) return YES;
+    NSDictionary *all = [[NSUserDefaults standardUserDefaults] dictionaryRepresentation];
+    for (NSString *k in all) {
+        if ([k hasPrefix:@"wagr.waab."]) return YES;
+    }
+    return NO;
+}
+
 // ── Constructor ───────────────────────────────────────────────────────────────
 __attribute__((constructor))
 static void WAGRABInit(void) {
     @autoreleasepool {
         WAGRLogEnsure();
-        // Install immediately for pre-loaded classes
+        if (!WAGRWAABHasStartupReason()) {
+            NSLog(@"[WAGram][WAAB] startup inert; no persisted WAAB overrides/observer");
+            return;
+        }
+        // Install only when persisted overrides or observer exist. Menus can still call Ensure on demand.
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.5 * NSEC_PER_SEC)),
                        dispatch_get_main_queue(), ^{ WAGRWAABEnsureHooksInstalled(); });
-        // Retry after app fully loads
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2.5 * NSEC_PER_SEC)),
                        dispatch_get_main_queue(), ^{ WAGRWAABEnsureHooksInstalled(); });
     }

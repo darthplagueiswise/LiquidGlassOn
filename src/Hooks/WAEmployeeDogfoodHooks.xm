@@ -69,8 +69,15 @@ static void WAGRDFInstallOnClass(Class cls) {
     }
 }
 
+static BOOL WAGRDFAllCoreHooksReady(void) {
+    return orig_isMetaEmployeeOrInternalTester &&
+           orig_is_meta_employee_getter &&
+           orig_isInternalUser &&
+           orig_graphQLEmployeeC1Disabled;
+}
+
 static void WAGRDFInstallHooks(void) {
-    if (_wagrDFHooksInstalled) return;
+    if (_wagrDFHooksInstalled && WAGRDFAllCoreHooksReady()) return;
     NSArray<NSString *> *targetClasses = @[
         @"WAABProperties",
         @"WAUserContext",
@@ -97,8 +104,10 @@ static void WAGRDFInstallHooks(void) {
         }
         free(classes);
     }
-    _wagrDFHooksInstalled = YES;
-    NSLog(@"[WAGram][Dogfood] hook installation complete; hooked=%lu", (unsigned long)_wagrDFHookedCount);
+    _wagrDFHooksInstalled = WAGRDFAllCoreHooksReady();
+    NSLog(@"[WAGram][Dogfood] hook installation pass complete; installed=%@ hooked=%lu",
+          _wagrDFHooksInstalled ? @"YES" : @"NO",
+          (unsigned long)_wagrDFHookedCount);
 }
 
 __attribute__((constructor))

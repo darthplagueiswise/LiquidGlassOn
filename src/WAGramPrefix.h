@@ -14,20 +14,47 @@
 
 // ── NSUserDefaults storage keys ───────────────────────────────────────────────
 // WAAB flag override: wagr.waab.<flag> = @"on" | @"off"
+// Absent = system/default. Numeric/boolean legacy values are normalized on read.
 static inline NSString *WAGRKey(NSString *flag) {
     return [NSString stringWithFormat:@"wagr.waab.%@", flag];
 }
+static inline id WAGRPersistentObjectForKey(NSString *key) {
+    if (!key.length) return nil;
+    NSString *domain = NSBundle.mainBundle.bundleIdentifier;
+    NSDictionary *persistent = domain.length ? [[NSUserDefaults standardUserDefaults] persistentDomainForName:domain] : nil;
+    return persistent[key];
+}
+static inline NSString *WAGRStateStringFromObject(id obj) {
+    if (!obj || obj == (id)kCFNull) return nil;
+    if ([obj isKindOfClass:NSString.class]) {
+        NSString *s = [(NSString *)obj lowercaseString];
+        if ([s isEqualToString:@"on"] || [s isEqualToString:@"true"] || [s isEqualToString:@"yes"] || [s isEqualToString:@"1"]) return @"on";
+        if ([s isEqualToString:@"off"] || [s isEqualToString:@"false"] || [s isEqualToString:@"no"] || [s isEqualToString:@"0"]) return @"off";
+        return nil;
+    }
+    if ([obj isKindOfClass:NSNumber.class]) return [(NSNumber *)obj boolValue] ? @"on" : @"off";
+    return nil;
+}
+static inline NSString *WAGRStoredStateForFlag(NSString *flag) {
+    return WAGRStateStringFromObject(WAGRPersistentObjectForKey(WAGRKey(flag)));
+}
 static inline BOOL WAGRIsOn(NSString *flag) {
-    return [[[NSUserDefaults standardUserDefaults] stringForKey:WAGRKey(flag)] isEqualToString:@"on"];
+    return [WAGRStoredStateForFlag(flag) isEqualToString:@"on"];
 }
 static inline BOOL WAGRIsOff(NSString *flag) {
-    return [[[NSUserDefaults standardUserDefaults] stringForKey:WAGRKey(flag)] isEqualToString:@"off"];
+    return [WAGRStoredStateForFlag(flag) isEqualToString:@"off"];
 }
 static inline void WAGRSet(NSString *flag, NSString *val) {
     if (!flag.length) return;
-    if (!val) [[NSUserDefaults standardUserDefaults] removeObjectForKey:WAGRKey(flag)];
-    else      [[NSUserDefaults standardUserDefaults] setObject:val forKey:WAGRKey(flag)];
+    if (!val.length) [[NSUserDefaults standardUserDefaults] removeObjectForKey:WAGRKey(flag)];
+    else             [[NSUserDefaults standardUserDefaults] setObject:val forKey:WAGRKey(flag)];
     [[NSUserDefaults standardUserDefaults] synchronize];
+}
+static inline BOOL WAGRBoolOverrideForKey(NSString *key, BOOL *valueOut) {
+    NSString *state = WAGRStateStringFromObject(WAGRPersistentObjectForKey(key));
+    if (!state) return NO;
+    if (valueOut) *valueOut = [state isEqualToString:@"on"];
+    return YES;
 }
 
 // ── Master pref keys ──────────────────────────────────────────────────────────

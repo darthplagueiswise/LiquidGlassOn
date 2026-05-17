@@ -8,14 +8,29 @@
 #import "Menu/WAGramMenuVC.h"
 #import "WAGramPrefix.h"
 
+// New v7 hooks
+extern void WAGRAuraGatingEnsureHooksInstalled(void);
+extern void WAGRAuraGatingActivate(BOOL on);
+extern void WAGRContextEnsureHooksInstalled(void);
+extern void WAGRContextSetSimulateDebug(BOOL on);
+extern BOOL WAGRContextIsSimulatingDebug(void);
+extern NSString *WAGRContextDiagnosticText(void);
+
 static const char *kWAGRLPInstalledKey = "wagr.longpress.installed";
 static IMP orig_settingsVDAppear = NULL;
 static BOOL (*orig_isDebugMenuAllowed)(id, SEL) = NULL;
 static BOOL gWAGRSettingsHookInstalled = NO;
 static BOOL gWAGRDebugGateHookInstalled = NO;
 
+static BOOL WAGRNativeDebugMasterEffective(void) {
+    BOOL explicitValue = NO;
+    if (WAGRBoolOverrideForKey(kWAGRDebugMenuNative, &explicitValue)) return explicitValue;
+    // Default ON without registerDefaults, so Flex/NSUserDefaults does not fill with synthetic 0/1 keys.
+    return YES;
+}
+
 static BOOL WAGRNativeDebugAllowed(void) {
-    return WAGRPref(kWAGRDebugMenuNative) || WAGRPref(kWAGRInternalMaster) || WAGRPref(kWAGREmployeeMaster) || WAGRPref(kWAGRDebugMode);
+    return WAGRNativeDebugMasterEffective() || WAGRPref(kWAGRInternalMaster) || WAGRPref(kWAGREmployeeMaster) || WAGRPref(kWAGRDebugMode);
 }
 
 static void WAGRPresentMenu(UIViewController *from) {
@@ -231,7 +246,7 @@ void WAGRDebugMenuEnsureHooksInstalled(void) {
 NSString *WAGRDebugMenuDiagnosticText(void) {
     return [NSString stringWithFormat:
         @"nativeDebug=%@\ninternal=%@\ndogfood=%@\nhooks: settings=%@ debugGate=%@\nlocation: WhatsApp Settings → Developer\nWAGram: long-press Developer or Help/Feedback",
-        WAGRPref(kWAGRDebugMenuNative) ? @"ON" : @"OFF",
+        WAGRNativeDebugMasterEffective() ? @"ON" : @"OFF",
         WAGRPref(kWAGRInternalMaster) ? @"ON" : @"OFF",
         WAGRPref(kWAGREmployeeMaster) ? @"ON" : @"OFF",
         gWAGRSettingsHookInstalled ? @"YES" : @"NO",
@@ -241,33 +256,13 @@ NSString *WAGRDebugMenuDiagnosticText(void) {
 %ctor {
     @autoreleasepool {
         NSLog(@"[WAGram] loading — bundle=%@", [[NSBundle mainBundle] bundleIdentifier]);
-        NSDictionary *defs = @{
-            kWAGRKeychain          : @NO,
-            kWAGRKeychainObserver  : @NO,
-            kWAGREmployeeMaster    : @NO,
-            kWAGRInternalMaster    : @NO,
-            kWAGRDebugMenuNative   : @YES,
-            kWAGRABPropsObserver   : @NO,
-            kWAGRLiquidGlassMaster : @NO,
-            kWAGRLiquidGlassUserDefaults : @YES,
-            kWAGRLiquidGlassMethodHooks  : @YES,
-            kWAGRLG_enabled        : @NO,
-            kWAGRLG_launched       : @NO,
-            kWAGRLG_m1             : @NO,
-            kWAGRLG_m1_5           : @NO,
-            kWAGRLG_m1_5_context_menu            : @NO,
-            kWAGRLG_chat_top_bar_m2              : @NO,
-            kWAGRLG_new_chatbar_ux               : @NO,
-            kWAGRLG_larger_composer              : @NO,
-            kWAGRLG_reduce_transparency          : @NO,
-            kWAGRLG_workaround_attachment_tray   : @NO,
-            kWAGRLG_workaround_hides_bottombar   : @NO,
-            kWAGRLG_workaround_topbar_appearance : @NO,
-            kWAGRDebugMode         : @NO,
-        };
-        [[NSUserDefaults standardUserDefaults] registerDefaults:defs];
+        // Do not call registerDefaults here. Registered defaults appear in Flex/NSUserDefaults
+        // as synthetic 0/1 rows and created the exact pollution this branch is fixing.
+        // Absent key = system/default everywhere; explicit keys are written only by user action.
         WAGRInstallSettingsHooks();
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{ WAGRInstallSettingsHooks(); });
-        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(3.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{ WAGRInstallSettingsHooks(); });
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(3.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+            WAGRInstallSettingsHooks();
+        });
     }
 }

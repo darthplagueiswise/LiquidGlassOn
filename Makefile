@@ -29,6 +29,9 @@ $(TWEAK_NAME)_CFLAGS = \
 	-fobjc-arc \
 	-Wno-unsupported-availability-guard \
 	-Wno-unused-value \
+	-Wno-unused-const-variable \
+	-Wno-unused-but-set-variable \
+	-Wno-unused-variable \
 	-Wno-deprecated-declarations \
 	-Wno-nullability-completeness \
 	-Wno-unused-function \
