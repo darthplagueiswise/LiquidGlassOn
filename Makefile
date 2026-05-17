@@ -7,9 +7,7 @@ include $(THEOS)/makefiles/common.mk
 TWEAK_NAME = LiquidGlassOn
 
 # ── Source discovery (mirrors RyukGram-Fork/dev2 pattern) ─────────────────────
-# WAGramMenuVC.m from the v8 archive has a malformed didSelect/reset block.
-# Keep it in the tree for review, but compile the validated replacement source.
-LIQUIDGLASSON_SRC_FILES := $(shell find src -type f \( -iname \*.x -o -iname \*.xm -o -iname \*.m \) ! -path "src/Menu/WAGramMenuVC.m")
+LIQUIDGLASSON_SRC_FILES := $(shell find src -type f \( -iname \*.x -o -iname \*.xm -o -iname \*.m \))
 
 $(TWEAK_NAME)_FILES  = $(LIQUIDGLASSON_SRC_FILES) modules/fishhook/fishhook.c
 
