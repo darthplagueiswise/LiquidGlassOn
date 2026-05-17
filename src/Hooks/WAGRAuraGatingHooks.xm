@@ -32,7 +32,6 @@ static BOOL WAGRAuraSimulationActive(void) {
 
 // ── Generic hook for all BOOL-returning 0-arg methods on WAAuraGating ─────────
 static NSMutableDictionary<NSString *, NSValue *> *gAuraGatingOrig = nil;
-static BOOL gAuraGatingHooked = NO;
 
 typedef BOOL (*AuraBoolIMP)(id, SEL);
 
