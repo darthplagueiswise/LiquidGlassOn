@@ -8,6 +8,14 @@
 #import "Menu/WAGramMenuVC.h"
 #import "WAGramPrefix.h"
 
+// New v7 hooks
+extern void WAGRAuraGatingEnsureHooksInstalled(void);
+extern void WAGRAuraGatingActivate(BOOL on);
+extern void WAGRContextEnsureHooksInstalled(void);
+extern void WAGRContextSetSimulateDebug(BOOL on);
+extern BOOL WAGRContextIsSimulatingDebug(void);
+extern NSString *WAGRContextDiagnosticText(void);
+
 static const char *kWAGRLPInstalledKey = "wagr.longpress.installed";
 static IMP orig_settingsVDAppear = NULL;
 static BOOL (*orig_isDebugMenuAllowed)(id, SEL) = NULL;
@@ -268,6 +276,10 @@ NSString *WAGRDebugMenuDiagnosticText(void) {
         [[NSUserDefaults standardUserDefaults] registerDefaults:defs];
         WAGRInstallSettingsHooks();
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{ WAGRInstallSettingsHooks(); });
-        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(3.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{ WAGRInstallSettingsHooks(); });
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(3.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+            WAGRInstallSettingsHooks();
+            WAGRAuraGatingEnsureHooksInstalled();
+            WAGRContextEnsureHooksInstalled();
+        });
     }
 }
