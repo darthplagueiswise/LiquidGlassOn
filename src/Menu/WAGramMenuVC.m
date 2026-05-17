@@ -717,11 +717,17 @@ static WAGramBundleVC *DogfoodBundle(void) {
             [a addAction:[UIAlertAction actionWithTitle:@"Resetar" style:UIAlertActionStyleDestructive handler:^(id _){
                 NSUserDefaults *ud=NSUserDefaults.standardUserDefaults;
                     for(NSString *k in [[ud dictionaryRepresentation] allKeys]) {
-                        if ([k hasPrefix:@"wagr."]
-                        || [k hasPrefix:@"ios_liquid_glass_"]
-                        || [k hasPrefix:@"aura_"]) {
-                        [ud removeObjectForKey:k];
-                    }
+                        if ([k hasPrefix:@"wagr"]           // wagr.waab.*, wagr.context.*, wagr_aura_*, wagr_debug_*, etc.
+                         || [k hasPrefix:@"wa_lg_"]         // LiquidGlass shadow keys
+                         || [k hasPrefix:@"wa_liquid_glass"] // LG master / options
+                         || [k hasPrefix:@"wa_employee_master"]
+                         || [k hasPrefix:@"wa_abprops_observer"]
+                         || [k hasPrefix:@"wa_sideload_keychain"]
+                         || [k hasPrefix:@"wa_keychain_observer"]
+                         || [k hasPrefix:@"ios_liquid_glass_"]
+                         || [k hasPrefix:@"aura_"]) {
+                            [ud removeObjectForKey:k];
+                        }
                     }
                 [ud synchronize]; WAGRLGPrefsDidChange();
                 CFPreferencesAppSynchronize(kCFPreferencesCurrentApplication);

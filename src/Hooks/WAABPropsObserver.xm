@@ -173,7 +173,7 @@ static void WAGRHookWAABProperties(Class cls) {
 extern "C" void WAGRWAABEnsureHooksInstalled(void) {
     WAGRLogEnsure();
     if (gWAABHooksInstalled) return;
-    gWAABHooksInstalled = YES;
+    // Do NOT set gWAABHooksInstalled = YES yet — only after confirming hooks landed.
 
     // Primary class
     Class waab = NSClassFromString(@"WAABProperties");
@@ -192,6 +192,11 @@ extern "C" void WAGRWAABEnsureHooksInstalled(void) {
             }
         }
         free(all);
+    }
+    // Only mark installed when at least one method was actually hooked.
+    // If the class wasn't loaded yet, leave the guard unset so retry dispatches can try again.
+    if (gWAABHookedCount > 0) {
+        gWAABHooksInstalled = YES;
     }
     NSLog(@"[WAGram][WAAB] hooked %lu direct bool methods on WAABProperties", (unsigned long)gWAABHookedCount);
 }

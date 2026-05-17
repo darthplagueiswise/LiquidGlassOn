@@ -98,11 +98,13 @@ static BOOL hookSubsRowPresent(id self, SEL _cmd) {
 }
 
 static BOOL gAuraGatingHooksInstalled = NO;
+static dispatch_once_t gAuraGatingOrigOnce = 0;
 
 extern "C" void WAGRAuraGatingEnsureHooksInstalled(void) {
     if (gAuraGatingHooksInstalled) return;
-    gAuraGatingHooksInstalled = YES;
-    gAuraGatingOrig = [NSMutableDictionary dictionaryWithCapacity:32];
+    // Do NOT set gAuraGatingHooksInstalled = YES yet — only after confirming hooks landed.
+    // Initialize the orig-IMP table once (survives retries).
+    dispatch_once(&gAuraGatingOrigOnce, ^{ gAuraGatingOrig = [NSMutableDictionary dictionaryWithCapacity:32]; });
 
     // Hook WAAuraGating and all related classes
     NSArray *auraClasses = @[
@@ -141,6 +143,10 @@ extern "C" void WAGRAuraGatingEnsureHooksInstalled(void) {
             }
         }
         free(all2);
+    }
+    // Only mark installed when at least one hook (aura class method or settings row) was placed.
+    if (gAuraGatingOrig.count > 0 || origCheckSubsEligibility || origSubsRowPresent) {
+        gAuraGatingHooksInstalled = YES;
     }
     NSLog(@"[WAGram][AuraGating] installed; aura gating classes hooked=%lu", (unsigned long)gAuraGatingOrig.count);
 }
