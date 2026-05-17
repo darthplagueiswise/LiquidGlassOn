@@ -27,7 +27,9 @@
 #define kWAGRAuraSimulation @"wagr_aura_simulation_enabled"
 
 static BOOL WAGRAuraSimulationActive(void) {
-    return [[NSUserDefaults standardUserDefaults] boolForKey:kWAGRAuraSimulation];
+    id v = [[NSUserDefaults standardUserDefaults] objectForKey:kWAGRAuraSimulation];
+    if ([v isKindOfClass:NSString.class]) return [(NSString *)v isEqualToString:@"on"];
+    return [v respondsToSelector:@selector(boolValue)] ? [v boolValue] : NO;
 }
 
 // ── Generic hook for all BOOL-returning 0-arg methods on WAAuraGating ─────────
@@ -145,16 +147,27 @@ extern "C" void WAGRAuraGatingEnsureHooksInstalled(void) {
 
 extern "C" void WAGRAuraGatingActivate(BOOL on) {
     NSUserDefaults *ud = NSUserDefaults.standardUserDefaults;
-    if (on) [ud setBool:YES forKey:kWAGRAuraSimulation];
-    else    [ud removeObjectForKey:kWAGRAuraSimulation];
+    [ud setObject:(on ? @"on" : @"off") forKey:kWAGRAuraSimulation];
     [ud synchronize];
     WAGRAuraGatingEnsureHooksInstalled();
+}
+
+static BOOL WAGRAuraHasPersistedOverride(void) {
+    NSUserDefaults *ud = NSUserDefaults.standardUserDefaults;
+    for (NSString *k in [ud dictionaryRepresentation]) {
+        if ([k isEqualToString:kWAGRAuraSimulation] ||
+            [k hasPrefix:@"wagr.waab.aura_"] ||
+            [k containsString:@"benefit"] ||
+            [k containsString:@"subscription"]) return YES;
+    }
+    return NO;
 }
 
 __attribute__((constructor))
 static void WAGRAuraGatingCtor(void) {
     @autoreleasepool {
-        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.5 * NSEC_PER_SEC)),
+        if (!WAGRAuraHasPersistedOverride()) return;
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.5 * NSEC_PER_SEC)),
                        dispatch_get_main_queue(), ^{ WAGRAuraGatingEnsureHooksInstalled(); });
     }
 }

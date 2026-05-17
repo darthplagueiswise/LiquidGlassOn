@@ -21,6 +21,7 @@
 static NSMutableDictionary<NSString *, NSValue *> *gWAABOrigImps  = nil;
 static NSUInteger gWAABHookedCount = 0;
 static BOOL gWAABHooksInstalled = NO;
+static NSMutableDictionary<NSString *, NSNumber *> *gWAABLastValues = nil;
 
 // ── Ring-buffer log ───────────────────────────────────────────────────────────
 #define WAGR_LOG_SIZE 300
@@ -33,6 +34,7 @@ static void WAGRLogEnsure(void) {
         gWAABLog   = [NSMutableArray arrayWithCapacity:WAGR_LOG_SIZE];
         gWAABQueue = dispatch_queue_create("com.wagr.waab", DISPATCH_QUEUE_SERIAL);
         gWAABOrigImps = [NSMutableDictionary dictionaryWithCapacity:512];
+        gWAABLastValues = [NSMutableDictionary dictionaryWithCapacity:512];
     });
 }
 static void WAGRLogAppend(NSString *e) {
@@ -42,6 +44,14 @@ static void WAGRLogAppend(NSString *e) {
         if (gWAABLog.count >= WAGR_LOG_SIZE) [gWAABLog removeObjectAtIndex:0];
         [gWAABLog addObject:e];
     });
+}
+
+static void WAGRWAABCacheValue(NSString *flag, BOOL value) {
+    if (!flag.length) return;
+    WAGRLogEnsure();
+    @synchronized (gWAABLastValues) {
+        gWAABLastValues[flag] = @(value);
+    }
 }
 
 // ── Generic BOOL hook (every WAAB direct bool method shares this IMP) ─────────
@@ -64,6 +74,8 @@ static BOOL WAGRWAABGenericBoolHook(id self, SEL _cmd) {
         result = orig ? orig(self, _cmd) : NO;
     }
 
+    WAGRWAABCacheValue(flag, result);
+
     if (WAGRPref(kWAGRABPropsObserver) || overridden) {
         WAGRLogAppend([NSString stringWithFormat:@"%@  %@ → %@",
                        overridden ? @"[OVERRIDE]" : @"[obs]",
@@ -81,13 +93,16 @@ static BOOL WAGRBoolForKeyHook(id self, SEL _cmd, NSString *key, BOOL defaultVal
 
     NSString *stored = [[NSUserDefaults standardUserDefaults] stringForKey:WAGRKey(key)];
     if ([stored isEqualToString:@"on"]) {
+        WAGRWAABCacheValue(key, YES);
         WAGRLogAppend([NSString stringWithFormat:@"[OVERRIDE/boolKey] %@ → YES", key]);
         return YES;
     }
     if ([stored isEqualToString:@"off"]) {
+        WAGRWAABCacheValue(key, NO);
         WAGRLogAppend([NSString stringWithFormat:@"[OVERRIDE/boolKey] %@ → NO", key]);
         return NO;
     }
+    WAGRWAABCacheValue(key, original);
     if (WAGRPref(kWAGRABPropsObserver))
         WAGRLogAppend([NSString stringWithFormat:@"[obs/boolKey] %@ → %@", key, original ? @"YES" : @"NO"]);
     return original;
@@ -192,6 +207,36 @@ extern "C" void WAGRABObsClear(void) {
     WAGRLogEnsure();
     dispatch_async(gWAABQueue, ^{ [gWAABLog removeAllObjects]; });
 }
+
+extern "C" BOOL WAGRWAABCurrentValue(NSString *flag, BOOL *known, BOOL *overridden) {
+    WAGRLogEnsure();
+    if (known) *known = NO;
+    if (overridden) *overridden = NO;
+    if (!flag.length) return NO;
+
+    NSString *stored = [[NSUserDefaults standardUserDefaults] stringForKey:WAGRKey(flag)];
+    if ([stored isEqualToString:@"on"]) {
+        if (known) *known = YES;
+        if (overridden) *overridden = YES;
+        return YES;
+    }
+    if ([stored isEqualToString:@"off"]) {
+        if (known) *known = YES;
+        if (overridden) *overridden = YES;
+        return NO;
+    }
+
+    NSNumber *n = nil;
+    @synchronized (gWAABLastValues) {
+        n = gWAABLastValues[flag];
+    }
+    if (n) {
+        if (known) *known = YES;
+        return n.boolValue;
+    }
+    return NO;
+}
+
 extern "C" NSString *WAGRWAABDiagnosticText(void) {
     WAGRLogEnsure();
     NSUInteger active = 0;

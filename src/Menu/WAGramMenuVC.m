@@ -11,31 +11,48 @@
 #import "../WAGramUI.h"
 #import <CoreFoundation/CoreFoundation.h>
 
+extern BOOL WAGRWAABCurrentValue(NSString *flag, BOOL *known, BOOL *overridden);
+extern BOOL WAGRContextCurrentValueForKey(NSString *key, BOOL *known, BOOL *overridden);
+
+
 // ── Persistent keys para Context/Debug ───────────────────────────────────────
 #define kWAGRCtxDebugBuild  @"wagr.context.simulateDebugBuild"
 #define kWAGRCtxDebugMenu   @"wagr.context.debugMenuAllowed"
 #define kWAGRAuraSimKey     @"wagr_aura_simulation_enabled"
 
 // ── Pref helpers ──────────────────────────────────────────────────────────────
+static BOOL FlagOverrideState(NSString *f, BOOL *isOverridden) {
+    BOOL known = NO, overridden = NO;
+    BOOL v = WAGRWAABCurrentValue(f, &known, &overridden);
+    if (isOverridden) *isOverridden = overridden;
+    return known ? v : NO;
+}
 static BOOL FlagOn(NSString *f) {
-    return [[[NSUserDefaults standardUserDefaults] stringForKey:WAGRKey(f)] isEqualToString:@"on"];
+    return FlagOverrideState(f, NULL);
 }
 static void FlagSet(NSString *f, BOOL on) {
     NSUserDefaults *ud = NSUserDefaults.standardUserDefaults;
-    if (on) [ud setObject:@"on" forKey:WAGRKey(f)];
-    else    [ud removeObjectForKey:WAGRKey(f)];
+    [ud setObject:(on ? @"on" : @"off") forKey:WAGRKey(f)];
     [ud synchronize];
     WAGRWAABEnsureHooksInstalled();
     if ([f containsString:@"liquid_glass"]) WAGRLGPrefsDidChange();
-    if ([f hasPrefix:@"aura_"] || [f containsString:@"benefit"]) WAGRAuraGatingEnsureHooksInstalled();
+    if ([f hasPrefix:@"aura_"] || [f containsString:@"benefit"] || [f containsString:@"subscription"]) WAGRAuraGatingEnsureHooksInstalled();
     if ([f containsString:@"dogfood"] || [f containsString:@"internal"] || [f containsString:@"employee"]) WAGRDogfoodEnsureHooksInstalled();
 }
-static BOOL CtxOn(NSString *k)     { return [[NSUserDefaults standardUserDefaults] boolForKey:k]; }
+static BOOL CtxOn(NSString *k) {
+    BOOL known = NO, overridden = NO;
+    BOOL v = WAGRContextCurrentValueForKey(k, &known, &overridden);
+    if (known) return v;
+    id old = [[NSUserDefaults standardUserDefaults] objectForKey:k];
+    if ([old isKindOfClass:NSString.class]) return [(NSString *)old isEqualToString:@"on"];
+    return [old respondsToSelector:@selector(boolValue)] ? [old boolValue] : NO;
+}
 static void CtxSet(NSString *k, BOOL v) {
     NSUserDefaults *ud = NSUserDefaults.standardUserDefaults;
-    if (v) [ud setBool:YES forKey:k]; else [ud removeObjectForKey:k];
+    [ud setObject:(v ? @"on" : @"off") forKey:k];
     [ud synchronize];
 }
+
 
 // ── TopVC + Alert ─────────────────────────────────────────────────────────────
 static UIViewController *TopVC(void) {
@@ -129,13 +146,16 @@ static const char kSwKey = 0;
     UITableViewCell *c = [tv dequeueReusableCellWithIdentifier:@"fl"];
     if (!c) c = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleSubtitle reuseIdentifier:@"fl"];
     NSString *flag = _filtered[(NSUInteger)ip.row];
-    BOOL on = FlagOn(flag);
+
+    BOOL overridden = NO;
+    BOOL on = FlagOverrideState(flag, &overridden);
+
     c.backgroundColor = WAGR_CELL();
     c.textLabel.text = flag; c.textLabel.numberOfLines = 2;
     c.textLabel.font = [UIFont monospacedSystemFontOfSize:11 weight:UIFontWeightRegular];
     c.textLabel.textColor = on ? WAGR_GREEN() : WAGR_LABEL();
-    c.detailTextLabel.text = on ? @"✓ ON" : @"system/off";
-    c.detailTextLabel.textColor = on ? WAGR_GREEN() : WAGR_SEC();
+    c.detailTextLabel.text = overridden ? (on ? @"override = ON" : @"override = OFF") : (on ? @"system = ON" : @"system = OFF");
+    c.detailTextLabel.textColor = overridden ? WAGR_ORANGE() : WAGR_SEC();
     c.selectionStyle = UITableViewCellSelectionStyleNone;
     UISwitch *sw = (UISwitch*)objc_getAssociatedObject(c,&kSwKey);
     if (!sw) {
@@ -147,7 +167,8 @@ static const char kSwKey = 0;
     sw.on = on; sw.tag = ip.row; return c;
 }
 - (void)togFlag:(UISwitch*)sw {
-    NSString *flag = _filtered[(NSUInteger)sw.tag]; FlagSet(flag,sw.isOn);
+    NSString *flag = _filtered[(NSUInteger)sw.tag];
+    FlagSet(flag, sw.isOn);
     [self.tableView reloadRowsAtIndexPaths:@[[NSIndexPath indexPathForRow:sw.tag inSection:0]] withRowAnimation:UITableViewRowAnimationNone];
     [self updateTitle];
 }
@@ -220,8 +241,8 @@ static const char kBundleAssoc = 0;
 }
 - (void)masterTog:(UISwitch*)sw {
     NSUserDefaults *ud = NSUserDefaults.standardUserDefaults;
-    for (NSString *f in _flags)  sw.isOn ? [ud setObject:@"on"  forKey:WAGRKey(f)] : [ud removeObjectForKey:WAGRKey(f)];
-    for (NSString *f in _kills)  sw.isOn ? [ud setObject:@"off" forKey:WAGRKey(f)] : [ud removeObjectForKey:WAGRKey(f)];
+    for (NSString *f in _flags)  [ud setObject:(sw.isOn ? @"on" : @"off") forKey:WAGRKey(f)];
+    for (NSString *f in _kills)  [ud setObject:(sw.isOn ? @"off" : @"on") forKey:WAGRKey(f)];
     [ud synchronize]; WAGRWAABEnsureHooksInstalled();
     [self reload]; [_browser reload];
 }

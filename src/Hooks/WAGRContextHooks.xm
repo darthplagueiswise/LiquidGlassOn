@@ -24,13 +24,33 @@
 #define kWAGRContextSimulateDebug    @"wagr.context.simulateDebugBuild"
 #define kWAGRContextDebugMenu        @"wagr.context.debugMenuAllowed"
 
+static NSMutableDictionary<NSString *, NSNumber *> *gContextLastValues = nil;
+static BOOL WAGRContextStored(NSString *key, BOOL *has) {
+    if (has) *has = NO;
+    id v = [[NSUserDefaults standardUserDefaults] objectForKey:key];
+    if ([v isKindOfClass:NSString.class]) {
+        NSString *s = (NSString *)v;
+        if ([s isEqualToString:@"on"])  { if (has) *has = YES; return YES; }
+        if ([s isEqualToString:@"off"]) { if (has) *has = YES; return NO; }
+    }
+    if ([v respondsToSelector:@selector(boolValue)]) { if (has) *has = YES; return [v boolValue]; }
+    return NO;
+}
+static BOOL WAGRContextValue(NSString *key, BOOL original) {
+    BOOL has = NO; BOOL v = WAGRContextStored(key, &has);
+    return has ? v : original;
+}
+static void WAGRContextCache(NSString *key, BOOL value) {
+    if (!gContextLastValues) gContextLastValues = [NSMutableDictionary dictionaryWithCapacity:8];
+    @synchronized (gContextLastValues) { gContextLastValues[key] = @(value); }
+}
 static BOOL WAGRContextSimulateDebug(void) {
-    return [[NSUserDefaults standardUserDefaults] boolForKey:kWAGRContextSimulateDebug];
+    return WAGRContextStored(kWAGRContextSimulateDebug, NULL);
 }
 static BOOL WAGRContextDebugMenuAllowed(void) {
-    return [[NSUserDefaults standardUserDefaults] boolForKey:kWAGRContextDebugMenu] ||
-           WAGRContextSimulateDebug() ||
-           WAGRPref(kWAGREmployeeMaster) || WAGRPref(kWAGRInternalMaster) || WAGRPref(kWAGRDebugMode);
+    BOOL has = NO; BOOL v = WAGRContextStored(kWAGRContextDebugMenu, &has);
+    if (has) return v;
+    return WAGRContextSimulateDebug() || WAGRPref(kWAGREmployeeMaster) || WAGRPref(kWAGRInternalMaster) || WAGRPref(kWAGRDebugMode);
 }
 
 // ── Hook storage ──────────────────────────────────────────────────────────────
@@ -43,18 +63,22 @@ static ContextBoolIMP origIsBetaOrMoreVerbose       = NULL;
 static ContextBoolIMP origIsDebugMenuShortcut       = NULL;
 
 static BOOL hookIsDebugBuild(id self, SEL _cmd) {
-    if (WAGRContextSimulateDebug()) return YES;
-    return origIsDebugBuild ? origIsDebugBuild(self, _cmd) : NO;
+    BOOL original = origIsDebugBuild ? origIsDebugBuild(self, _cmd) : NO;
+    BOOL result = WAGRContextValue(kWAGRContextSimulateDebug, original);
+    WAGRContextCache(kWAGRContextSimulateDebug, result);
+    return result;
 }
 static BOOL hookIsDebugMenuAllowed(id self, SEL _cmd) {
-    if (WAGRContextDebugMenuAllowed()) return YES;
-    return origIsDebugMenuAllowed ? origIsDebugMenuAllowed(self, _cmd) : NO;
+    BOOL original = origIsDebugMenuAllowed ? origIsDebugMenuAllowed(self, _cmd) : NO;
+    BOOL result = WAGRContextValue(kWAGRContextDebugMenu, original || WAGRContextDebugMenuAllowed());
+    WAGRContextCache(kWAGRContextDebugMenu, result);
+    return result;
 }
 static BOOL hookIsTestFlightApp(id self, SEL _cmd) {
-    // Reads wagr.context.testFlight OR falls back to simulate debug
-    if ([[NSUserDefaults standardUserDefaults] boolForKey:@"wagr.context.testFlight"]) return YES;
-    if (WAGRContextSimulateDebug()) return YES;
-    return origIsTestFlightApp ? origIsTestFlightApp(self, _cmd) : YES;
+    BOOL original = origIsTestFlightApp ? origIsTestFlightApp(self, _cmd) : NO;
+    BOOL result = WAGRContextValue(@"wagr.context.testFlight", original);
+    WAGRContextCache(@"wagr.context.testFlight", result);
+    return result;
 }
 static BOOL hookIsReleaseCandidateBuild(id self, SEL _cmd) {
     // RC returns NO when debug build is simulated (NO = not a release candidate = can use debug features)
@@ -66,14 +90,16 @@ static BOOL hookIsReleaseCandidateBuild(id self, SEL _cmd) {
     return origIsReleaseCandidateBuild ? origIsReleaseCandidateBuild(self, _cmd) : YES;
 }
 static BOOL hookIsBetaOrMoreVerbose(id self, SEL _cmd) {
-    // Reads wagr.context.betaVerbose OR falls back to simulate debug
-    if ([[NSUserDefaults standardUserDefaults] boolForKey:@"wagr.context.betaVerbose"]) return YES;
-    if (WAGRContextSimulateDebug()) return YES;
-    return origIsBetaOrMoreVerbose ? origIsBetaOrMoreVerbose(self, _cmd) : NO;
+    BOOL original = origIsBetaOrMoreVerbose ? origIsBetaOrMoreVerbose(self, _cmd) : NO;
+    BOOL result = WAGRContextValue(@"wagr.context.betaVerbose", original);
+    WAGRContextCache(@"wagr.context.betaVerbose", result);
+    return result;
 }
 static BOOL hookIsDebugMenuShortcut(id self, SEL _cmd) {
-    if (WAGRContextDebugMenuAllowed()) return YES;
-    return origIsDebugMenuShortcut ? origIsDebugMenuShortcut(self, _cmd) : NO;
+    BOOL original = origIsDebugMenuShortcut ? origIsDebugMenuShortcut(self, _cmd) : NO;
+    BOOL result = WAGRContextValue(kWAGRContextDebugMenu, original || WAGRContextDebugMenuAllowed());
+    WAGRContextCache(kWAGRContextDebugMenu, result);
+    return result;
 }
 
 static NSUInteger gContextHooked = 0;
@@ -124,13 +150,34 @@ extern "C" void WAGRContextEnsureHooksInstalled(void) {
 
 extern "C" void WAGRContextSetSimulateDebug(BOOL on) {
     NSUserDefaults *ud = NSUserDefaults.standardUserDefaults;
-    if (on) [ud setBool:YES forKey:kWAGRContextSimulateDebug];
-    else    [ud removeObjectForKey:kWAGRContextSimulateDebug];
+    [ud setObject:(on ? @"on" : @"off") forKey:kWAGRContextSimulateDebug];
     [ud synchronize];
     WAGRContextEnsureHooksInstalled();
 }
 extern "C" BOOL WAGRContextIsSimulatingDebug(void) { return WAGRContextSimulateDebug(); }
 extern "C" BOOL WAGRContextIsDebugMenuForced(void) { return WAGRContextDebugMenuAllowed(); }
+
+
+extern "C" BOOL WAGRContextCurrentValueForKey(NSString *key, BOOL *known, BOOL *overridden) {
+    if (known) *known = NO;
+    if (overridden) *overridden = NO;
+    BOOL has = NO;
+    BOOL v = WAGRContextStored(key, &has);
+    if (has) {
+        if (known) *known = YES;
+        if (overridden) *overridden = YES;
+        return v;
+    }
+    NSNumber *n = nil;
+    if (gContextLastValues) {
+        @synchronized (gContextLastValues) { n = gContextLastValues[key]; }
+    }
+    if (n) {
+        if (known) *known = YES;
+        return n.boolValue;
+    }
+    return NO;
+}
 
 extern "C" NSString *WAGRContextDiagnosticText(void) {
     return [NSString stringWithFormat:
@@ -144,12 +191,19 @@ extern "C" NSString *WAGRContextDiagnosticText(void) {
         (unsigned long)gContextHooked];
 }
 
+static BOOL WAGRContextHasPersistedOverride(void) {
+    NSUserDefaults *ud = NSUserDefaults.standardUserDefaults;
+    for (NSString *k in [ud dictionaryRepresentation]) {
+        if ([k hasPrefix:@"wagr.context."]) return YES;
+    }
+    return WAGRPref(kWAGREmployeeMaster) || WAGRPref(kWAGRInternalMaster) || WAGRPref(kWAGRDebugMode);
+}
+
 __attribute__((constructor))
 static void WAGRContextCtor(void) {
     @autoreleasepool {
-        double delays[] = { 0.3, 1.0, 3.0 };
-        for (int i = 0; i < 3; i++)
-            dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(delays[i]*NSEC_PER_SEC)),
-                           dispatch_get_main_queue(), ^{ WAGRContextEnsureHooksInstalled(); });
+        if (!WAGRContextHasPersistedOverride()) return;
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.5 * NSEC_PER_SEC)),
+                       dispatch_get_main_queue(), ^{ WAGRContextEnsureHooksInstalled(); });
     }
 }

@@ -32,7 +32,6 @@ $(TWEAK_NAME)_CFLAGS = \
 	-Wno-deprecated-declarations \
 	-Wno-nullability-completeness \
 	-Wno-unused-function \
-	-Wno-unused-const-variable \
 	-Wno-incompatible-pointer-types \
 	-Imodules/fishhook
 
