@@ -35,3 +35,12 @@ NSString *WAGRContextDiagnosticText(void);
 #ifdef __cplusplus
 }
 #endif
+
+@interface WAGramMenuVC : UITableViewController
+@end
+
+@interface WAGRABFlagBrowserVC : UITableViewController <UISearchResultsUpdating>
+- (instancetype)initWithTitle:(NSString *)title flags:(NSArray<NSString *> *)flags;
+- (void)reload;
+- (void)updateTitle;
+@end
