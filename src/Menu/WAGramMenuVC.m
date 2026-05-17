@@ -577,7 +577,7 @@ static WAGramBundleVC *DogfoodBundle(void) {
 
 - (NSInteger)numberOfSectionsInTableView:(UITableView*)tv { return 6; }
 - (NSInteger)tableView:(UITableView*)tv numberOfRowsInSection:(NSInteger)s {
-    NSInteger counts[] = {4, 7, 3, 1, 1, 4};
+    NSInteger counts[] = {4, 7, 3, 1, 1, 5};
     return counts[s];
 }
 - (UIView*)tableView:(UITableView*)tv viewForHeaderInSection:(NSInteger)s {
@@ -676,6 +676,7 @@ static WAGramBundleVC *DogfoodBundle(void) {
         {@"Importar backup",                  @"Cola overrides do clipboard",         @"square.and.arrow.down",              WAGR_TEAL(),   UITableViewCellAccessoryNone},
         {@"Reiniciar WhatsApp",               @"",                                    @"arrow.counterclockwise.circle.fill", WAGR_RED(),    UITableViewCellAccessoryNone},
         {@"Reset completo (wagr.* + native)", @"",                                    @"trash.fill",                         WAGR_ORANGE(), UITableViewCellAccessoryNone},
+        {@"Nuclear Reset (TUDO)",             @"Apaga TODOS NSUserDefaults do WA",    @"bolt.fill",                          WAGR_RED(),    UITableViewCellAccessoryNone},
     };
     UITableViewCell *c=WAGRIconCell(a[ip.row].i,a[ip.row].c,a[ip.row].t,a[ip.row].s,a[ip.row].acc);
     if (!a[ip.row].s.length) c.textLabel.textAlignment=NSTextAlignmentCenter;
@@ -712,7 +713,7 @@ static WAGramBundleVC *DogfoodBundle(void) {
             [a addAction:[UIAlertAction actionWithTitle:@"Reiniciar" style:UIAlertActionStyleDestructive handler:^(id _){dispatch_after(dispatch_time(DISPATCH_TIME_NOW,(int64_t)(.3*NSEC_PER_SEC)),dispatch_get_main_queue(),^{exit(0);});}]];
             [a addAction:[UIAlertAction actionWithTitle:@"Cancelar" style:UIAlertActionStyleCancel handler:nil]];
             [TopVC() presentViewController:a animated:YES completion:nil];
-        } else {
+        } else if(ip.row==3) {
             UIAlertController *a=[UIAlertController alertControllerWithTitle:@"Reset completo?" message:@"Remove wagr.*, wagr.context.*, chaves nativas. CFPreferencesAppSynchronize. Reinicia após 1.5s." preferredStyle:UIAlertControllerStyleAlert];
             [a addAction:[UIAlertAction actionWithTitle:@"Resetar" style:UIAlertActionStyleDestructive handler:^(id _){
                 NSUserDefaults *ud=NSUserDefaults.standardUserDefaults;
@@ -730,6 +731,17 @@ static WAGramBundleVC *DogfoodBundle(void) {
                         }
                     }
                 [ud synchronize]; WAGRLGPrefsDidChange();
+                CFPreferencesAppSynchronize(kCFPreferencesCurrentApplication);
+                dispatch_after(dispatch_time(DISPATCH_TIME_NOW,(int64_t)(1.5*NSEC_PER_SEC)),dispatch_get_main_queue(),^{exit(0);});
+            }]];
+            [a addAction:[UIAlertAction actionWithTitle:@"Cancelar" style:UIAlertActionStyleCancel handler:nil]];
+            [TopVC() presentViewController:a animated:YES completion:nil];
+        } else if(ip.row==4) {
+            UIAlertController *a=[UIAlertController alertControllerWithTitle:@"⚠️ Nuclear Reset" message:@"Apaga TODOS os NSUserDefaults do WhatsApp — incluindo flags nativas, preferências de app, e overrides WAGram. WhatsApp reinicia após 1.5s." preferredStyle:UIAlertControllerStyleAlert];
+            [a addAction:[UIAlertAction actionWithTitle:@"APAGAR TUDO" style:UIAlertActionStyleDestructive handler:^(id _){
+                NSString *bundleID = [[NSBundle mainBundle] bundleIdentifier];
+                [[NSUserDefaults standardUserDefaults] removePersistentDomainForName:bundleID];
+                [[NSUserDefaults standardUserDefaults] synchronize];
                 CFPreferencesAppSynchronize(kCFPreferencesCurrentApplication);
                 dispatch_after(dispatch_time(DISPATCH_TIME_NOW,(int64_t)(1.5*NSEC_PER_SEC)),dispatch_get_main_queue(),^{exit(0);});
             }]];
