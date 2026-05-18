@@ -127,9 +127,37 @@ static void WAGRAlert(NSString *t, NSString *m) {
     });
 }
 
-// Write WAAB flag + call installers
+// Safe apply policy: toggles only write preferences by default. Heavy hooks are
+// installed at launch only when explicitly enabled, or from diagnostic actions.
+static BOOL WAGRImmediateHookApplyEnabled(void) {
+    return [[NSUserDefaults standardUserDefaults] boolForKey:@"wagr_immediate_apply_hooks_enabled"];
+}
+
+static NSUInteger WAGRNuclearResetAllUserDefaults(void) {
+    NSUserDefaults *ud = NSUserDefaults.standardUserDefaults;
+    NSDictionary *before = [ud dictionaryRepresentation] ?: @{};
+    NSUInteger removed = before.count;
+
+    NSString *bundleID = NSBundle.mainBundle.bundleIdentifier;
+    if (bundleID.length) [ud removePersistentDomainForName:bundleID];
+
+    // Belt-and-suspenders pass: clear any residual key visible through the
+    // standard defaults stack, including older bad storage shapes from prior
+    // tweak builds. This intentionally does not filter by prefix.
+    for (NSString *key in before.allKeys) [ud removeObjectForKey:key];
+
+    [ud synchronize];
+    if (bundleID.length) CFPreferencesAppSynchronize((__bridge CFStringRef)bundleID);
+    CFPreferencesAppSynchronize(kCFPreferencesCurrentApplication);
+    return removed;
+}
+
+// Write WAAB flag. Do not install heavy hooks synchronously by default.
+// This keeps the menu usable even when stale NSUserDefaults from older builds
+// contain incompatible values. Restart/apply explicitly after a clean reset.
 static void WAGRApplyFlagOn(NSString *flag) {
     WAGRSet(flag, @"on");
+    if (!WAGRImmediateHookApplyEnabled()) return;
     WAGRWAABEnsureHooksInstalled();
     WAGRBundleEnsureHooksInstalled();
     if ([flag containsString:@"liquid_glass"]) WAGRLGPrefsDidChange();
@@ -140,11 +168,13 @@ static void WAGRApplyFlagOn(NSString *flag) {
 }
 static void WAGRApplyFlagOff(NSString *flag) {
     WAGRSet(flag, @"off");
+    if (!WAGRImmediateHookApplyEnabled()) return;
     WAGRWAABEnsureHooksInstalled();
     WAGRBundleEnsureHooksInstalled();
 }
 static void WAGRApplyFlagSystem(NSString *flag) {
     WAGRSet(flag, nil);
+    if (!WAGRImmediateHookApplyEnabled()) return;
     WAGRWAABEnsureHooksInstalled();
     WAGRBundleEnsureHooksInstalled();
 }
@@ -235,6 +265,9 @@ static char kWAGRSwKey;
     [a addAction:[UIAlertAction actionWithTitle:@"Reset" style:UIAlertActionStyleDestructive handler:^(id _){
         for (NSString *f in self->_filtered) WAGRApplyFlagSystem(f);
         [self.tableView reloadData]; [self updateBadge];
+    }]];
+    [a addAction:[UIAlertAction actionWithTitle:@"Reset TOTAL NSUserDefaults" style:UIAlertActionStyleDestructive handler:^(id _){
+        [self confirmNuclearReset];
     }]];
     [a addAction:[UIAlertAction actionWithTitle:@"Cancelar" style:UIAlertActionStyleCancel handler:nil]];
     [self presentViewController:a animated:YES completion:nil];
@@ -539,6 +572,9 @@ static char kSwAssoc;
 - (void)viewDidLoad {
     [super viewDidLoad];
     self.tableView.backgroundColor = UIColor.systemGroupedBackgroundColor;
+    self.navigationItem.leftBarButtonItem = [[UIBarButtonItem alloc]
+        initWithTitle:@"Reset" style:UIBarButtonItemStylePlain target:self action:@selector(confirmNuclearReset)];
+    self.navigationItem.leftBarButtonItem.tintColor = UIColor.systemRedColor;
     self.navigationItem.rightBarButtonItem = [[UIBarButtonItem alloc]
         initWithBarButtonSystemItem:UIBarButtonSystemItemDone target:self action:@selector(done)];
 }
@@ -560,8 +596,8 @@ static char kSwAssoc;
     return h[s];
 }
 - (NSString*)tableView:(UITableView*)tv titleForFooterInSection:(NSInteger)s {
-    if(s==0)return@"Chaves NSUserDefaults boolean. Persistem sem reinício.";
-    if(s==1)return@"wagr.waab.<flag> = \"on\"/\"off\"/absent. Bundles ativam flags em grupo.";
+    if(s==0)return@"Toggles gravam NSUserDefaults. Hooks pesados não aplicam no toque por segurança; use reset total se veio de build antiga.";
+    if(s==1)return@"wagr.waab.<flag> = \"on\"/\"off\"/absent. Mudanças são persistidas; reinicie para aplicar com segurança.";
     if(s==2)return@"Scan on-demand: nunca no startup. NativeSurface usa registry exato.";
     return nil;
 }
@@ -589,11 +625,13 @@ static char kSwAssoc;
     NSUserDefaults*ud=NSUserDefaults.standardUserDefaults;
     sw.isOn?[ud setBool:YES forKey:@(keys[sw.tag])]:[ud removeObjectForKey:@(keys[sw.tag])];
     [ud synchronize];
-    switch(sw.tag){
-        case 0: WAGRLGPrefsDidChange(); break;
-        case 1: WAGRDogfoodEnsureHooksInstalled(); WAGRNativeSurfaceEnsureHooksInstalled(); break;
-        case 2: WAGRWAABEnsureHooksInstalled(); break;
-        case 3: case 4: WAGRDebugMenuEnsureHooksInstalled(); WAGRNativeSurfaceEnsureHooksInstalled(); break;
+    if (WAGRImmediateHookApplyEnabled()) {
+        switch(sw.tag){
+            case 0: WAGRLGPrefsDidChange(); break;
+            case 1: WAGRDogfoodEnsureHooksInstalled(); WAGRNativeSurfaceEnsureHooksInstalled(); break;
+            case 2: WAGRWAABEnsureHooksInstalled(); break;
+            case 3: case 4: WAGRDebugMenuEnsureHooksInstalled(); WAGRNativeSurfaceEnsureHooksInstalled(); break;
+        }
     }
     [self.tableView reloadRowsAtIndexPaths:@[[NSIndexPath indexPathForRow:sw.tag inSection:0]]
         withRowAnimation:UITableViewRowAnimationNone];
@@ -632,7 +670,7 @@ struct { const char *icon; uint32_t clr; } bundleStyle[] = {
     if(ip.section==2) return [self browserCellForRow:ip.row];
     if(ip.section==3) return WAGRCell(@"Backup & Restore",@"Export JSON / Import / Reset completo",@"arrow.up.arrow.down.circle",CTEAL,UITableViewCellAccessoryDisclosureIndicator);
     // Section 4: Actions
-    NSString*titles[]={@"Reiniciar WhatsApp",@"Reset completo (wagr.* + nativo)"};
+    NSString*titles[]={@"Reiniciar WhatsApp",@"Reset TOTAL NSUserDefaults"};
     UIColor*clrs[]={CRED,CORA};
     UITableViewCell*c=WAGRCell(titles[ip.row],@"",@"power",clrs[ip.row],UITableViewCellAccessoryNone);
     c.textLabel.textAlignment=NSTextAlignmentCenter; return c;
@@ -661,7 +699,7 @@ struct { const char *icon; uint32_t clr; } bundleStyle[] = {
     }
     if(ip.section==4) {
         if(ip.row==0)[self confirmRestart:NO];
-        else [self confirmRestart:YES];
+        else [self confirmNuclearReset];
     }
 }
 
@@ -688,31 +726,26 @@ struct { const char *icon; uint32_t clr; } bundleStyle[] = {
 }
 
 - (void)confirmRestart:(BOOL)fullReset {
-    NSString *msg = fullReset
-        ? @"Remove todos os overrides wagr.* e chaves nativas espelhadas. Reinicia após 1.5s."
-        : @"Aplica hooks que requerem reiniciar o processo.";
-    UIAlertController *a=[UIAlertController alertControllerWithTitle:fullReset?@"Reset completo?":@"Reiniciar?"
+    UIAlertController *a=[UIAlertController alertControllerWithTitle:@"Reiniciar?"
+        message:@"Fecha o WhatsApp para relaunch limpo. Use Reset TOTAL se veio de uma build antiga ou crashou ao ligar toggles."
+        preferredStyle:UIAlertControllerStyleAlert];
+    [a addAction:[UIAlertAction actionWithTitle:@"Reiniciar" style:UIAlertActionStyleDestructive handler:^(id _){
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW,(int64_t)(.3*NSEC_PER_SEC)),
+            dispatch_get_main_queue(),^{exit(0);});
+    }]];
+    [a addAction:[UIAlertAction actionWithTitle:@"Cancelar" style:UIAlertActionStyleCancel handler:nil]];
+    [self presentViewController:a animated:YES completion:nil];
+}
+
+- (void)confirmNuclearReset {
+    NSString *msg = @"Remove TODO o domínio NSUserDefaults do app, sem filtrar por prefixo. Isto limpa wagr.*, wa_*, aura_*, ios_*, valores antigos boolean/string/.mode e qualquer preferência do WhatsApp visível via NSUserDefaults. Não limpa Keychain, banco de dados, cache de servidor ou app group fora do standard defaults. O app fecha após limpar.";
+    UIAlertController *a=[UIAlertController alertControllerWithTitle:@"Reset TOTAL NSUserDefaults?"
         message:msg preferredStyle:UIAlertControllerStyleAlert];
-    [a addAction:[UIAlertAction actionWithTitle:fullReset?@"Resetar e Reiniciar":@"Reiniciar"
-        style:UIAlertActionStyleDestructive handler:^(id _){
-        if (fullReset) {
-            NSUserDefaults *ud=NSUserDefaults.standardUserDefaults;
-            NSArray *allK=[[ud dictionaryRepresentation]allKeys];
-            NSUInteger n=0;
-            for(NSString*k in allK)
-                if([k hasPrefix:@"wagr."]||[k hasPrefix:@"ios_liquid_glass_"]||[k hasPrefix:@"aura_"]) {
-                    [ud removeObjectForKey:k]; n++;
-                }
-            NSLog(@"[WAGram] full reset removed %lu keys", (unsigned long)n);
-            [ud synchronize];
-            WAGRLGPrefsDidChange();
-            CFPreferencesAppSynchronize(kCFPreferencesCurrentApplication);
-            dispatch_after(dispatch_time(DISPATCH_TIME_NOW,(int64_t)(1.5*NSEC_PER_SEC)),
-                dispatch_get_main_queue(),^{exit(0);});
-        } else {
-            dispatch_after(dispatch_time(DISPATCH_TIME_NOW,(int64_t)(.3*NSEC_PER_SEC)),
-                dispatch_get_main_queue(),^{exit(0);});
-        }
+    [a addAction:[UIAlertAction actionWithTitle:@"Limpar tudo e fechar" style:UIAlertActionStyleDestructive handler:^(id _){
+        NSUInteger removed = WAGRNuclearResetAllUserDefaults();
+        NSLog(@"[WAGram] nuclear NSUserDefaults reset removed %lu visible keys", (unsigned long)removed);
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW,(int64_t)(0.6*NSEC_PER_SEC)),
+            dispatch_get_main_queue(),^{exit(0);});
     }]];
     [a addAction:[UIAlertAction actionWithTitle:@"Cancelar" style:UIAlertActionStyleCancel handler:nil]];
     [self presentViewController:a animated:YES completion:nil];
