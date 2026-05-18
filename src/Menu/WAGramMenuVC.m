@@ -703,6 +703,7 @@ struct { const char *icon; uint32_t clr; } bundleStyle[] = {
                 if([k hasPrefix:@"wagr."]||[k hasPrefix:@"ios_liquid_glass_"]||[k hasPrefix:@"aura_"]) {
                     [ud removeObjectForKey:k]; n++;
                 }
+            NSLog(@"[WAGram] full reset removed %lu keys", (unsigned long)n);
             [ud synchronize];
             WAGRLGPrefsDidChange();
             CFPreferencesAppSynchronize(kCFPreferencesCurrentApplication);

@@ -101,7 +101,7 @@ static BOOL WAGRFlagIsNegativeGate(NSString *flag) {
 }
 @end
 
-@interface WAGRWAABTriStateBrowserVC : UITableViewController <UISearchResultsUpdating>
+@interface WAGRWAABRuntimeTriStateBrowserVC : UITableViewController <UISearchResultsUpdating>
 - (instancetype)initWithTitle:(NSString *)title flags:(NSArray<NSString *> *)flags negativeMode:(BOOL)negativeMode;
 @property (nonatomic, strong) NSArray<NSString *> *allFlags;
 @property (nonatomic, strong) NSArray<NSString *> *filtered;
@@ -111,7 +111,7 @@ static BOOL WAGRFlagIsNegativeGate(NSString *flag) {
 
 static char kWAGRWAABFlagKey;
 
-@implementation WAGRWAABTriStateBrowserVC
+@implementation WAGRWAABRuntimeTriStateBrowserVC
 - (instancetype)initWithTitle:(NSString *)title flags:(NSArray<NSString *> *)flags negativeMode:(BOOL)negativeMode {
     if (!(self=[super initWithStyle:UITableViewStylePlain])) return nil;
     self.title=title?:@"Flags";
@@ -232,7 +232,7 @@ static NSString *WAGRStateForIndex(NSInteger idx) { if (idx==1) return @"off"; i
 - (void)tableView:(UITableView *)tv didSelectRowAtIndexPath:(NSIndexPath *)ip {
     [tv deselectRowAtIndexPath:ip animated:YES];
     if (ip.section==1) {
-        WAGRWAABTriStateBrowserVC *vc=[[WAGRWAABTriStateBrowserVC alloc] initWithTitle:self.spec.title flags:self.flags negativeMode:self.spec.negativeMode];
+        WAGRWAABRuntimeTriStateBrowserVC *vc=[[WAGRWAABRuntimeTriStateBrowserVC alloc] initWithTitle:self.spec.title flags:self.flags negativeMode:self.spec.negativeMode];
         [self.navigationController pushViewController:vc animated:YES];
     } else if (ip.section==2) {
         UIAlertController *a=[UIAlertController alertControllerWithTitle:@"WAAB" message:WAGRWAABDiagnosticText() preferredStyle:UIAlertControllerStyleAlert];
