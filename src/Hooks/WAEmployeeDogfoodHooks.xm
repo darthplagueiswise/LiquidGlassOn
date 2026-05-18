@@ -104,6 +104,13 @@ static void WAGRDFInstallHooks(void) {
 __attribute__((constructor))
 static void WAGRDogfoodInit(void) {
     @autoreleasepool {
+        // Safe-startup rule:
+        // Do not scan/hook dogfood classes until the user asks from the menu.
+        if (![[NSUserDefaults standardUserDefaults] boolForKey:@"wagr_startup_hooks_enabled"]) {
+            NSLog(@"[WAGram][Dogfood] inert startup; hooks install only from menu/toggle");
+            return;
+        }
+
         double delays[] = { 0.2, 1.0, 3.0, 6.0 };
         for (size_t i = 0; i < 4; i++) {
             dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(delays[i] * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{ WAGRDFInstallHooks(); });
@@ -111,6 +118,7 @@ static void WAGRDogfoodInit(void) {
         NSLog(@"[WAGram][Dogfood] scheduled persistent hook install passes");
     }
 }
+
 
 extern "C" void WAGRDogfoodEnsureHooksInstalled(void) { WAGRDFInstallHooks(); }
 

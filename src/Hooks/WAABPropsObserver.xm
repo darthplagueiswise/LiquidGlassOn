@@ -208,14 +208,22 @@ extern "C" NSString *WAGRWAABDiagnosticText(void) {
 }
 
 // ── Constructor ───────────────────────────────────────────────────────────────
+
 __attribute__((constructor))
 static void WAGRABInit(void) {
     @autoreleasepool {
         WAGRLogEnsure();
-        // Install immediately for pre-loaded classes
+
+        // Safe-startup rule:
+        // Do not hook thousands of WAABProperties methods before the app is usable.
+        // UI/toggle actions explicitly call WAGRWAABEnsureHooksInstalled().
+        if (![[NSUserDefaults standardUserDefaults] boolForKey:@"wagr_startup_hooks_enabled"]) {
+            NSLog(@"[WAGram][WAAB] inert startup; hooks install only from menu/toggle");
+            return;
+        }
+
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.5 * NSEC_PER_SEC)),
                        dispatch_get_main_queue(), ^{ WAGRWAABEnsureHooksInstalled(); });
-        // Retry after app fully loads
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2.5 * NSEC_PER_SEC)),
                        dispatch_get_main_queue(), ^{ WAGRWAABEnsureHooksInstalled(); });
     }

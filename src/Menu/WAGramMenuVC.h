@@ -25,7 +25,6 @@ BOOL      WAGRPushAuraThemesVC(UIViewController *from);
 BOOL      WAGRPushAuraIconsVC(UIViewController *from);
 BOOL      WAGRPushAuraRingtonesVC(UIViewController *from);
 NSString *WAGRAuraDiagnostic(void);
-void      WAGRBundleEnsureHooksInstalled(void);
 void      WAGRNativeSurfaceEnsureHooksInstalled(void);
 NSString *WAGRNativeSurfaceDiagnosticText(void);
 void      WAGRNativeBoolOverrideSet(NSString *className, BOOL meta, NSString *selectorName, NSString *value);
@@ -61,6 +60,7 @@ static inline NSUInteger WAGRBundleActiveCount(NSArray<NSString *> *flags) {
 static inline BOOL WAGRBundleAllActive(NSArray<NSString *> *flags) {
     return WAGRBundleActiveCount(flags) == flags.count;
 }
+
 #ifndef WAGR_V10_MENU_BROWSER_PRIMARY_INTERFACES
 #define WAGR_V10_MENU_BROWSER_PRIMARY_INTERFACES
 

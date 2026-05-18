@@ -345,6 +345,13 @@ extern "C" void WAGRBundleEnsureHooksInstalled(void) {
 __attribute__((constructor))
 static void WAGRBundleHooksCtor(void) {
     @autoreleasepool {
+        // Safe-startup rule:
+        // Bundle hooks are still installed by menu/toggle actions, but not during launch.
+        if (![[NSUserDefaults standardUserDefaults] boolForKey:@"wagr_startup_hooks_enabled"]) {
+            NSLog(@"[WAGram][BundleHooks] inert startup; hooks install only from menu/toggle");
+            return;
+        }
+
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.0 * NSEC_PER_SEC)),
                        dispatch_get_main_queue(), ^{
             WAGRBundleEnsureHooksInstalled();
