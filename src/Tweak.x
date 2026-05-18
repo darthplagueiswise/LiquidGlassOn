@@ -9,8 +9,8 @@
 #import "WAGramPrefix.h"
 
 // Debug build hook
-extern "C" void WAGRDebugBuildEnsureHooksInstalled(void);
-extern "C" NSString *WAGRDebugBuildDiagnostic(void);
+extern void WAGRDebugBuildEnsureHooksInstalled(void);
+extern NSString *WAGRDebugBuildDiagnostic(void);
 
 
 static const char *kWAGRLPInstalledKey = "wagr.longpress.installed";
