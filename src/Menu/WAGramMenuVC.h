@@ -69,6 +69,12 @@ static inline BOOL WAGRBundleAllActive(NSArray<NSString *> *flags) {
 - (void)reload;
 @end
 
+@interface WAGRWAABTriStateBrowserVC : UITableViewController <UISearchResultsUpdating>
+@property (nonatomic, assign) BOOL negativeMode;
+- (instancetype)initWithTitle:(NSString *)title flags:(NSArray<NSString *> *)flags negativeMode:(BOOL)negativeMode;
+- (void)updateTitle;
+@end
+
 @interface WAGramMenuVC : UITableViewController
 @end
 
