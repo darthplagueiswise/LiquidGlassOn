@@ -750,10 +750,9 @@ struct RowDef { RowType type; NSString *title; NSString *detail; id target; NSSt
                 handler:^(id _){
                     // ── Step 1: remove wagr.* keys (wagr.waab.*, wagr.native.*, etc.)
                     NSUserDefaults *ud=NSUserDefaults.standardUserDefaults;
-                    NSUInteger n=0;
                     NSArray *allKeys=[[ud dictionaryRepresentation]allKeys];
                     for (NSString *k in allKeys)
-                        if ([k hasPrefix:@"wagr."]) { [ud removeObjectForKey:k]; n++; }
+                        if ([k hasPrefix:@"wagr."]) { [ud removeObjectForKey:k]; }
 
                     // ── Step 2: clear native mirror keys written by WAGRWAABSetState
                     // These don't have the wagr. prefix so they survive step 1.
@@ -763,7 +762,7 @@ struct RowDef { RowType type; NSString *title; NSString *detail; id target; NSSt
                         if ([k hasPrefix:@"ios_liquid_glass_"] ||
                             [k hasPrefix:@"aura_"] ||
                             [k isEqualToString:@"status_viewer_redesign_enabled"]) {
-                            [ud removeObjectForKey:k]; n++;
+                            [ud removeObjectForKey:k];
                         }
                     }
 

@@ -8,11 +8,6 @@
 #import "Menu/WAGramMenuVC.h"
 #import "WAGramPrefix.h"
 
-// Debug build hook
-extern "C" void WAGRDebugBuildEnsureHooksInstalled(void);
-extern "C" NSString *WAGRDebugBuildDiagnostic(void);
-
-
 static const char *kWAGRLPInstalledKey = "wagr.longpress.installed";
 static IMP orig_settingsVDAppear = NULL;
 static BOOL (*orig_isDebugMenuAllowed)(id, SEL) = NULL;
