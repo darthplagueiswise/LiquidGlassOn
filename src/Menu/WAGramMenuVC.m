@@ -8,8 +8,6 @@
 #import <CoreFoundation/CoreFoundation.h>
 #import <objc/runtime.h>
 #import "WAGramMenuVC.h"
-#import "WAGRRuntimeMethodBrowserVC.h"
-#import "WAGramWAABRuntimeCategoriesVC.h"
 #import "../WAGramPrefix.h"
 #import "../WAUtils.h"
 

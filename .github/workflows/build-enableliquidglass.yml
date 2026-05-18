@@ -64,7 +64,7 @@ jobs:
         env:
           THEOS: ${{ github.workspace }}/theos
 
-      - name: Set dev2 package version
+      - name: Set dev5 package version
         id: version
         run: |
           RAW_VERSION=$(awk '/Version:/ {print $2}' control)
