@@ -61,6 +61,8 @@ static inline NSUInteger WAGRBundleActiveCount(NSArray<NSString *> *flags) {
 static inline BOOL WAGRBundleAllActive(NSArray<NSString *> *flags) {
     return WAGRBundleActiveCount(flags) == flags.count;
 }
+#ifndef WAGR_V10_MENU_BROWSER_PRIMARY_INTERFACES
+#define WAGR_V10_MENU_BROWSER_PRIMARY_INTERFACES
 
 @interface WAGRABFlagBrowserVC : UITableViewController <UISearchResultsUpdating>
 @property (nonatomic, strong, readonly) NSArray<NSString *> *allFlags;
@@ -75,6 +77,15 @@ static inline BOOL WAGRBundleAllActive(NSArray<NSString *> *flags) {
 - (void)updateTitle;
 @end
 
+@interface WAGramBundleVC : UITableViewController
+- (instancetype)initWithTitle:(NSString *)title
+                        flags:(NSArray<NSString *> *)flags
+                     negFlags:(NSArray<NSString *> *)negativeFlags
+                         icon:(NSString *)icon
+                    iconColor:(UIColor *)iconColor
+                         desc:(NSString *)desc;
+@end
+
 @interface WAGramMenuVC : UITableViewController
 @end
 
@@ -83,5 +94,8 @@ static inline BOOL WAGRBundleAllActive(NSArray<NSString *> *flags) {
 
 @interface WAGRRuntimeMethodBrowserVC : UITableViewController <UISearchResultsUpdating>
 - (instancetype)initWithTitle:(NSString *)title tokens:(NSArray<NSString *> *)tokens;
++ (BOOL)methodNameLooksFeatureLike:(NSString *)name;
 + (NSArray<NSString *> *)runtimeMethodsMatchingTokens:(NSArray<NSString *> *)tokens;
 @end
+
+#endif
