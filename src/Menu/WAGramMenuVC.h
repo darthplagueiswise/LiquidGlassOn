@@ -69,6 +69,7 @@ static inline BOOL WAGRBundleAllActive(NSArray<NSString *> *flags) {
 - (instancetype)initWithTitle:(NSString *)title flags:(NSArray<NSString *> *)flags;
 + (NSArray<NSString *> *)runtimeFlags;
 - (void)reload;
+- (void)confirmNuclearReset;
 @end
 
 @interface WAGRWAABTriStateBrowserVC : UITableViewController <UISearchResultsUpdating>
