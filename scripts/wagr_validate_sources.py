@@ -119,6 +119,53 @@ for p in ROOT.rglob('*'):
     if lines and lines[-1] == '':
         errors.append(f'{rel}: blank line at EOF')
 
+
+# 10. Categories must not implement methods already advertised by the primary
+# interface in this tree. With -Werror, Clang turns this into a hard build
+# failure (-Wobjc-protocol-method-implementation). Put the method in the
+# primary @implementation instead, or do not declare it on the primary class.
+method_pat = re.compile(r'[-+]\s*\([^)]*\)\s*([A-Za-z_][A-Za-z0-9_]*)(?=\s*[:;{])')
+interfaces = collections.defaultdict(set)
+category_impls = []
+
+for p in [x for x in (ROOT / 'src').rglob('*') if x.suffix in SOURCE_EXTS]:
+    src = p.read_text(errors='ignore')
+    for m in re.finditer(r'@interface\s+([A-Za-z_][A-Za-z0-9_]*)\s*(?:\([^)]*\))?\s*:', src):
+        cls = m.group(1)
+        end = src.find('@end', m.end())
+        if end == -1:
+            continue
+        block = src[m.end():end]
+        for mm in method_pat.finditer(block):
+            interfaces[cls].add(mm.group(1))
+    for m in re.finditer(r'@implementation\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(([^)]*)\)', src):
+        cls = m.group(1)
+        end = src.find('@end', m.end())
+        if end == -1:
+            continue
+        block = src[m.end():end]
+        for mm in method_pat.finditer(block):
+            category_impls.append((cls, mm.group(1), p.relative_to(ROOT)))
+
+for cls, method, rel in category_impls:
+    if method in interfaces.get(cls, set()):
+        errors.append(f'{rel}: category implements {cls}.{method} also declared by primary interface')
+
+# 11. Specific guard for the flag browser reset selector. If the WAAB browser
+# calls [self confirmNuclearReset], that selector must be declared privately
+# and implemented in the WAGRABFlagBrowserVC primary implementation, not in a
+# separate category file.
+menu = ROOT / 'src/Menu/WAGramMenuVC.m'
+if menu.exists():
+    ms = menu.read_text(errors='ignore')
+    if '[self confirmNuclearReset]' in ms:
+        ext = re.search(r'@interface\s+WAGRABFlagBrowserVC\s*\(\)(.*?)@end', ms, re.S)
+        impl = re.search(r'@implementation\s+WAGRABFlagBrowserVC\b(.*?)@end', ms, re.S)
+        if not ext or '- (void)confirmNuclearReset;' not in ext.group(1):
+            errors.append('src/Menu/WAGramMenuVC.m: WAGRABFlagBrowserVC calls confirmNuclearReset without private declaration')
+        if not impl or '- (void)confirmNuclearReset' not in impl.group(1):
+            errors.append('src/Menu/WAGramMenuVC.m: WAGRABFlagBrowserVC calls confirmNuclearReset without primary implementation')
+
 if errors:
     print('\n'.join('ERRO: ' + e for e in errors), file=sys.stderr)
     sys.exit(1)

@@ -185,6 +185,7 @@ static void WAGRApplyFlagSystem(NSString *flag) {
 static char kWAGRSwKey;
 
 @interface WAGRABFlagBrowserVC () <UISearchResultsUpdating>
+- (void)confirmNuclearReset;
 @property (nonatomic,strong) NSMutableArray<NSString*> *mutableFlags;
 @property (nonatomic,strong) NSArray<NSString*> *filtered;
 @property (nonatomic,strong) UISearchController *search;
@@ -301,6 +302,20 @@ static char kWAGRSwKey;
     [self.tableView reloadRowsAtIndexPaths:@[[NSIndexPath indexPathForRow:sw.tag inSection:0]]
         withRowAnimation:UITableViewRowAnimationNone];
     [self updateBadge];
+}
+
+- (void)confirmNuclearReset {
+    NSString *msg = @"Remove TODO o domínio NSUserDefaults do app, sem filtrar por prefixo. Isto limpa wagr.*, wa_*, aura_*, ios_*, valores antigos boolean/string/.mode e qualquer preferência do WhatsApp visível via NSUserDefaults. Não limpa Keychain, banco de dados, cache de servidor ou app group fora do standard defaults. O app fecha após limpar.";
+    UIAlertController *a=[UIAlertController alertControllerWithTitle:@"Reset TOTAL NSUserDefaults?"
+        message:msg preferredStyle:UIAlertControllerStyleAlert];
+    [a addAction:[UIAlertAction actionWithTitle:@"Limpar tudo e fechar" style:UIAlertActionStyleDestructive handler:^(__unused id action){
+        NSUInteger removed = WAGRNuclearResetAllUserDefaults();
+        NSLog(@"[WAGram] nuclear NSUserDefaults reset from flag browser removed %lu visible keys", (unsigned long)removed);
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW,(int64_t)(0.6*NSEC_PER_SEC)),
+            dispatch_get_main_queue(),^{exit(0);});
+    }]];
+    [a addAction:[UIAlertAction actionWithTitle:@"Cancelar" style:UIAlertActionStyleCancel handler:nil]];
+    [self presentViewController:a animated:YES completion:nil];
 }
 @end
 
