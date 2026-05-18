@@ -1,8 +1,7 @@
 #pragma once
-#import <UIKit/UIKit.h>
 
-@interface WAGRRuntimeMethodBrowserVC : UITableViewController
-+ (BOOL)methodNameLooksFeatureLike:(NSString *)name;
-+ (NSArray *)runtimeMethodsMatchingTokens:(NSArray<NSString *> *)tokens;
-- (instancetype)initWithTitle:(NSString *)title tokens:(NSArray<NSString *> *)tokens;
-@end
+// Compatibility header.
+// WAGRRuntimeMethodBrowserVC is already declared in WAGramMenuVC.h in this v10 tree.
+// Keep this file intentionally declaration-free to satisfy legacy imports without
+// redefining the interface and causing duplicate interface build errors.
+#import "WAGramMenuVC.h"
