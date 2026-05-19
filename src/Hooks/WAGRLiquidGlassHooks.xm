@@ -3,6 +3,8 @@
 #import <substrate.h>
 #import "../WAGramPrefix.h"
 
+static BOOL gWAGRLGHookInstallAttempted = NO;
+
 static void WAGRLGApplyNative(void){
     NSUserDefaults*ud=NSUserDefaults.standardUserDefaults;
     BOOL on=WAGRPref(kWAGRLiquidGlassMaster);
@@ -14,6 +16,11 @@ static void WAGRLGApplyNative(void){
         @"status_viewer_redesign_enabled"];
     for(NSString*k in keys){if(on)[ud setBool:YES forKey:k];else[ud removeObjectForKey:k];}
     [ud synchronize];
+
+    // Native override bridge is only touched when the master is ON. When OFF,
+    // clearing NSUserDefaults is enough and avoids instantiating WhatsApp internals at launch.
+    if(!on)return;
+
     Class cls=NSClassFromString(@"WALiquidGlassOverrideMethodUserDefaults");
     if(!cls)return;
     SEL sh=NSSelectorFromString(@"sharedInstance");
@@ -42,6 +49,7 @@ static BOOL hM1_5CM(id s,SEL c){return h_lg(orig_isM1_5CM,s,c);}
 static BOOL hLarger(id s,SEL c){return h_lg(orig_isLarger,s,c);}
 
 static void WAGRLGHookClass(void){
+    if(!WAGRPref(kWAGRLiquidGlassMaster))return;
     Class cls=NSClassFromString(@"WDSLiquidGlass");if(!cls)return;
     Class meta=object_getClass(cls);
     struct{const char*sel;IMP h;IMP*o;}e[]={
@@ -60,15 +68,23 @@ static void WAGRLGHookClass(void){
     }
 }
 
-__attribute__((constructor)) static void WAGRLGCtor(void){@autoreleasepool{
+static void WAGRLGInstallOnlyIfEnabled(void){
+    if(!WAGRPref(kWAGRLiquidGlassMaster))return;
     WAGRLGApplyNative();
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW,(int64_t)(.5*NSEC_PER_SEC)),dispatch_get_main_queue(),^{WAGRLGHookClass();});
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW,(int64_t)(2.5*NSEC_PER_SEC)),dispatch_get_main_queue(),^{WAGRLGHookClass();});
-}}
-extern "C" void WAGRLGPrefsDidChange(void){WAGRLGApplyNative();}
+    if(!gWAGRLGHookInstallAttempted){
+        gWAGRLGHookInstallAttempted=YES;
+        WAGRLGHookClass();
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW,(int64_t)(1.5*NSEC_PER_SEC)),dispatch_get_main_queue(),^{WAGRLGHookClass();});
+    }
+}
+
+// IMPORTANT: no constructor here. Startup must be inert. This is called only
+// from the menu/toggle path, after the user explicitly enables LiquidGlass.
+extern "C" void WAGRLGPrefsDidChange(void){WAGRLGInstallOnlyIfEnabled(); if(!WAGRPref(kWAGRLiquidGlassMaster))WAGRLGApplyNative();}
 extern "C" NSString *WAGRLGDiagnosticText(void){
-    return [NSString stringWithFormat:@"master=%@\nWDS=%@\nWAAB=%@",
+    return [NSString stringWithFormat:@"master=%@\nWDS=%@\nWAAB=%@\nhookAttempted=%@",
         WAGRPref(kWAGRLiquidGlassMaster)?@"ON":@"OFF",
         NSClassFromString(@"WDSLiquidGlass")?@"found":@"missing",
-        NSClassFromString(@"WAABProperties")?@"found":@"missing"];
+        NSClassFromString(@"WAABProperties")?@"found":@"missing",
+        gWAGRLGHookInstallAttempted?@"YES":@"NO"];
 }
