@@ -8,11 +8,6 @@
 #import "Menu/WAGramMenuVC.h"
 #import "WAGramPrefix.h"
 
-// Debug build hook
-extern "C" void WAGRDebugBuildEnsureHooksInstalled(void);
-extern "C" NSString *WAGRDebugBuildDiagnostic(void);
-
-
 static const char *kWAGRLPInstalledKey = "wagr.longpress.installed";
 static IMP orig_settingsVDAppear = NULL;
 static BOOL (*orig_isDebugMenuAllowed)(id, SEL) = NULL;
@@ -20,7 +15,7 @@ static BOOL gWAGRSettingsHookInstalled = NO;
 static BOOL gWAGRDebugGateHookInstalled = NO;
 
 static BOOL WAGRNativeDebugAllowed(void) {
-    return WAGRPref(kWAGRDebugMenuNative);
+    return WAGRPref(kWAGRDebugMenuNative) || WAGRPref(kWAGRInternalMaster) || WAGRPref(kWAGREmployeeMaster) || WAGRPref(kWAGRDebugMode);
 }
 
 static void WAGRPresentMenu(UIViewController *from) {
@@ -269,18 +264,10 @@ NSString *WAGRDebugMenuDiagnosticText(void) {
             kWAGRLG_workaround_hides_bottombar   : @NO,
             kWAGRLG_workaround_topbar_appearance : @NO,
             kWAGRDebugMode         : @NO,
-            @"wagr_simulate_debug_build" : @NO,
         };
         [[NSUserDefaults standardUserDefaults] registerDefaults:defs];
         WAGRInstallSettingsHooks();
-        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-            WAGRInstallSettingsHooks();
-            if ([[NSUserDefaults standardUserDefaults] boolForKey:@"wagr_simulate_debug_build"])
-                WAGRDebugBuildEnsureHooksInstalled();
-        });
-        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(3.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-            WAGRInstallSettingsHooks();
-            WAGRDebugBuildEnsureHooksInstalled();
-        });
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{ WAGRInstallSettingsHooks(); });
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(3.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{ WAGRInstallSettingsHooks(); });
     }
 }

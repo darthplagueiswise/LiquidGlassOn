@@ -64,16 +64,3 @@ static inline void WAGRSet(NSString *flag, NSString *val) {
 
 // ── Quick bool read ───────────────────────────────────────────────────────────
 #define WAGRPref(key) [[NSUserDefaults standardUserDefaults] boolForKey:(key)]
-
-// ── AGENTS.md §4.2 canonical helpers ─────────────────────────────────────────
-static inline NSString *WAGRStoredFlagState(NSString *flag) {
-    if (!flag.length) return nil;
-    id v = [[NSUserDefaults standardUserDefaults] objectForKey:WAGRKey(flag)];
-    return [v isKindOfClass:NSString.class] ? (NSString *)v : nil;
-}
-static inline BOOL WAGRIsNegativeGate(NSString *flag) {
-    NSString *f = flag.lowercaseString;
-    return [f containsString:@"killswitch"] || [f containsString:@"kill_switch"] ||
-           [f containsString:@"disabled"] || [f hasPrefix:@"disable_"] ||
-           [f containsString:@"block"] || [f containsString:@"deny"] || [f hasPrefix:@"hide_"];
-}
