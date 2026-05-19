@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - 'dev4'
+      - 'recover/run-252'
   workflow_dispatch:
 
 concurrency:
