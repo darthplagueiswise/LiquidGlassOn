@@ -1,9 +1,9 @@
-name: Build WAGram dev5
+name: Build WAGram dev6
 
 on:
   push:
     branches:
-      - 'dev5'
+      - 'dev6'
   workflow_dispatch:
 
 concurrency:
@@ -12,7 +12,7 @@ concurrency:
 
 jobs:
   build:
-    name: Build WAGram dev5
+    name: Build WAGram dev6
     runs-on: macos-latest
     permissions:
       contents: read
@@ -64,7 +64,7 @@ jobs:
         env:
           THEOS: ${{ github.workspace }}/theos
 
-      - name: Set dev5 package version
+      - name: Set dev6 package version
         id: version
         run: |
           RAW_VERSION=$(awk '/Version:/ {print $2}' control)
