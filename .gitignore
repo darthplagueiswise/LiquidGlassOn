@@ -1,0 +1,62 @@
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.apdisk
+*.icloud
+
+*.deb
+.debmake
+_
+obj
+.theos
+packages
+
+.pyzule*
+.cyan*
+.ipapatch*
+dumps
+livecontainer
+
+src/**/wip.x
+src/**/wip.xm
+
+.claude
+CLAUDE.md
+
+*.ipa
+*.dylib
+deploy.sh
+PENDING_CHANGES.*
+wrapper/
+
+# Source packaging
+zip-src.sh
+LiquidGlassOn-src-*.zip
+*.zip
+*_diff.txt
+
+PUSH.md
+DEV.md
+
+# Local RE / dev tooling
+scratch/
+.local-backups/
+.vendor/
+
+# WhatsApp IPA (user-provided, never commit)
+WhatsApp*.ipa
+net.whatsapp.WhatsApp*.ipa
+[0-9]*.ipa

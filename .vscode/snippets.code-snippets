@@ -1,0 +1,26 @@
+{
+    "WAGram: Bool Pref": {
+        "prefix": "wabool",
+        "body": [
+            "if (WAEnabled(${1:WA_PREF_KEY})) $0"
+        ]
+    },
+    "WAGram: WAAB Mode Key": {
+        "prefix": "waabkey",
+        "body": [
+            "WAGRWAABKeyMode(@\"${1:flag_key}\")"
+        ]
+    },
+    "WAGram: Log": {
+        "prefix": "walog",
+        "body": [
+            "WALog(@\"${1:message}\", $0);"
+        ]
+    },
+    "WAGram: WAAB Override Check": {
+        "prefix": "waabmode",
+        "body": [
+            "NSInteger mode = [[NSUserDefaults standardUserDefaults] integerForKey:WAGRWAABKeyMode(@\"${1:flag_key}\")];"
+        ]
+    }
+}
