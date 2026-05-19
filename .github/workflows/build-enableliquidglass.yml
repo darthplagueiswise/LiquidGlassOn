@@ -1,9 +1,9 @@
-name: Build WAGram dev2
+name: Build WAGram dev6
 
 on:
   push:
     branches:
-      - 'dev2'
+      - 'dev6'
   workflow_dispatch:
 
 concurrency:
@@ -12,7 +12,7 @@ concurrency:
 
 jobs:
   build:
-    name: Build WAGram dev2
+    name: Build WAGram dev6
     runs-on: macos-latest
     permissions:
       contents: read
