@@ -2,7 +2,6 @@
 #import "WAPrefix.h"
 #import "WAUtils.h"
 #import <Security/Security.h>
-#import <dlfcn.h>
 #import <stdatomic.h>
 #import "../modules/fishhook/fishhook.h"
 
@@ -48,11 +47,7 @@ static NSString *WAStringForKey(CFDictionaryRef query, CFStringRef key) {
 }
 
 static NSString *WACallerImage(void) {
-    void *addr = __builtin_return_address(2);
-    Dl_info info;
-    memset(&info, 0, sizeof(info));
-    if (addr && dladdr(addr, &info) && info.dli_fname) return [@(info.dli_fname) lastPathComponent];
-    return @"unknown";
+    return [[NSBundle mainBundle] executablePath].lastPathComponent ?: @"WhatsApp";
 }
 
 static void WALogKeychainMetadata(NSString *op, CFDictionaryRef query, OSStatus status) {
@@ -125,7 +120,7 @@ static NSString *WADetectAccessGroup(void) {
     return group;
 }
 
-NSString *WAKeychainAccessGroupDiagnostic(void) {
+extern "C" NSString *WAKeychainAccessGroupDiagnostic(void) {
     NSString *group = WADetectAccessGroup();
     return [NSString stringWithFormat:@"rewrite=%@\nobserver=%@\naccessGroup=%@\nbundle=%@",
             WAKeychainRewriteEnabled() ? @"ON" : @"OFF",
@@ -147,7 +142,7 @@ static CFDictionaryRef WACopyQueryWithAccessGroup(CFDictionaryRef input) {
 
     NSMutableDictionary *q = [dict mutableCopy];
     q[(__bridge id)kSecAttrAccessGroup] = group;
-    return CFBridgingRetain(q);
+    return (CFDictionaryRef)CFBridgingRetain(q);
 }
 
 static OSStatus replaced_SecItemAdd(CFDictionaryRef attributes, CFTypeRef *result) {
@@ -183,7 +178,7 @@ static OSStatus replaced_SecItemDelete(CFDictionaryRef query) {
     return s;
 }
 
-void WAInstallKeychainPatchIfNeeded(void) {
+extern "C" void WAInstallKeychainPatchIfNeeded(void) {
     if (!WAKeychainRewriteEnabled() && !WAKeychainObserverEnabled()) {
         WALog(@"keychain hooks disabled; inert");
         return;

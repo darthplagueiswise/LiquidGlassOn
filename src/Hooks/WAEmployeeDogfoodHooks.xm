@@ -1,10 +1,11 @@
 // WAEmployeeDogfoodHooks.xm
-// Hooks the four validated employee/dogfood gates found in SharedModules.
-// Toggle: kWAGREmployeeMaster (default OFF). Hooks are only scheduled when ON.
+// Persistent selector hooks for WhatsApp employee/dogfood/internal gates.
+// Hooks are always installed; return value is controlled by persisted toggles.
 
 #import <Foundation/Foundation.h>
 #import <objc/runtime.h>
 #import <substrate.h>
+#import "../WAGramPrefix.h"
 
 static BOOL (*orig_isMetaEmployeeOrInternalTester)(id, SEL) = NULL;
 static BOOL (*orig_is_meta_employee_getter)(id, SEL) = NULL;
@@ -12,132 +13,141 @@ static BOOL (*orig_isInternalUser)(id, SEL) = NULL;
 static BOOL (*orig_graphQLEmployeeC1Disabled)(id, SEL) = NULL;
 
 static BOOL _wagrDFHooksInstalled = NO;
+static NSUInteger _wagrDFHookedCount = 0;
+
+static BOOL WAGRDogfoodMasterEnabled(void) {
+    return WAGRPref(kWAGREmployeeMaster) || WAGRPref(kWAGRInternalMaster) || WAGRPref(kWAGRDebugMode);
+}
+
+static BOOL WAGRDogfoodGateEnabled(NSString *gateKey) {
+    return WAGRDogfoodMasterEnabled() || WAGRPref(gateKey);
+}
 
 static BOOL hook_isMetaEmployeeOrInternalTester(id self, SEL _cmd) {
-    if (WAGRPref(kWAGREmployeeMaster)) return YES;
+    if (WAGRDogfoodGateEnabled(kWAGRDogfoodGateMetaEmployee)) return YES;
     return orig_isMetaEmployeeOrInternalTester ? orig_isMetaEmployeeOrInternalTester(self, _cmd) : NO;
 }
 
 static BOOL hook_is_meta_employee_getter(id self, SEL _cmd) {
-    if (WAGRPref(kWAGREmployeeMaster)) return YES;
+    if (WAGRDogfoodGateEnabled(kWAGRDogfoodGateMetaEmployeeSnake)) return YES;
     return orig_is_meta_employee_getter ? orig_is_meta_employee_getter(self, _cmd) : NO;
 }
 
 static BOOL hook_isInternalUser(id self, SEL _cmd) {
-    if (WAGRPref(kWAGREmployeeMaster)) return YES;
+    if (WAGRDogfoodGateEnabled(kWAGRDogfoodGateInternalUser)) return YES;
     return orig_isInternalUser ? orig_isInternalUser(self, _cmd) : NO;
 }
 
 static BOOL hook_graphQLEmployeeC1Disabled(id self, SEL _cmd) {
-    if (WAGRPref(kWAGREmployeeMaster)) return NO;
+    if (WAGRDogfoodGateEnabled(kWAGRDogfoodGateGraphQLEmpC1)) return NO;
     return orig_graphQLEmployeeC1Disabled ? orig_graphQLEmployeeC1Disabled(self, _cmd) : YES;
+}
+
+static void WAGRDFHookOne(Class cls, BOOL classMethod, const char *selName, IMP hook, IMP *orig) {
+    if (!cls || !selName || !hook || !orig || *orig) return;
+    SEL sel = sel_registerName(selName);
+    Method m = classMethod ? class_getClassMethod(cls, sel) : class_getInstanceMethod(cls, sel);
+    if (!m) return;
+    Class target = classMethod ? object_getClass(cls) : cls;
+    if (!target) return;
+    MSHookMessageEx(target, sel, hook, orig);
+    _wagrDFHookedCount++;
+    NSLog(@"[WAGram][Dogfood] hooked %@[%@ %s]", classMethod ? @"+" : @"-", NSStringFromClass(cls), selName);
 }
 
 static void WAGRDFInstallOnClass(Class cls) {
     if (!cls) return;
-
-    struct {
-        const char *sel_name;
-        IMP hook;
-        IMP *orig;
-    } entries[] = {
+    struct { const char *sel_name; IMP hook; IMP *orig; } entries[] = {
         { "isMetaEmployeeOrInternalTester", (IMP)hook_isMetaEmployeeOrInternalTester, (IMP *)&orig_isMetaEmployeeOrInternalTester },
         { "is_meta_employee_or_internal_tester", (IMP)hook_is_meta_employee_getter, (IMP *)&orig_is_meta_employee_getter },
         { "isInternalUser", (IMP)hook_isInternalUser, (IMP *)&orig_isInternalUser },
         { "graphQLEmployeeC1Disabled", (IMP)hook_graphQLEmployeeC1Disabled, (IMP *)&orig_graphQLEmployeeC1Disabled },
     };
-
     for (size_t i = 0; i < sizeof(entries) / sizeof(entries[0]); i++) {
-        SEL sel = sel_registerName(entries[i].sel_name);
-        if (!class_getInstanceMethod(cls, sel)) continue;
-        if (*entries[i].orig) continue;
-        MSHookMessageEx(cls, sel, entries[i].hook, entries[i].orig);
-        NSLog(@"[WAGram][Dogfood] hooked -%s on %@", entries[i].sel_name, NSStringFromClass(cls));
+        WAGRDFHookOne(cls, NO, entries[i].sel_name, entries[i].hook, entries[i].orig);
+        WAGRDFHookOne(cls, YES, entries[i].sel_name, entries[i].hook, entries[i].orig);
     }
 }
 
 static void WAGRDFInstallHooks(void) {
     if (_wagrDFHooksInstalled) return;
-    if (!WAGRPref(kWAGREmployeeMaster)) return;
-
     NSArray<NSString *> *targetClasses = @[
+        @"WAABProperties",
         @"WAUserContext",
         @"WAAccountInfo",
         @"WAAccountManager",
         @"WADeviceInfo",
         @"WAUserPreferences",
         @"WAEmployeeGating",
+        @"WADebugMenuMain",
+        @"WADebugViewController",
+        @"WASettingsViewController",
     ];
+    for (NSString *name in targetClasses) WAGRDFInstallOnClass(NSClassFromString(name));
 
-    for (NSString *name in targetClasses) {
-        WAGRDFInstallOnClass(NSClassFromString(name));
-    }
-
-    unsigned int mainCount = 0;
-    const char **mainNames = objc_copyClassNamesForImage([[NSBundle mainBundle] executablePath].UTF8String, &mainCount);
-    if (mainNames) {
-        for (unsigned int i = 0; i < mainCount && i < 2000; i++) {
-            WAGRDFInstallOnClass(objc_getClass(mainNames[i]));
+    unsigned int count = 0;
+    Class *classes = objc_copyClassList(&count);
+    if (classes) {
+        for (unsigned int i = 0; i < count; i++) {
+            Class cls = classes[i];
+            NSString *name = NSStringFromClass(cls);
+            if (![name containsString:@"WA"] && ![name containsString:@"Debug"] && ![name containsString:@"Employee"] && ![name containsString:@"Dogfood"] && ![name containsString:@"ABProperties"]) continue;
+            WAGRDFInstallOnClass(cls);
+            if (orig_isMetaEmployeeOrInternalTester && orig_is_meta_employee_getter && orig_isInternalUser && orig_graphQLEmployeeC1Disabled) break;
         }
-        free(mainNames);
+        free(classes);
     }
-
-    NSString *sharedPath = nil;
-    for (NSBundle *b in [NSBundle allFrameworks]) {
-        NSString *name = b.executablePath.lastPathComponent ?: @"";
-        NSString *bid = b.bundleIdentifier ?: @"";
-        if ([name containsString:@"SharedModules"] || [bid containsString:@"SharedModules"]) {
-            sharedPath = b.executablePath;
-            break;
-        }
-    }
-
-    if (sharedPath.length) {
-        unsigned int smCount = 0;
-        const char **smNames = objc_copyClassNamesForImage(sharedPath.UTF8String, &smCount);
-        if (smNames) {
-            for (unsigned int i = 0; i < smCount && i < 2000; i++) {
-                WAGRDFInstallOnClass(objc_getClass(smNames[i]));
-            }
-            free(smNames);
-        }
-    }
-
     _wagrDFHooksInstalled = YES;
-    NSLog(@"[WAGram][Dogfood] hook installation pass complete");
+    NSLog(@"[WAGram][Dogfood] hook installation complete; hooked=%lu", (unsigned long)_wagrDFHookedCount);
 }
 
 __attribute__((constructor))
 static void WAGRDogfoodInit(void) {
     @autoreleasepool {
-        if (!WAGRPref(kWAGREmployeeMaster)) {
-            NSLog(@"[WAGram][Dogfood] inert startup: employee master OFF");
+        // Safe-startup rule:
+        // Do not scan/hook dogfood classes until the user asks from the menu.
+        if (![[NSUserDefaults standardUserDefaults] boolForKey:@"wagr_startup_hooks_enabled"]) {
+            NSLog(@"[WAGram][Dogfood] inert startup; hooks install only from menu/toggle");
             return;
         }
-        double delays[] = { 0.5, 2.0, 5.0 };
-        for (size_t i = 0; i < 3; i++) {
-            dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(delays[i] * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-                if (!_wagrDFHooksInstalled && WAGRPref(kWAGREmployeeMaster)) WAGRDFInstallHooks();
-            });
+
+        double delays[] = { 0.2, 1.0, 3.0, 6.0 };
+        for (size_t i = 0; i < 4; i++) {
+            dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(delays[i] * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{ WAGRDFInstallHooks(); });
         }
-        NSLog(@"[WAGram][Dogfood] scheduled hook install passes because toggle is ON");
+        NSLog(@"[WAGram][Dogfood] scheduled persistent hook install passes");
     }
 }
 
-extern "C" void WAGRDogfoodEnsureHooksInstalled(void) {
-    if (WAGRPref(kWAGREmployeeMaster) && !_wagrDFHooksInstalled) WAGRDFInstallHooks();
-}
+
+extern "C" void WAGRDogfoodEnsureHooksInstalled(void) { WAGRDFInstallHooks(); }
 
 extern "C" NSString *WAGRDogfoodDiagnosticText(void) {
     return [NSString stringWithFormat:
         @"employee master      = %@\n"
+        @"internal master      = %@\n"
+        @"debug mode           = %@\n"
+        @"effective force      = %@\n"
+        @"gate meta employee   = %@\n"
+        @"gate meta snake      = %@\n"
+        @"gate internal user   = %@\n"
+        @"gate graphQL C1      = %@\n"
         @"hooks installed      = %@\n"
+        @"hooked count         = %lu\n"
         @"isMetaEmployee orig  = %@\n"
         @"is_meta_employee orig= %@\n"
         @"isInternalUser orig  = %@\n"
         @"graphQLEmpC1 orig    = %@",
         WAGRPref(kWAGREmployeeMaster) ? @"ON" : @"OFF",
+        WAGRPref(kWAGRInternalMaster) ? @"ON" : @"OFF",
+        WAGRPref(kWAGRDebugMode) ? @"ON" : @"OFF",
+        WAGRDogfoodMasterEnabled() ? @"ON" : @"OFF",
+        WAGRPref(kWAGRDogfoodGateMetaEmployee) ? @"ON" : @"OFF",
+        WAGRPref(kWAGRDogfoodGateMetaEmployeeSnake) ? @"ON" : @"OFF",
+        WAGRPref(kWAGRDogfoodGateInternalUser) ? @"ON" : @"OFF",
+        WAGRPref(kWAGRDogfoodGateGraphQLEmpC1) ? @"ON" : @"OFF",
         _wagrDFHooksInstalled ? @"YES" : @"NO",
+        (unsigned long)_wagrDFHookedCount,
         orig_isMetaEmployeeOrInternalTester ? @"found" : @"missing",
         orig_is_meta_employee_getter ? @"found" : @"missing",
         orig_isInternalUser ? @"found" : @"missing",

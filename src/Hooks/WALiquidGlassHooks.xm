@@ -1,223 +1,125 @@
 // WALiquidGlassHooks.xm
-// ─────────────────────────────────────────────────────────────────────────────
-// Liquid Glass enablement for WhatsApp.
-//
-// Strategy (in order of preference):
-//   1. WALiquidGlassOverrideMethodUserDefaults — write the native WA UserDefaults
-//      key that _WAApplyLiquidGlassOverride reads (safest, no method hooks).
-//   2. Targeted method hooks on the symbols validated in SharedModules:
-//      - shouldUseLiquidGlassConfiguration
-//      - hasLiquidGlassLaunched
-//      - usesGlassMaterial
-//      - glassEffectEnabled
-//      - useLiquidGlassDesign / useLiquidGlassStyle
-//      - Per-flag accessors: ios_liquid_glass_* (via WAABProperties)
-//
-// Master toggle: kWAGRLiquidGlassMaster
-// Individual sub-flags: kWAGRLG_* (each maps to one ABProp)
-// ─────────────────────────────────────────────────────────────────────────────
+// Mirrors WALiquidGlass(working).dylib logic, with one master pref gate.
 
 #import <Foundation/Foundation.h>
-#import <objc/runtime.h>
-#import <substrate.h>
+#import <objc/message.h>
+#import "../WAGramPrefix.h"
 
-// ── Native UserDefaults key (from SharedModules enum) ─────────────────────────
-//  WALiquidGlassOverrideMethodUserDefaults is an enum case whose raw-value string
-//  we write as a UserDefaults key. WA reads this in _WAApplyLiquidGlassOverride.
-static NSString *const kWANativeLGOverrideKey = @"WALiquidGlassOverrideMethodUserDefaults";
-
-// ── Sub-flag key → ABProp selector name mapping ───────────────────────────────
-static NSDictionary<NSString *, NSString *> *WAGRLGFlagMap(void) {
-    static NSDictionary *map = nil;
-    static dispatch_once_t once;
-    dispatch_once(&once, ^{
-        map = @{
-            kWAGRLG_enabled             : @"ios_liquid_glass_enabled",
-            kWAGRLG_launched            : @"ios_liquid_glass_launched",
-            kWAGRLG_m1                  : @"ios_liquid_glass_m1",
-            kWAGRLG_m1_5                : @"ios_liquid_glass_m_1_5",
-            kWAGRLG_m1_5_context_menu   : @"ios_liquid_glass_m_1_5_context_menu",
-            kWAGRLG_chat_top_bar_m2     : @"ios_liquid_glass_chat_top_bar_m2_enabled",
-            kWAGRLG_new_chatbar_ux      : @"ios_liquid_glass_enable_new_chatbar_ux",
-            kWAGRLG_larger_composer     : @"ios_liquid_glass_larger_composer",
-            kWAGRLG_reduce_transparency : @"ios_liquid_glass_reduce_transparency",
-            kWAGRLG_workaround_attachment_tray   : @"ios_liquid_glass_workaround_attachment_tray",
-            kWAGRLG_workaround_hides_bottombar   : @"ios_liquid_glass_workaround_hides_bottombar",
-            kWAGRLG_workaround_topbar_appearance : @"ios_liquid_glass_workaround_topbar_appearance",
-        };
-    });
-    return map;
+static BOOL WAGRLGEnabled(void) {
+    return WAGRPref(kWAGRLiquidGlassMaster);
 }
 
-// ── Determine if a given ABProp flag is requested ON ─────────────────────────
-static BOOL WAGRLGFlagEnabled(NSString *abPropName) {
-    if (!WAGRPref(kWAGRLiquidGlassMaster)) return NO;
-    NSDictionary *map = WAGRLGFlagMap();
-    for (NSString *prefKey in map) {
-        if ([map[prefKey] isEqualToString:abPropName])
-            return WAGRPref(prefKey);
-    }
-    return NO;
+static BOOL WAGRLGShouldForce(void) {
+    return WAGRLGEnabled();
 }
 
-// ── Strategy 1: write the native UserDefaults override key ───────────────────
-static void WAGRLGApplyUserDefaultsOverride(void) {
-    NSUserDefaults *ud = [NSUserDefaults standardUserDefaults];
-    if (WAGRPref(kWAGRLiquidGlassMaster)) {
-        [ud setObject:@"enabled" forKey:kWANativeLGOverrideKey];
-        [ud synchronize];
-        NSLog(@"[WAGram][LiquidGlass] wrote native UserDefaults override key");
-    } else {
-        [ud removeObjectForKey:kWANativeLGOverrideKey];
-        [ud synchronize];
-        NSLog(@"[WAGram][LiquidGlass] removed native UserDefaults override key");
-    }
+static NSArray<NSString *> *WAGRLGDefaultBoolKeys(void) {
+    return @[
+        @"liquid_glass_override_enabled",
+        @"WALiquidGlassOverrideEnabled",
+        @"ios_liquid_glass_enabled",
+        @"ios_liquid_glass_launched",
+        @"ios_liquid_glass_m1",
+        @"ios_liquid_glass_m_1_5",
+        @"ios_liquid_glass_m_1_5_context_menu",
+        @"ios_liquid_glass_media_m0",
+        @"ios_liquid_glass_larger_composer",
+        @"ios_liquid_glass_media_editor_enabled",
+        @"ios_liquid_glass_calling_improvement_enabled",
+        @"ios_liquid_glass_workaround_attachment_tray",
+        @"status_viewer_redesign_enabled"
+    ];
 }
 
-// ── Strategy 2: targeted ObjC method hooks ───────────────────────────────────
-static BOOL (*orig_shouldUseLiquidGlassConfiguration)(id, SEL) = NULL;
-static BOOL (*orig_hasLiquidGlassLaunched)(id, SEL)            = NULL;
-static BOOL (*orig_usesGlassMaterial)(id, SEL)                 = NULL;
-static BOOL (*orig_glassEffectEnabled)(id, SEL)                = NULL;
-static BOOL (*orig_useLiquidGlassDesign)(id, SEL)              = NULL;
-static BOOL (*orig_useLiquidGlassStyle)(id, SEL)               = NULL;
-
-static BOOL hook_shouldUseLiquidGlassConfiguration(id self, SEL _cmd) {
-    if (WAGRPref(kWAGRLiquidGlassMaster) && WAGRPref(kWAGRLG_enabled)) return YES;
-    return orig_shouldUseLiquidGlassConfiguration
-        ? orig_shouldUseLiquidGlassConfiguration(self, _cmd) : NO;
-}
-static BOOL hook_hasLiquidGlassLaunched(id self, SEL _cmd) {
-    if (WAGRPref(kWAGRLiquidGlassMaster) && WAGRPref(kWAGRLG_launched)) return YES;
-    return orig_hasLiquidGlassLaunched
-        ? orig_hasLiquidGlassLaunched(self, _cmd) : NO;
-}
-static BOOL hook_usesGlassMaterial(id self, SEL _cmd) {
-    if (WAGRPref(kWAGRLiquidGlassMaster)) return YES;
-    return orig_usesGlassMaterial
-        ? orig_usesGlassMaterial(self, _cmd) : NO;
-}
-static BOOL hook_glassEffectEnabled(id self, SEL _cmd) {
-    if (WAGRPref(kWAGRLiquidGlassMaster)) return YES;
-    return orig_glassEffectEnabled
-        ? orig_glassEffectEnabled(self, _cmd) : NO;
-}
-static BOOL hook_useLiquidGlassDesign(id self, SEL _cmd) {
-    if (WAGRPref(kWAGRLiquidGlassMaster)) return YES;
-    return orig_useLiquidGlassDesign
-        ? orig_useLiquidGlassDesign(self, _cmd) : NO;
-}
-static BOOL hook_useLiquidGlassStyle(id self, SEL _cmd) {
-    if (WAGRPref(kWAGRLiquidGlassMaster)) return YES;
-    return orig_useLiquidGlassStyle
-        ? orig_useLiquidGlassStyle(self, _cmd) : NO;
-}
-
-// Per ABProp flag hooks (generic — installed dynamically)
-typedef BOOL (*WAGRLGFlagIMP)(id, SEL);
-static NSMutableDictionary<NSString *, NSValue *> *_wagrLGOrigFlagImps = nil;
-
-static BOOL WAGRLGGenericFlagHook(id self, SEL _cmd) {
-    NSString *sname = NSStringFromSelector(_cmd);
-    if (WAGRLGFlagEnabled(sname)) return YES;
-    NSString *key = [NSString stringWithFormat:@"%@|%@",
-                     NSStringFromClass([self class]), sname];
-    NSValue *val = _wagrLGOrigFlagImps[key];
-    WAGRLGFlagIMP orig = val ? (WAGRLGFlagIMP)[val pointerValue] : NULL;
-    return orig ? orig(self, _cmd) : NO;
-}
-
-// ── Hook installer ────────────────────────────────────────────────────────────
-static BOOL _wagrLGHooksInstalled = NO;
-
-static void WAGRLGInstallHooksOnClass(Class cls) {
+static void WAGRLGCallOverrideSetEnabled(BOOL enabled) {
+    Class cls = NSClassFromString(@"WALiquidGlassOverrideMethodUserDefaults");
     if (!cls) return;
-    struct {
-        const char *sel_name;
-        IMP         hook;
-        IMP        *orig;
-    } fixed[] = {
-        {"shouldUseLiquidGlassConfiguration", (IMP)hook_shouldUseLiquidGlassConfiguration, (IMP *)&orig_shouldUseLiquidGlassConfiguration},
-        {"hasLiquidGlassLaunched",            (IMP)hook_hasLiquidGlassLaunched,            (IMP *)&orig_hasLiquidGlassLaunched},
-        {"usesGlassMaterial",                 (IMP)hook_usesGlassMaterial,                 (IMP *)&orig_usesGlassMaterial},
-        {"glassEffectEnabled",                (IMP)hook_glassEffectEnabled,                (IMP *)&orig_glassEffectEnabled},
-        {"useLiquidGlassDesign",              (IMP)hook_useLiquidGlassDesign,              (IMP *)&orig_useLiquidGlassDesign},
-        {"useLiquidGlassStyle",               (IMP)hook_useLiquidGlassStyle,               (IMP *)&orig_useLiquidGlassStyle},
-    };
-    for (size_t i = 0; i < sizeof(fixed)/sizeof(fixed[0]); i++) {
-        SEL sel = sel_registerName(fixed[i].sel_name);
-        if (!class_getInstanceMethod(cls, sel)) continue;
-        if (*fixed[i].orig) continue;
-        MSHookMessageEx(cls, sel, fixed[i].hook, fixed[i].orig);
-        NSLog(@"[WAGram][LiquidGlass] hooked -%s on %@", fixed[i].sel_name, NSStringFromClass(cls));
-    }
 
-    // Per-flag selectors
-    NSSet<NSString *> *flagSelectors = [NSSet setWithArray:WAGRLGFlagMap().allValues];
-    unsigned int mcount = 0;
-    Method *methods = class_copyMethodList(cls, &mcount);
-    for (unsigned int i = 0; i < mcount; i++) {
-        SEL sel = method_getName(methods[i]);
-        NSString *sname = NSStringFromSelector(sel);
-        if (![flagSelectors containsObject:sname]) continue;
-        NSString *key = [NSString stringWithFormat:@"%@|%@", NSStringFromClass(cls), sname];
-        if (_wagrLGOrigFlagImps[key]) continue;
-        IMP origImp = method_getImplementation(methods[i]);
-        _wagrLGOrigFlagImps[key] = [NSValue valueWithPointer:(void *)origImp];
-        MSHookMessageEx(cls, sel, (IMP)WAGRLGGenericFlagHook, NULL);
-        NSLog(@"[WAGram][LiquidGlass] flag-hooked -%@ on %@", sname, NSStringFromClass(cls));
-    }
-    if (methods) free(methods);
+    SEL sharedSel = NSSelectorFromString(@"sharedInstance");
+    if (!class_respondsToSelector(object_getClass(cls), sharedSel)) return;
+
+    id inst = ((id (*)(id, SEL))objc_msgSend)((id)cls, sharedSel);
+    if (!inst) return;
+
+    SEL setSel = NSSelectorFromString(@"setEnabled:");
+    if (![inst respondsToSelector:setSel]) return;
+
+    NSMethodSignature *sig = [inst methodSignatureForSelector:setSel];
+    if (!sig) return;
+    NSInvocation *inv = [NSInvocation invocationWithMethodSignature:sig];
+    [inv setSelector:setSel];
+    [inv setTarget:inst];
+    BOOL yes = enabled;
+    [inv setArgument:&yes atIndex:2];
+    [inv invoke];
 }
 
-static void WAGRLGInstallAllHooks(void) {
-    if (_wagrLGHooksInstalled) return;
-    unsigned int count = 0;
-    Class *all = objc_copyClassList(&count);
-    if (!all) return;
-    for (unsigned int i = 0; i < count; i++) {
-        NSString *name = NSStringFromClass(all[i]);
-        if ([name containsString:@"LiquidGlass"]   ||
-            [name containsString:@"ABProperties"]  ||
-            [name containsString:@"WAABProp"]      ||
-            [name containsString:@"LiquidGlassProv"]) {
-            WAGRLGInstallHooksOnClass(all[i]);
-        }
+static void WAGRLGApplyNativeDefaults(void) {
+    NSUserDefaults *ud = NSUserDefaults.standardUserDefaults;
+    BOOL enabled = WAGRLGEnabled();
+    for (NSString *key in WAGRLGDefaultBoolKeys()) {
+        if (enabled) [ud setBool:YES forKey:key];
+        else [ud removeObjectForKey:key];
     }
-    free(all);
-    _wagrLGHooksInstalled = YES;
+    [ud synchronize];
+    WAGRLGCallOverrideSetEnabled(enabled);
 }
 
-// ── Constructor ───────────────────────────────────────────────────────────────
-__attribute__((constructor))
-static void WAGRLiquidGlassInit(void) {
+%hook WDSLiquidGlass
++ (BOOL)hasLiquidGlassLaunched { if (WAGRLGShouldForce()) return YES; return %orig; }
++ (BOOL)isM0Enabled { if (WAGRLGShouldForce()) return YES; return %orig; }
++ (BOOL)isM1Enabled { if (WAGRLGShouldForce()) return YES; return %orig; }
++ (BOOL)isM1_5Enabled { if (WAGRLGShouldForce()) return YES; return %orig; }
++ (BOOL)isM1_5ContextMenuEnabled { if (WAGRLGShouldForce()) return YES; return %orig; }
++ (BOOL)isLargerComposerEnabled { if (WAGRLGShouldForce()) return YES; return %orig; }
++ (BOOL)isNativeSidebarEnabled { if (WAGRLGShouldForce()) return YES; return %orig; }
++ (BOOL)shouldUseNativeSwipeActions { if (WAGRLGShouldForce()) return YES; return %orig; }
+%end
+
+%hook WAABProperties
+- (BOOL)ios_liquid_glass_enabled { if (WAGRLGShouldForce()) return YES; return %orig; }
+- (BOOL)ios_liquid_glass_launched { if (WAGRLGShouldForce()) return YES; return %orig; }
+- (BOOL)ios_liquid_glass_m1 { if (WAGRLGShouldForce()) return YES; return %orig; }
+- (BOOL)ios_liquid_glass_m_1_5 { if (WAGRLGShouldForce()) return YES; return %orig; }
+- (BOOL)ios_liquid_glass_m_1_5_context_menu { if (WAGRLGShouldForce()) return YES; return %orig; }
+- (BOOL)ios_liquid_glass_media_m0 { if (WAGRLGShouldForce()) return YES; return %orig; }
+- (BOOL)ios_liquid_glass_larger_composer { if (WAGRLGShouldForce()) return YES; return %orig; }
+- (BOOL)ios_liquid_glass_media_editor_enabled { if (WAGRLGShouldForce()) return YES; return %orig; }
+- (BOOL)ios_liquid_glass_calling_improvement_enabled { if (WAGRLGShouldForce()) return YES; return %orig; }
+- (BOOL)ios_liquid_glass_workaround_attachment_tray { if (WAGRLGShouldForce()) return YES; return %orig; }
+- (BOOL)ios_liquid_glass_reduce_transparency { if (WAGRLGShouldForce()) return YES; return %orig; }
+- (BOOL)ios_liquid_glass_fixes_for_older_ios { if (WAGRLGShouldForce()) return YES; return %orig; }
+- (BOOL)status_viewer_redesign_enabled { if (WAGRLGShouldForce()) return YES; return %orig; }
+%end
+
+%hook WALiquidGlassOverrideMethodUserDefaults
+- (BOOL)isEnabled { if (WAGRLGShouldForce()) return YES; return %orig; }
+%end
+
+%hook IGLiquidGlassExperimentHelper
++ (BOOL)isEnabled { if (WAGRLGShouldForce()) return YES; return %orig; }
+%end
+
+%ctor {
     @autoreleasepool {
-        _wagrLGOrigFlagImps = [NSMutableDictionary dictionary];
-
-        // Strategy 1 immediately
-        WAGRLGApplyUserDefaultsOverride();
-
-        if (!WAGRPref(kWAGRLiquidGlassMaster)) {
-            NSLog(@"[WAGram][LiquidGlass] inert startup: master OFF");
-            return;
-        }
-
-        // Strategy 2: hook after frameworks load, only when explicitly enabled.
-        double delays[] = { 0.8, 2.5 };
-        for (size_t i = 0; i < 2; i++) {
-            dispatch_after(
-                dispatch_time(DISPATCH_TIME_NOW, (int64_t)(delays[i] * NSEC_PER_SEC)),
-                dispatch_get_main_queue(), ^{
-                    WAGRLGInstallAllHooks();
-                });
-        }
+        WAGRLGApplyNativeDefaults();
+        %init(WDSLiquidGlass=objc_getClass("WDSLiquidGlass"),
+              WAABProperties=objc_getClass("WAABProperties"),
+              WALiquidGlassOverrideMethodUserDefaults=objc_getClass("WALiquidGlassOverrideMethodUserDefaults"),
+              IGLiquidGlassExperimentHelper=objc_getClass("IGLiquidGlassExperimentHelper"));
     }
 }
 
-/// Called from menu when user changes any LiquidGlass toggle.
 extern "C" void WAGRLGPrefsDidChange(void) {
-    WAGRLGApplyUserDefaultsOverride();
-    if (WAGRPref(kWAGRLiquidGlassMaster)) {
-        WAGRLGInstallAllHooks();
-    }
+    WAGRLGApplyNativeDefaults();
+}
+
+extern "C" NSString *WAGRLGDiagnosticText(void) {
+    return [NSString stringWithFormat:
+        @"master=%@\nWDSLiquidGlass=%@\nWAABProperties=%@\nOverrideClass=%@\nIGHelper=%@\nimplementation=Logos mirror",
+        WAGRLGEnabled() ? @"ON" : @"OFF",
+        NSClassFromString(@"WDSLiquidGlass") ? @"found" : @"missing",
+        NSClassFromString(@"WAABProperties") ? @"found" : @"missing",
+        NSClassFromString(@"WALiquidGlassOverrideMethodUserDefaults") ? @"found" : @"missing",
+        NSClassFromString(@"IGLiquidGlassExperimentHelper") ? @"found" : @"missing"];
 }

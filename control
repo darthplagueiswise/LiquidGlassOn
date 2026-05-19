@@ -1,8 +1,8 @@
 Package: com.darthplagueiswise.liquidglasson
 Name: LiquidGlassOn
-Version: 1.0.0
+Version: 1.1.0
 Architecture: iphoneos-arm
-Description: Feature research tweak for WhatsApp — Liquid Glass, Dogfood, ABProps, Keychain observer.
+Description: WAABProperties feature-flag research tweak for WhatsApp — Liquid Glass, Dogfood gates, 156 curated flags, Keychain observer.
 Homepage: https://github.com/darthplagueiswise/LiquidGlassOn
 Maintainer: Radan
 Author: Radan
