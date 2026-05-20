@@ -1,0 +1,1657 @@
+[
+  {
+    "file": "WhatsApp(3)",
+    "base": "0x100000000",
+    "class_count": 17627,
+    "category_count": 7512,
+    "classes": {
+      "WAContextMain": true,
+      "WASettingsViewController": true,
+      "WASettingsNavigationController": true,
+      "WADebugViewController": true,
+      "_TtC15WADebugMenuMain17DebugMenuProvider": true,
+      "WAFeatureControlGateKeeper": true,
+      "WAServerProperties": false,
+      "WAABProperties": false,
+      "FOAWAABPropertiesImpl": false,
+      "WAAuraGating": false,
+      "WACustomBehaviorsTableView": false,
+      "MobileConfigGating": false
+    },
+    "base_hits": [
+      {
+        "class": "_TtC13WAMediaPicker37MediaEditorPhotoLibraryAddMoreHandler",
+        "kind": "-",
+        "selector": "isEnabled",
+        "imp": "0x100f57390"
+      },
+      {
+        "class": "_TtC22ThreadInteractionsImpl22ThreadInteractionsImpl",
+        "kind": "-",
+        "selector": "isEnabled",
+        "imp": "0x1013a8298"
+      },
+      {
+        "class": "WAAccountMigrationBackgroundTask",
+        "kind": "-",
+        "selector": "isEnabled",
+        "imp": "0x101421880"
+      },
+      {
+        "class": "_TtC13WAAppDelegate24WABackgroundNSEMergeTask",
+        "kind": "-",
+        "selector": "isEnabled",
+        "imp": "0x101438f84"
+      },
+      {
+        "class": "WASocialBannerView",
+        "kind": "-",
+        "selector": "isEnabled",
+        "imp": "0x1014fce6c"
+      },
+      {
+        "class": "_TtC34WAPhoneVerificationViewControllers27PaymentTwoFactorAuthHandler",
+        "kind": "-",
+        "selector": "isEnabled",
+        "imp": "0x10169f5a0"
+      },
+      {
+        "class": "_TtC9UILibrary11LabelButton",
+        "kind": "-",
+        "selector": "isEnabled",
+        "imp": "0x101731080"
+      },
+      {
+        "class": "WAMediaControlButton",
+        "kind": "-",
+        "selector": "isEnabled",
+        "imp": "0x101731080"
+      },
+      {
+        "class": "WATopIconButton",
+        "kind": "-",
+        "selector": "isEnabled",
+        "imp": "0x101731080"
+      },
+      {
+        "class": "WAAudioMessagePlayerBar",
+        "kind": "-",
+        "selector": "isEnabled",
+        "imp": "0x1019cd734"
+      },
+      {
+        "class": "WAPAAStateSyncDailyTask",
+        "kind": "-",
+        "selector": "isEnabled",
+        "imp": "0x101b612dc"
+      },
+      {
+        "class": "WAScamGroupMessagesDailyTask",
+        "kind": "-",
+        "selector": "isEnabled",
+        "imp": "0x101caff84"
+      },
+      {
+        "class": "WASemanticSearchIndexingBackgroundTask",
+        "kind": "-",
+        "selector": "isEnabled",
+        "imp": "0x102a0fc68"
+      },
+      {
+        "class": "_TtC13FOAHostButton13FOAHostButton",
+        "kind": "-",
+        "selector": "isEnabled",
+        "imp": "0x103031700"
+      },
+      {
+        "class": "_TtC3CDS13CDSIconButton",
+        "kind": "-",
+        "selector": "isEnabled",
+        "imp": "0x103031700"
+      },
+      {
+        "class": "_TtC26FOAPlainTextInputPrimitive26FOAPlainTextInputPrimitive",
+        "kind": "-",
+        "selector": "isEnabled",
+        "imp": "0x103040218"
+      },
+      {
+        "class": "_TtC9CDSButton9CDSButton",
+        "kind": "-",
+        "selector": "isEnabled",
+        "imp": "0x101731080"
+      },
+      {
+        "class": "_TtC9CDSButton13CDSTextButton",
+        "kind": "-",
+        "selector": "isEnabled",
+        "imp": "0x101731080"
+      },
+      {
+        "class": "_TtC29IGLiquidGlassExperimentHelper39IGLiquidGlassNavigationExperimentHelper",
+        "kind": "-",
+        "selector": "isEnabled",
+        "imp": "0x1032aae98"
+      },
+      {
+        "class": "_TtC11ComponentUI10ButtonView",
+        "kind": "-",
+        "selector": "isEnabled",
+        "imp": "0x103577e9c"
+      },
+      {
+        "class": "_TtC16WAPaymentsPICSUI19PaymentRegTextField",
+        "kind": "-",
+        "selector": "isEnabled",
+        "imp": "0x1035f1a00"
+      },
+      {
+        "class": "_TtC17MAIActionChipView17MAIActionChipView",
+        "kind": "-",
+        "selector": "isEnabled",
+        "imp": "0x103031700"
+      },
+      {
+        "class": "_TtC16MAIImagineEditUI20MAIImagineSendButton",
+        "kind": "-",
+        "selector": "isEnabled",
+        "imp": "0x103031700"
+      },
+      {
+        "class": "WALargeModelDownloadBackgroundTask",
+        "kind": "-",
+        "selector": "isEnabled",
+        "imp": "0x103d054c0"
+      },
+      {
+        "class": "MediaAddMoreCameraHandler",
+        "kind": "-",
+        "selector": "isEnabled",
+        "imp": "0x103d1be50"
+      },
+      {
+        "class": "DebugBluetoothMuteHelper",
+        "kind": "-",
+        "selector": "isEnabled",
+        "imp": "0x103e26ec8"
+      },
+      {
+        "class": "_TtC13WACameraViews20BaseCameraZoomButton",
+        "kind": "-",
+        "selector": "isEnabled",
+        "imp": "0x103ef10f8"
+      },
+      {
+        "class": "_TtC27WAIOSDeviceRegistrationUUID41WAIOSDeviceRegistrationUUIDBackgroundTask",
+        "kind": "-",
+        "selector": "isEnabled",
+        "imp": "0x10428cf0c"
+      }
+    ],
+    "category_hits": [
+      {
+        "class": "_TtC15WADebugMenuMain17DebugMenuProvider",
+        "category": "WADebugMenuMain",
+        "kind": "-",
+        "selector": "appDidFinishLaunchingSetup",
+        "imp": "0x1003cbe20"
+      },
+      {
+        "class": "_TtC15WADebugMenuMain17DebugMenuProvider",
+        "category": "WADebugMenuMain",
+        "kind": "-",
+        "selector": "isDebugMenuShortcutEnabled",
+        "imp": "0x1004e8eb4"
+      },
+      {
+        "class": "_TtC15WADebugMenuMain17DebugMenuProvider",
+        "category": "WADebugMenuMain",
+        "kind": "-",
+        "selector": "isDebugMenuAllowed",
+        "imp": "0x1017241d4"
+      },
+      {
+        "class": "_TtC15WADebugMenuMain17DebugMenuProvider",
+        "category": "WADebugMenuMain",
+        "kind": "-",
+        "selector": "debugViewController",
+        "imp": "0x101724214"
+      },
+      {
+        "class": "_TtC15WADebugMenuMain17DebugMenuProvider",
+        "category": "WADebugMenuMain",
+        "kind": "-",
+        "selector": "debugShortcutContainerView",
+        "imp": "0x101724250"
+      },
+      {
+        "class": "_TtC15WADebugMenuMain17DebugMenuProvider",
+        "category": "WADebugMenuMain",
+        "kind": "-",
+        "selector": "presentDebugControllerIfNeeded",
+        "imp": "0x101724388"
+      },
+      {
+        "class": "WAContextMain",
+        "category": "WADependencyProviderMain3",
+        "kind": "-",
+        "selector": "isVerifiedChannelFeatureFlagEnabled",
+        "imp": "0x101a93d5c"
+      },
+      {
+        "class": "<bind:0x8010000000000141 _OBJC_CLASS_$_WAContext @rpath/SharedModules.framework/SharedModules>",
+        "category": "WADebugMenuBase",
+        "kind": "-",
+        "selector": "resolveDebugMenuProviding",
+        "imp": "0x101bf78b0"
+      },
+      {
+        "class": "<bind:0x8010000000000141 _OBJC_CLASS_$_WAContext @rpath/SharedModules.framework/SharedModules>",
+        "category": "WADebugMenuBase1",
+        "kind": "-",
+        "selector": "debugMenuProvider",
+        "imp": "0x101bf78cc"
+      }
+    ],
+    "target_category_methods": [
+      {
+        "class": "<bind:0x8010000000000131 _OBJC_CLASS_$_WAABProperties @rpath/SharedModules.framework/SharedModules>",
+        "category": "WADebugMenuMain",
+        "inst": [],
+        "class_methods": []
+      },
+      {
+        "class": "_TtC15WADebugMenuMain17DebugMenuProvider",
+        "category": "WADebugMenuMain",
+        "inst": [
+          "appDidFinishLaunchingSetup",
+          "isDebugMenuShortcutEnabled",
+          "isDebugMenuAllowed",
+          "debugViewController",
+          "debugShortcutContainerView",
+          "presentDebugControllerIfNeeded"
+        ],
+        "class_methods": []
+      },
+      {
+        "class": "WADebugViewController",
+        "category": "WADebugMenuMain",
+        "inst": [
+          "addCustomURLFromBizProfileRowWithSection:"
+        ],
+        "class_methods": []
+      },
+      {
+        "class": "WALongPressSendOptionsView",
+        "category": "WADebugMenuMain",
+        "inst": [
+          "gestureRecognizer:shouldRecognizeSimultaneouslyWithGestureRecognizer:"
+        ],
+        "class_methods": []
+      },
+      {
+        "class": "WADebugViewController",
+        "category": "WADebugMenuMain1",
+        "inst": [
+          "makeAvatarsDebugViewControllerWithContext:disableStickerAnimation:"
+        ],
+        "class_methods": []
+      },
+      {
+        "class": "WADebugViewController",
+        "category": "WADebugMenuMain2",
+        "inst": [
+          "clearAllBizProfiles",
+          "clearAllBizInfo",
+          "clearAllBizCertificates"
+        ],
+        "class_methods": []
+      },
+      {
+        "class": "WAContextMain",
+        "category": "WADependencyProviderMain",
+        "inst": [
+          "provideSMBAdhubViewControllerForStatusEntryPointWithStatus:statusSessionID:entryPoint:",
+          "navigateToDirectStatusAdCreationIfPossibleWithStatus:statusSessionID:entryPoint:presentingViewController:completion:",
+          "initiateAdCreationFlowForCatalogMessage:entryPoint:presentingViewController:",
+          "smbLWIStatusCountForAllMessageTypes:",
+          "smbUserHasCreatedAd",
+          "smbUserHasAdsEligibleForRecreation",
+          "smbUserHasDraftAd",
+          "presentSetLabelsViewControllerFrom:with:entryPoint:completion:",
+          "isReturningToSMBLabelDetailsTableVC",
+          "advertiseStatusAvailable",
+          "provideSMBBusinessToolsViewController",
+          "provideSMBPremiumEditDeviceNameScreenWithDefaultName:delegate:",
+          "handleAddQuickReplyWithMessage:viewController:entryPoint:",
+          "handleResetSMBRegistration",
+          "provideLabelsStorageHelper"
+        ],
+        "class_methods": []
+      },
+      {
+        "class": "WAContextMain",
+        "category": "WADependencyProviderMain1",
+        "inst": [
+          "provideDeviceAgentManager",
+          "provideDeviceAgentStorageHelper",
+          "provideSMBChatAssignmentViewControllerForChatSession:entryPoint:",
+          "provideSMBChatAssignmentViewControllerForChatSessions:entryPoint:",
+          "provideSMBChatAssignmentViewControllerForChatSession:entryPoint:completion:",
+          "provideSMBChatAssignmentViewControllerForChatSessions:entryPoint:completion:",
+          "provideAssignedDeviceRowTextForChatSession:",
+          "provideAssignedAgentLabelForChatSession:",
+          "provideAIHandoffLabelForChatSession:",
+          "provideAIRespondingLabelForChatSession:",
+          "provideWAStringAssignMultiselect",
+          "provideAssignedAgentNameForChatSession:",
+          "provideSMBMessageInfoDataSourceWithMessage:",
+          "provideSMBMessageInfoGroupMessageDataSourceWithMessage:observer:",
+          "provideSMBLabelsForChatSession:",
+          "provideUsernameKeyBanner",
+          "provideChatJIDsForChatsWithLabelsThatMatchSearchQuery:",
+          "removeNewPredefinedLabels",
+          "ctwaDataSharingLocalizationToolsViewController",
+          "ctwaDataSharingImpressionCounterDebugViewController",
+          "presentSMBAdContextBottomSheetFromVc:adId:sourceURL:chatSession:",
+          "chatWasStartedFromCTWAAdWithChatJID:",
+          "hasAppliedLabels",
+          "addSMBEnforcementBannerNotification",
+          "addSpamEnforcementBannerNotification",
+          "addAutomationBulkMessagingBannerNotificationWithIsEducationBanner:",
+          "runHarmDetectionReceiverSideLogging",
+          "resetHarmDetectionReceiverSideLogging",
+          "appendSMBDebugFields:",
+          "provideQuickReplyHelperWithViewController:",
+          "hasGreetingMessage",
+          "hasAwayMessage",
+          "fetchAdsEntryPointConfigIfNeeded",
+          "shouldHideAdsEntryPoint:",
+          "titleForEntryPoint:",
+          "hasExitedGroup",
+          "awayMessageCountFromServiceExtensionForChatJID:",
+          "greetingMessageCountFromServiceExtensionForChatJID:",
+          "clearAwayAndGreetingMessageCountsFromServiceExtension",
+          "clearAllEntrypointConversionManagerData",
+          "presentBusinessShareHubFrom:qrCodeScanner:update:",
+          "isAssignedAgentUnreadWithChatSession:",
+          "provideAssignedChatsFetchedResultsController",
+          "provideChatListFilters"
+        ],
+        "class_methods": []
+      },
+      {
+        "class": "WAContextMain",
+        "category": "WADependencyProviderMain2",
+        "inst": [
+          "dependencyProviderMain"
+        ],
+        "class_methods": []
+      },
+      {
+        "class": "WAContextMain",
+        "category": "WADependencyProviderMain3",
+        "inst": [
+          "logMarkAsXWithRecipientJID:orderSignalType:orderStatus:isPaid:totalPrice:canShareEventWithMeta:",
+          "isBlueSubscriptionActive",
+          "isVerifiedChannelFeatureFlagEnabled",
+          "verifiedChannelFeatureFlagLimit"
+        ],
+        "class_methods": []
+      },
+      {
+        "class": "<bind:0x8010000000000141 _OBJC_CLASS_$_WAContext @rpath/SharedModules.framework/SharedModules>",
+        "category": "WADependencyProviderMain",
+        "inst": [
+          "resolveDependencyProviderMain"
+        ],
+        "class_methods": []
+      },
+      {
+        "class": "<bind:0x8010000000000141 _OBJC_CLASS_$_WAContext @rpath/SharedModules.framework/SharedModules>",
+        "category": "WADebugMenuBase",
+        "inst": [
+          "resolveDebugMenuProviding"
+        ],
+        "class_methods": []
+      },
+      {
+        "class": "<bind:0x8010000000000141 _OBJC_CLASS_$_WAContext @rpath/SharedModules.framework/SharedModules>",
+        "category": "WADebugMenuBase1",
+        "inst": [
+          "debugMenuProvider"
+        ],
+        "class_methods": []
+      },
+      {
+        "class": "WADebugViewController",
+        "category": "WADebugMenuAccounts",
+        "inst": [
+          "addRegistrationSectionWith:isMCCEuropean:mccFromRaw:"
+        ],
+        "class_methods": []
+      },
+      {
+        "class": "WAMexDebugViewController",
+        "category": "WADebugMenuMex",
+        "inst": [
+          "textFieldShouldReturn:"
+        ],
+        "class_methods": []
+      },
+      {
+        "class": "WADebugViewController",
+        "category": "WADebugMenuPrivacy",
+        "inst": [
+          "addPrivacySettingsComparisonSection"
+        ],
+        "class_methods": []
+      },
+      {
+        "class": "WADebugViewController",
+        "category": "WADebugMenuYouth",
+        "inst": [
+          "addBrazilO13Section"
+        ],
+        "class_methods": []
+      },
+      {
+        "class": "WADebugViewController",
+        "category": "WADebugMenuYouth1",
+        "inst": [
+          "addYouthScreens"
+        ],
+        "class_methods": []
+      },
+      {
+        "class": "WACallWearableUIManager",
+        "category": "WADebugMenuMisc",
+        "inst": [
+          "displayDebugMessage:"
+        ],
+        "class_methods": []
+      },
+      {
+        "class": "WADebugColorPickerViewController",
+        "category": "WADebugMenuMisc",
+        "inst": [
+          "paintColorPickerViewDidBeginChangingProperties:",
+          "paintColorPickerViewDidEndChangingProperties:",
+          "paintColorPickerViewDidChangeColor:",
+          "paintColorPickerViewDidChangeBrushSize:"
+        ],
+        "class_methods": []
+      },
+      {
+        "class": "WADebugColorPickerViewController",
+        "category": "WADebugMenuMisc1",
+        "inst": [
+          "colorPickerViewControllerDidSelectColor:"
+        ],
+        "class_methods": []
+      },
+      {
+        "class": "WADebugCreateTestDatabaseController",
+        "category": "WADebugMenuMisc",
+        "inst": [
+          "multiContactPicker:didLoadContacts:",
+          "multiContactPickerDidCancel:",
+          "multiContactPicker:didSelectContacts:"
+        ],
+        "class_methods": []
+      },
+      {
+        "class": "WADebugMLViewController",
+        "category": "WADebugMenuMisc",
+        "inst": [
+          "backgroundTask:didCompleteWithSuccess:"
+        ],
+        "class_methods": []
+      },
+      {
+        "class": "WADebugViewController",
+        "category": "WADebugMenuPayments",
+        "inst": [
+          "addPartnerBillingSection"
+        ],
+        "class_methods": []
+      }
+    ],
+    "disassembly": {
+      "WhatsApp(3) -[_TtC13WAMediaPicker37MediaEditorPhotoLibraryAddMoreHandler isEnabled]": [
+        "0x100f57390: stp\tx29, x30, [sp, #-0x10]!",
+        "0x100f57394: bl\t#0x1003aa860",
+        "0x100f57398: bl\t#0x1003b27dc",
+        "0x100f5739c: bl\t#0x100f57318",
+        "0x100f573a0: bl\t#0x1003aa9e0",
+        "0x100f573a4: b\t#0x10046d644",
+        "0x100f573a8: stp\tx29, x30, [sp, #-0x10]!",
+        "0x100f573ac: bl\t#0x1003ac738",
+        "0x100f573b0: sub\tsp, sp, #0xc0",
+        "0x100f573b4: mov\tx22, x20"
+      ],
+      "WhatsApp(3) -[_TtC22ThreadInteractionsImpl22ThreadInteractionsImpl isEnabled]": [
+        "0x1013a8298: stp\tx29, x30, [sp, #-0x10]!",
+        "0x1013a829c: bl\t#0x1003aa860",
+        "0x1013a82a0: bl\t#0x10046eb90",
+        "0x1013a82a4: bl\t#0x1013a7f94",
+        "0x1013a82a8: bl\t#0x1003e87e0",
+        "0x1013a82ac: b\t#0x10046d644",
+        "0x1013a82b0: stp\tx29, x30, [sp, #-0x10]!",
+        "0x1013a82b4: bl\t#0x1003aa818",
+        "0x1013a82b8: bl\t#0x1003e6eb8",
+        "0x1013a82bc: bl\t#0x1013adcc4"
+      ],
+      "WhatsApp(3) -[WAAccountMigrationBackgroundTask isEnabled]": [
+        "0x101421880: stp\tx29, x30, [sp, #-0x10]!",
+        "0x101421884: bl\t#0x1003aa860",
+        "0x101421888: bl\t#0x1003b27dc",
+        "0x10142188c: bl\t#0x101421898",
+        "0x101421890: bl\t#0x1003aa9e0",
+        "0x101421894: b\t#0x10046d644",
+        "0x101421898: adrp\tx0, #0x107f0d000",
+        "0x10142189c: add\tx0, x0, #0x548",
+        "0x1014218a0: adrp\tx1, #0x10677a000",
+        "0x1014218a4: ldr\tx1, [x1, #0xdf0]"
+      ],
+      "WhatsApp(3) -[_TtC13WAAppDelegate24WABackgroundNSEMergeTask isEnabled]": [
+        "0x101438f84: stp\tx29, x30, [sp, #-0x10]!",
+        "0x101438f88: bl\t#0x1003aa860",
+        "0x101438f8c: bl\t#0x1003b27dc",
+        "0x101438f90: bl\t#0x101438fb8",
+        "0x101438f94: bl\t#0x1003aa9e0",
+        "0x101438f98: b\t#0x10046d644",
+        "0x101438f9c: stp\tx29, x30, [sp, #-0x10]!",
+        "0x101438fa0: bl\t#0x1003aa860",
+        "0x101438fa4: bl\t#0x1003ed6d4",
+        "0x101438fa8: bl\t#0x1005ce1ac"
+      ],
+      "WhatsApp(3) -[WASocialBannerView isEnabled]": [
+        "0x1014fce6c: stp\tx29, x30, [sp, #-0x10]!",
+        "0x1014fce70: bl\t#0x1003aa860",
+        "0x1014fce74: mov\tx20, x0",
+        "0x1014fce78: bl\t#0x1014fce80",
+        "0x1014fce7c: b\t#0x10046d6c4",
+        "0x1014fce80: adrp\tx0, #0x107c22000",
+        "0x1014fce84: add\tx0, x0, #0xd20",
+        "0x1014fce88: b\t#0x100402234",
+        "0x1014fce8c: stp\tx29, x30, [sp, #-0x10]!",
+        "0x1014fce90: bl\t#0x1003aa860"
+      ],
+      "WhatsApp(3) -[_TtC34WAPhoneVerificationViewControllers27PaymentTwoFactorAuthHandler isEnabled]": [
+        "0x10169f5a0: stp\tx29, x30, [sp, #-0x10]!",
+        "0x10169f5a4: bl\t#0x1003aa860",
+        "0x10169f5a8: bl\t#0x1003b27dc",
+        "0x10169f5ac: bl\t#0x10169f5b8",
+        "0x10169f5b0: bl\t#0x1003aa9e0",
+        "0x10169f5b4: b\t#0x10046d644",
+        "0x10169f5b8: adrp\tx0, #0x107c30000",
+        "0x10169f5bc: add\tx0, x0, #0xc18",
+        "0x10169f5c0: adrp\tx1, #0x107607000",
+        "0x10169f5c4: add\tx1, x1, #0xeb0"
+      ],
+      "WhatsApp(3) -[_TtC9UILibrary11LabelButton isEnabled]": [
+        "0x101731080: stp\tx29, x30, [sp, #-0x10]!",
+        "0x101731084: bl\t#0x1003aa860",
+        "0x101731088: bl\t#0x1003b27dc",
+        "0x10173108c: bl\t#0x10174d734",
+        "0x101731090: bl\t#0x1003aa9e0",
+        "0x101731094: b\t#0x10046d644",
+        "0x101731098: stp\tx29, x30, [sp, #-0x10]!",
+        "0x10173109c: bl\t#0x1003aa860",
+        "0x1017310a0: bl\t#0x1003e7ad0",
+        "0x1017310a4: mov\tx0, x19"
+      ],
+      "WhatsApp(3) -[WAMediaControlButton isEnabled]": [
+        "0x101731080: stp\tx29, x30, [sp, #-0x10]!",
+        "0x101731084: bl\t#0x1003aa860",
+        "0x101731088: bl\t#0x1003b27dc",
+        "0x10173108c: bl\t#0x10174d734",
+        "0x101731090: bl\t#0x1003aa9e0",
+        "0x101731094: b\t#0x10046d644",
+        "0x101731098: stp\tx29, x30, [sp, #-0x10]!",
+        "0x10173109c: bl\t#0x1003aa860",
+        "0x1017310a0: bl\t#0x1003e7ad0",
+        "0x1017310a4: mov\tx0, x19"
+      ],
+      "WhatsApp(3) -[WATopIconButton isEnabled]": [
+        "0x101731080: stp\tx29, x30, [sp, #-0x10]!",
+        "0x101731084: bl\t#0x1003aa860",
+        "0x101731088: bl\t#0x1003b27dc",
+        "0x10173108c: bl\t#0x10174d734",
+        "0x101731090: bl\t#0x1003aa9e0",
+        "0x101731094: b\t#0x10046d644",
+        "0x101731098: stp\tx29, x30, [sp, #-0x10]!",
+        "0x10173109c: bl\t#0x1003aa860",
+        "0x1017310a0: bl\t#0x1003e7ad0",
+        "0x1017310a4: mov\tx0, x19"
+      ],
+      "WhatsApp(3) -[WAAudioMessagePlayerBar isEnabled]": [
+        "0x1019cd734: stp\tx29, x30, [sp, #-0x10]!",
+        "0x1019cd738: bl\t#0x1003aa860",
+        "0x1019cd73c: mov\tx20, x0",
+        "0x1019cd740: bl\t#0x1019cd748",
+        "0x1019cd744: b\t#0x10046d6c4",
+        "0x1019cd748: adrp\tx0, #0x107c4b000",
+        "0x1019cd74c: add\tx0, x0, #0x718",
+        "0x1019cd750: b\t#0x100402234",
+        "0x1019cd754: stp\tx29, x30, [sp, #-0x10]!",
+        "0x1019cd758: bl\t#0x1003aa860"
+      ],
+      "WhatsApp(3) -[WAPAAStateSyncDailyTask isEnabled]": [
+        "0x101b612dc: stp\tx29, x30, [sp, #-0x10]!",
+        "0x101b612e0: bl\t#0x1003aa860",
+        "0x101b612e4: bl\t#0x1003b27dc",
+        "0x101b612e8: bl\t#0x101b612f4",
+        "0x101b612ec: bl\t#0x1003aa9e0",
+        "0x101b612f0: b\t#0x10046d644",
+        "0x101b612f4: stp\tx29, x30, [sp, #-0x10]!",
+        "0x101b612f8: bl\t#0x1003aa860",
+        "0x101b612fc: sub\tsp, sp, #0x10",
+        "0x101b61300: adrp\tx8, #0x107f85000"
+      ],
+      "WhatsApp(3) -[WAScamGroupMessagesDailyTask isEnabled]": [
+        "0x101caff84: stp\tx29, x30, [sp, #-0x10]!",
+        "0x101caff88: bl\t#0x1003aa860",
+        "0x101caff8c: bl\t#0x1003b27dc",
+        "0x101caff90: bl\t#0x101caff9c",
+        "0x101caff94: bl\t#0x1003aa9e0",
+        "0x101caff98: b\t#0x10046d644",
+        "0x101caff9c: stp\tx29, x30, [sp, #-0x10]!",
+        "0x101caffa0: mov\tx29, sp",
+        "0x101caffa4: adrp\tx8, #0x107f9f000",
+        "0x101caffa8: ldr\tx8, [x8, #0x5d0]"
+      ],
+      "WhatsApp(3) -[WASemanticSearchIndexingBackgroundTask isEnabled]": [
+        "0x102a0fc68: stp\tx29, x30, [sp, #-0x10]!",
+        "0x102a0fc6c: bl\t#0x1003aa860",
+        "0x102a0fc70: bl\t#0x1003b27dc",
+        "0x102a0fc74: bl\t#0x102a0fc80",
+        "0x102a0fc78: bl\t#0x1003aa9e0",
+        "0x102a0fc7c: b\t#0x10046d644",
+        "0x102a0fc80: stp\tx29, x30, [sp, #-0x10]!",
+        "0x102a0fc84: bl\t#0x1003aa818",
+        "0x102a0fc88: mov\tx19, x20",
+        "0x102a0fc8c: adrp\tx8, #0x108028000"
+      ],
+      "WhatsApp(3) -[_TtC13FOAHostButton13FOAHostButton isEnabled]": [
+        "0x103031700: stp\tx29, x30, [sp, #-0x10]!",
+        "0x103031704: bl\t#0x1003aa860",
+        "0x103031708: bl\t#0x1003b27dc",
+        "0x10303170c: bl\t#0x10174d734",
+        "0x103031710: bl\t#0x1003aa9e0",
+        "0x103031714: b\t#0x10046d644",
+        "0x103031718: stp\tx29, x30, [sp, #-0x10]!",
+        "0x10303171c: bl\t#0x1003aa860",
+        "0x103031720: bl\t#0x1003e7ad0",
+        "0x103031724: mov\tx0, x19"
+      ],
+      "WhatsApp(3) -[_TtC3CDS13CDSIconButton isEnabled]": [
+        "0x103031700: stp\tx29, x30, [sp, #-0x10]!",
+        "0x103031704: bl\t#0x1003aa860",
+        "0x103031708: bl\t#0x1003b27dc",
+        "0x10303170c: bl\t#0x10174d734",
+        "0x103031710: bl\t#0x1003aa9e0",
+        "0x103031714: b\t#0x10046d644",
+        "0x103031718: stp\tx29, x30, [sp, #-0x10]!",
+        "0x10303171c: bl\t#0x1003aa860",
+        "0x103031720: bl\t#0x1003e7ad0",
+        "0x103031724: mov\tx0, x19"
+      ],
+      "WhatsApp(3) -[_TtC26FOAPlainTextInputPrimitive26FOAPlainTextInputPrimitive isEnabled]": [
+        "0x103040218: stp\tx29, x30, [sp, #-0x10]!",
+        "0x10304021c: bl\t#0x1003aa860",
+        "0x103040220: bl\t#0x1003b27dc",
+        "0x103040224: bl\t#0x103040230",
+        "0x103040228: bl\t#0x1003aa9e0",
+        "0x10304022c: b\t#0x10046d644",
+        "0x103040230: adr\tx0, #0x103041474",
+        "0x103040234: nop\t",
+        "0x103040238: adrp\tx1, #0x1075f3000",
+        "0x10304023c: add\tx1, x1, #0xb70"
+      ],
+      "WhatsApp(3) -[_TtC9CDSButton9CDSButton isEnabled]": [
+        "0x101731080: stp\tx29, x30, [sp, #-0x10]!",
+        "0x101731084: bl\t#0x1003aa860",
+        "0x101731088: bl\t#0x1003b27dc",
+        "0x10173108c: bl\t#0x10174d734",
+        "0x101731090: bl\t#0x1003aa9e0",
+        "0x101731094: b\t#0x10046d644",
+        "0x101731098: stp\tx29, x30, [sp, #-0x10]!",
+        "0x10173109c: bl\t#0x1003aa860",
+        "0x1017310a0: bl\t#0x1003e7ad0",
+        "0x1017310a4: mov\tx0, x19"
+      ],
+      "WhatsApp(3) -[_TtC9CDSButton13CDSTextButton isEnabled]": [
+        "0x101731080: stp\tx29, x30, [sp, #-0x10]!",
+        "0x101731084: bl\t#0x1003aa860",
+        "0x101731088: bl\t#0x1003b27dc",
+        "0x10173108c: bl\t#0x10174d734",
+        "0x101731090: bl\t#0x1003aa9e0",
+        "0x101731094: b\t#0x10046d644",
+        "0x101731098: stp\tx29, x30, [sp, #-0x10]!",
+        "0x10173109c: bl\t#0x1003aa860",
+        "0x1017310a0: bl\t#0x1003e7ad0",
+        "0x1017310a4: mov\tx0, x19"
+      ],
+      "WhatsApp(3) -[_TtC29IGLiquidGlassExperimentHelper39IGLiquidGlassNavigationExperimentHelper isEnabled]": [
+        "0x1032aae98: adrp\tx2, #0x107cc1000",
+        "0x1032aae9c: add\tx2, x2, #0x918",
+        "0x1032aaea0: b\t#0x100464a1c",
+        "0x1032aaea4: stp\tx29, x30, [sp, #-0x10]!",
+        "0x1032aaea8: bl\t#0x1003aa860",
+        "0x1032aaeac: adrp\tx8, #0x107cc1000",
+        "0x1032aaeb0: ldr\tx8, [x8, #0x918]",
+        "0x1032aaeb4: bl\t#0x10046db58",
+        "0x1032aaeb8: b.ne\t#0x1032aaef8",
+        "0x1032aaebc: adrp\tx8, #0x1076bf000"
+      ],
+      "WhatsApp(3) -[_TtC11ComponentUI10ButtonView isEnabled]": [
+        "0x103577e9c: stp\tx29, x30, [sp, #-0x10]!",
+        "0x103577ea0: bl\t#0x1003aa860",
+        "0x103577ea4: bl\t#0x1003b27dc",
+        "0x103577ea8: adrp\tx0, #0x1075f3000",
+        "0x103577eac: add\tx0, x0, #0xb70",
+        "0x103577eb0: bl\t#0x103577ebc",
+        "0x103577eb4: bl\t#0x1003aa9e0",
+        "0x103577eb8: b\t#0x10046d644",
+        "0x103577ebc: stp\tx29, x30, [sp, #-0x10]!",
+        "0x103577ec0: bl\t#0x1003aa860"
+      ],
+      "WhatsApp(3) -[_TtC16WAPaymentsPICSUI19PaymentRegTextField isEnabled]": [
+        "0x1035f1a00: stp\tx29, x30, [sp, #-0x10]!",
+        "0x1035f1a04: bl\t#0x1003aa860",
+        "0x1035f1a08: bl\t#0x1003b27dc",
+        "0x1035f1a0c: bl\t#0x1035f1a18",
+        "0x1035f1a10: bl\t#0x1003aa9e0",
+        "0x1035f1a14: b\t#0x10046d644",
+        "0x1035f1a18: adr\tx0, #0x1035fa748",
+        "0x1035f1a1c: nop\t",
+        "0x1035f1a20: adrp\tx1, #0x1075f3000",
+        "0x1035f1a24: add\tx1, x1, #0xb70"
+      ],
+      "WhatsApp(3) -[_TtC17MAIActionChipView17MAIActionChipView isEnabled]": [
+        "0x103031700: stp\tx29, x30, [sp, #-0x10]!",
+        "0x103031704: bl\t#0x1003aa860",
+        "0x103031708: bl\t#0x1003b27dc",
+        "0x10303170c: bl\t#0x10174d734",
+        "0x103031710: bl\t#0x1003aa9e0",
+        "0x103031714: b\t#0x10046d644",
+        "0x103031718: stp\tx29, x30, [sp, #-0x10]!",
+        "0x10303171c: bl\t#0x1003aa860",
+        "0x103031720: bl\t#0x1003e7ad0",
+        "0x103031724: mov\tx0, x19"
+      ],
+      "WhatsApp(3) -[_TtC16MAIImagineEditUI20MAIImagineSendButton isEnabled]": [
+        "0x103031700: stp\tx29, x30, [sp, #-0x10]!",
+        "0x103031704: bl\t#0x1003aa860",
+        "0x103031708: bl\t#0x1003b27dc",
+        "0x10303170c: bl\t#0x10174d734",
+        "0x103031710: bl\t#0x1003aa9e0",
+        "0x103031714: b\t#0x10046d644",
+        "0x103031718: stp\tx29, x30, [sp, #-0x10]!",
+        "0x10303171c: bl\t#0x1003aa860",
+        "0x103031720: bl\t#0x1003e7ad0",
+        "0x103031724: mov\tx0, x19"
+      ],
+      "WhatsApp(3) -[WALargeModelDownloadBackgroundTask isEnabled]": [
+        "0x103d054c0: stp\tx29, x30, [sp, #-0x10]!",
+        "0x103d054c4: bl\t#0x1003aa860",
+        "0x103d054c8: bl\t#0x1003b27dc",
+        "0x103d054cc: bl\t#0x103d054d8",
+        "0x103d054d0: bl\t#0x1003aa9e0",
+        "0x103d054d4: b\t#0x10046d644",
+        "0x103d054d8: stp\tx29, x30, [sp, #-0x10]!",
+        "0x103d054dc: bl\t#0x1003aa860",
+        "0x103d054e0: adrp\tx8, #0x107d15000",
+        "0x103d054e4: ldr\tx19, [x8, #0xe18]"
+      ],
+      "WhatsApp(3) -[MediaAddMoreCameraHandler isEnabled]": [
+        "0x103d1be50: stp\tx29, x30, [sp, #-0x10]!",
+        "0x103d1be54: bl\t#0x1003aa860",
+        "0x103d1be58: bl\t#0x1003b27dc",
+        "0x103d1be5c: bl\t#0x103d1bdd8",
+        "0x103d1be60: bl\t#0x1003aa9e0",
+        "0x103d1be64: b\t#0x10046d644",
+        "0x103d1be68: stp\tx29, x30, [sp, #-0x10]!",
+        "0x103d1be6c: bl\t#0x1003ac738",
+        "0x103d1be70: sub\tsp, sp, #0x40",
+        "0x103d1be74: mov\tx21, x20"
+      ],
+      "WhatsApp(3) -[DebugBluetoothMuteHelper isEnabled]": [
+        "0x103e26ec8: stp\tx29, x30, [sp, #-0x10]!",
+        "0x103e26ecc: bl\t#0x1003aa860",
+        "0x103e26ed0: mov\tx20, x0",
+        "0x103e26ed4: bl\t#0x103e26edc",
+        "0x103e26ed8: b\t#0x10046d6c4",
+        "0x103e26edc: adrp\tx0, #0x107d1f000",
+        "0x103e26ee0: add\tx0, x0, #0x378",
+        "0x103e26ee4: b\t#0x100402234",
+        "0x103e26ee8: stp\tx29, x30, [sp, #-0x10]!",
+        "0x103e26eec: bl\t#0x1003aa860"
+      ],
+      "WhatsApp(3) -[_TtC13WACameraViews20BaseCameraZoomButton isEnabled]": [
+        "0x103ef10f8: stp\tx29, x30, [sp, #-0x10]!",
+        "0x103ef10fc: bl\t#0x1003aa860",
+        "0x103ef1100: bl\t#0x1003b27dc",
+        "0x103ef1104: bl\t#0x103ef1110",
+        "0x103ef1108: bl\t#0x1003aa9e0",
+        "0x103ef110c: b\t#0x10046d644",
+        "0x103ef1110: adr\tx0, #0x103ef76b0",
+        "0x103ef1114: nop\t",
+        "0x103ef1118: adrp\tx1, #0x1075f3000",
+        "0x103ef111c: add\tx1, x1, #0xb70"
+      ],
+      "WhatsApp(3) -[_TtC27WAIOSDeviceRegistrationUUID41WAIOSDeviceRegistrationUUIDBackgroundTask isEnabled]": [
+        "0x10428cf0c: stp\tx29, x30, [sp, #-0x10]!",
+        "0x10428cf10: bl\t#0x1003aa860",
+        "0x10428cf14: bl\t#0x1003b27dc",
+        "0x10428cf18: bl\t#0x10428cf24",
+        "0x10428cf1c: bl\t#0x1003aa9e0",
+        "0x10428cf20: b\t#0x10046d644",
+        "0x10428cf24: stp\tx29, x30, [sp, #-0x10]!",
+        "0x10428cf28: bl\t#0x1003aa818",
+        "0x10428cf2c: bl\t#0x10428d598",
+        "0x10428cf30: cbnz\tx0, #0x10428cf38"
+      ],
+      "WhatsApp(3) -[_TtC15WADebugMenuMain17DebugMenuProvider(WADebugMenuMain) appDidFinishLaunchingSetup]": [
+        "0x1003cbe20: ret\t",
+        "0x1003cbe24: stp\tx29, x30, [sp, #-0x10]!",
+        "0x1003cbe28: bl\t#0x1003aa860",
+        "0x1003cbe2c: bl\t#0x1003eac60",
+        "0x1003cbe30: cbnz\tx0, #0x1003cbe3c",
+        "0x1003cbe34: bl\t#0x1003e7a54",
+        "0x1003cbe38: stlr\tx0, [x19]",
+        "0x1003cbe3c: b\t#0x1003aa86c",
+        "0x1003cbe40: adrp\tx0, #0x107e08000",
+        "0x1003cbe44: add\tx0, x0, #0x4e0",
+        "0x1003cbe48: adrp\tx1, #0x104de9000",
+        "0x1003cbe4c: add\tx1, x1, #0x560"
+      ],
+      "WhatsApp(3) -[_TtC15WADebugMenuMain17DebugMenuProvider(WADebugMenuMain) isDebugMenuShortcutEnabled]": [
+        "0x1004e8eb4: b\t#0x102dc46f4",
+        "0x1004e8eb8: b\t#0x102dc46f4",
+        "0x1004e8ebc: stp\tx29, x30, [sp, #-0x10]!",
+        "0x1004e8ec0: bl\t#0x1003aa818",
+        "0x1004e8ec4: bl\t#0x1005c50a4",
+        "0x1004e8ec8: mov\tx0, x19",
+        "0x1004e8ecc: blr\tx21",
+        "0x1004e8ed0: bl\t#0x1003b16ec",
+        "0x1004e8ed4: b\t#0x1003ecbb0",
+        "0x1004e8ed8: b\t#0x1003ccbbc",
+        "0x1004e8edc: stp\tx29, x30, [sp, #-0x10]!",
+        "0x1004e8ee0: bl\t#0x1003ac79c"
+      ],
+      "WhatsApp(3) -[_TtC15WADebugMenuMain17DebugMenuProvider(WADebugMenuMain) isDebugMenuAllowed]": [
+        "0x1017241d4: stp\tx29, x30, [sp, #-0x10]!",
+        "0x1017241d8: bl\t#0x1003aa860",
+        "0x1017241dc: bl\t#0x10046eb90",
+        "0x1017241e0: bl\t#0x10172418c",
+        "0x1017241e4: bl\t#0x1003e87e0",
+        "0x1017241e8: b\t#0x10046d644",
+        "0x1017241ec: stp\tx29, x30, [sp, #-0x10]!",
+        "0x1017241f0: bl\t#0x1003aa860",
+        "0x1017241f4: ldr\tx19, [x20, #0x10]",
+        "0x1017241f8: adrp\tx8, #0x1076ba000",
+        "0x1017241fc: ldr\tx0, [x8, #0x20]",
+        "0x101724200: bl\t#0x104b7b034"
+      ],
+      "WhatsApp(3) -[_TtC15WADebugMenuMain17DebugMenuProvider(WADebugMenuMain) debugViewController]": [
+        "0x101724214: stp\tx29, x30, [sp, #-0x10]!",
+        "0x101724218: bl\t#0x1003aa860",
+        "0x10172421c: bl\t#0x10046eb90",
+        "0x101724220: bl\t#0x1017241ec",
+        "0x101724224: bl\t#0x1003e87e0",
+        "0x101724228: bl\t#0x1003ad7b0",
+        "0x10172422c: b\t#0x104b7b0d0",
+        "0x101724230: adrp\tx0, #0x107f34000",
+        "0x101724234: add\tx0, x0, #0x7d8",
+        "0x101724238: adr\tx1, #0x1017250fc",
+        "0x10172423c: nop\t",
+        "0x101724240: adrp\tx3, #0x106764000"
+      ],
+      "WhatsApp(3) -[_TtC15WADebugMenuMain17DebugMenuProvider(WADebugMenuMain) debugShortcutContainerView]": [
+        "0x101724250: stp\tx29, x30, [sp, #-0x10]!",
+        "0x101724254: bl\t#0x1003aa860",
+        "0x101724258: bl\t#0x10097cebc",
+        "0x10172425c: bl\t#0x101724230",
+        "0x101724260: bl\t#0x1004650fc",
+        "0x101724264: bl\t#0x1003adff0",
+        "0x101724268: b\t#0x104b7b0d0",
+        "0x10172426c: stp\tx29, x30, [sp, #-0x10]!",
+        "0x101724270: bl\t#0x1003ac79c",
+        "0x101724274: sub\tsp, sp, #0x20",
+        "0x101724278: mov\tx19, x20",
+        "0x10172427c: bl\t#0x1005eda8c"
+      ],
+      "WhatsApp(3) -[_TtC15WADebugMenuMain17DebugMenuProvider(WADebugMenuMain) presentDebugControllerIfNeeded]": [
+        "0x101724388: stp\tx29, x30, [sp, #-0x10]!",
+        "0x10172438c: bl\t#0x1003aa860",
+        "0x101724390: bl\t#0x10046eb90",
+        "0x101724394: bl\t#0x10172426c",
+        "0x101724398: bl\t#0x1003adff0",
+        "0x10172439c: b\t#0x104b7bc40",
+        "0x1017243a0: stp\tx29, x30, [sp, #-0x10]!",
+        "0x1017243a4: bl\t#0x1003aa838",
+        "0x1017243a8: bl\t#0x1003e62b8",
+        "0x1017243ac: bl\t#0x104b7b034",
+        "0x1017243b0: bl\t#0x1003e6c18",
+        "0x1017243b4: bl\t#0x1017243bc"
+      ],
+      "WhatsApp(3) -[WAContextMain(WADependencyProviderMain3) isVerifiedChannelFeatureFlagEnabled]": [
+        "0x101a93d5c: stp\tx29, x30, [sp, #-0x10]!",
+        "0x101a93d60: bl\t#0x1003aa860",
+        "0x101a93d64: bl\t#0x1003b27dc",
+        "0x101a93d68: bl\t#0x101a93d0c",
+        "0x101a93d6c: bl\t#0x1003aa9e0",
+        "0x101a93d70: b\t#0x10046d644",
+        "0x101a93d74: adrp\tx0, #0x107614000",
+        "0x101a93d78: add\tx0, x0, #0xc98",
+        "0x101a93d7c: b\t#0x101a93d80",
+        "0x101a93d80: stp\tx29, x30, [sp, #-0x10]!",
+        "0x101a93d84: bl\t#0x1003aa818",
+        "0x101a93d88: bl\t#0x101a940b4"
+      ],
+      "WhatsApp(3) -[<bind:0x8010000000000141 _OBJC_CLASS_$_WAContext @rpath/SharedModules.framework/SharedModules>(WADebugMenuBase) resolveDebugMenuProviding]": [
+        "0x101bf78b0: stp\tx29, x30, [sp, #-0x10]!",
+        "0x101bf78b4: bl\t#0x1003aa860",
+        "0x101bf78b8: bl\t#0x1003b27dc",
+        "0x101bf78bc: bl\t#0x101bf7884",
+        "0x101bf78c0: bl\t#0x1003aa9e0",
+        "0x101bf78c4: bl\t#0x1003ad7b0",
+        "0x101bf78c8: b\t#0x104b7b0d0",
+        "0x101bf78cc: adrp\tx2, #0x107617000",
+        "0x101bf78d0: add\tx2, x2, #0xe38",
+        "0x101bf78d4: b\t#0x1005f6db0",
+        "0x101bf78d8: adrp\tx0, #0x107617000",
+        "0x101bf78dc: add\tx0, x0, #0xe38"
+      ],
+      "WhatsApp(3) -[<bind:0x8010000000000141 _OBJC_CLASS_$_WAContext @rpath/SharedModules.framework/SharedModules>(WADebugMenuBase1) debugMenuProvider]": [
+        "0x101bf78cc: adrp\tx2, #0x107617000",
+        "0x101bf78d0: add\tx2, x2, #0xe38",
+        "0x101bf78d4: b\t#0x1005f6db0",
+        "0x101bf78d8: adrp\tx0, #0x107617000",
+        "0x101bf78dc: add\tx0, x0, #0xe38",
+        "0x101bf78e0: b\t#0x1005f6de0",
+        "0x101bf78e4: stp\tx29, x30, [sp, #-0x10]!",
+        "0x101bf78e8: bl\t#0x1003aa838",
+        "0x101bf78ec: bl\t#0x1003e62b8",
+        "0x101bf78f0: bl\t#0x104b7b034",
+        "0x101bf78f4: bl\t#0x1003e6c18",
+        "0x101bf78f8: bl\t#0x101bf7900"
+      ]
+    }
+  },
+  {
+    "file": "SharedModules(7)",
+    "base": "0x0",
+    "class_count": 9283,
+    "category_count": 4706,
+    "classes": {
+      "WAContextMain": false,
+      "WASettingsViewController": false,
+      "WASettingsNavigationController": false,
+      "WADebugViewController": false,
+      "_TtC15WADebugMenuMain17DebugMenuProvider": false,
+      "WAFeatureControlGateKeeper": false,
+      "WAServerProperties": true,
+      "WAABProperties": true,
+      "FOAWAABPropertiesImpl": true,
+      "WAAuraGating": true,
+      "WACustomBehaviorsTableView": true,
+      "MobileConfigGating": true
+    },
+    "base_hits": [
+      {
+        "class": "_TtC6Lottie15AnimatedControl",
+        "kind": "-",
+        "selector": "isEnabled",
+        "imp": "0x10a940"
+      },
+      {
+        "class": "MediaAddMoreFilesystemHandler",
+        "kind": "-",
+        "selector": "isEnabled",
+        "imp": "0x286b9c"
+      },
+      {
+        "class": "MediaAddMoreHandler",
+        "kind": "-",
+        "selector": "isEnabled",
+        "imp": "0x4a97ac"
+      },
+      {
+        "class": "WAServerProperties",
+        "kind": "+",
+        "selector": "isInternalUser",
+        "imp": "0x2de968"
+      },
+      {
+        "class": "WAChatLockConfigurationState",
+        "kind": "-",
+        "selector": "isEnabled",
+        "imp": "0x52beac"
+      },
+      {
+        "class": "WAChatLockConfiguration",
+        "kind": "-",
+        "selector": "isEnabled",
+        "imp": "0x52c98c"
+      },
+      {
+        "class": "WAPAAPinConfiguration",
+        "kind": "-",
+        "selector": "isEnabled",
+        "imp": "0x52e7d8"
+      },
+      {
+        "class": "_TtC15UILibraryShared15WAPrimaryButton",
+        "kind": "-",
+        "selector": "isEnabled",
+        "imp": "0xf5a28c"
+      },
+      {
+        "class": "_TtC13WAChatStorage34ChatSessionMigrationBackgroundTask",
+        "kind": "-",
+        "selector": "isEnabled",
+        "imp": "0xf97f2c"
+      },
+      {
+        "class": "FOAWAABPropertiesImpl",
+        "kind": "-",
+        "selector": "stringForKey:defaultValue:",
+        "imp": "0xff938c"
+      },
+      {
+        "class": "FOAWAABPropertiesImpl",
+        "kind": "-",
+        "selector": "boolForKey:defaultValue:",
+        "imp": "0xff93f4"
+      },
+      {
+        "class": "FOAWAABPropertiesImpl",
+        "kind": "-",
+        "selector": "integerForKey:defaultValue:",
+        "imp": "0xff9454"
+      },
+      {
+        "class": "FOAWAABPropertiesImpl",
+        "kind": "-",
+        "selector": "doubleForKey:defaultValue:",
+        "imp": "0xff94bc"
+      },
+      {
+        "class": "_TtC22IGAdaptivePresentation22IGAdaptivePresentation",
+        "kind": "+",
+        "selector": "isEnabled",
+        "imp": "0x14bade8"
+      },
+      {
+        "class": "WAAuraGating",
+        "kind": "-",
+        "selector": "isEnabled",
+        "imp": "0x16eb234"
+      },
+      {
+        "class": "WAAuraGating",
+        "kind": "-",
+        "selector": "isUserEligible",
+        "imp": "0x16eb260"
+      },
+      {
+        "class": "WAAuraGating",
+        "kind": "-",
+        "selector": "isSettingsRowEnabled",
+        "imp": "0x16eb28c"
+      },
+      {
+        "class": "WAAuraGating",
+        "kind": "-",
+        "selector": "isKillSwitchActive",
+        "imp": "0x16eb2e4"
+      },
+      {
+        "class": "WDSActionTileConfiguration",
+        "kind": "-",
+        "selector": "isEnabled",
+        "imp": "0x176c538"
+      },
+      {
+        "class": "WDSControlConfiguration",
+        "kind": "-",
+        "selector": "isEnabled",
+        "imp": "0x17772ec"
+      },
+      {
+        "class": "WDSActionConfiguration",
+        "kind": "-",
+        "selector": "isEnabled",
+        "imp": "0x17780a4"
+      },
+      {
+        "class": "WDSBarButton",
+        "kind": "-",
+        "selector": "isEnabled",
+        "imp": "0x177f6bc"
+      },
+      {
+        "class": "WDSButton",
+        "kind": "-",
+        "selector": "isEnabled",
+        "imp": "0x178344c"
+      },
+      {
+        "class": "_TtCC3WDS9WDSButton12NativeButton",
+        "kind": "-",
+        "selector": "isEnabled",
+        "imp": "0xf5a28c"
+      },
+      {
+        "class": "WDSIconButton",
+        "kind": "-",
+        "selector": "isEnabled",
+        "imp": "0x178d348"
+      },
+      {
+        "class": "_TtCC3WDS10IconButton12NativeButton",
+        "kind": "-",
+        "selector": "isEnabled",
+        "imp": "0xf5a28c"
+      },
+      {
+        "class": "WDSActionListItemConfiguration",
+        "kind": "-",
+        "selector": "isEnabled",
+        "imp": "0x17ec90c"
+      },
+      {
+        "class": "WDSSettingsListItemConfiguration",
+        "kind": "-",
+        "selector": "isEnabled",
+        "imp": "0x1805058"
+      },
+      {
+        "class": "WDSBarButtonItem",
+        "kind": "-",
+        "selector": "isEnabled",
+        "imp": "0x177f6bc"
+      },
+      {
+        "class": "WACanonicalUserManagerDailyTask",
+        "kind": "-",
+        "selector": "isEnabled",
+        "imp": "0x1ea0848"
+      }
+    ],
+    "category_hits": [
+      {
+        "class": "WAABProperties",
+        "category": "DeprecatedABProps",
+        "kind": "-",
+        "selector": "isMetaEmployeeOrInternalTester",
+        "imp": "0x2e05fc"
+      },
+      {
+        "class": "WAPropertiesStore",
+        "category": "WAPropertiesShared",
+        "kind": "-",
+        "selector": "stringForKey:defaultValue:",
+        "imp": "0x520b30"
+      },
+      {
+        "class": "WAPropertiesStore",
+        "category": "WAPropertiesShared",
+        "kind": "-",
+        "selector": "boolForKey:defaultValue:",
+        "imp": "0x520c9c"
+      },
+      {
+        "class": "WAPropertiesStore",
+        "category": "WAPropertiesShared",
+        "kind": "-",
+        "selector": "integerForKey:defaultValue:",
+        "imp": "0x520e00"
+      },
+      {
+        "class": "WAPropertiesStore",
+        "category": "WAPropertiesShared",
+        "kind": "-",
+        "selector": "doubleForKey:defaultValue:",
+        "imp": "0x520ef4"
+      }
+    ],
+    "target_category_methods": [],
+    "disassembly": {
+      "SharedModules(7) -[_TtC6Lottie15AnimatedControl isEnabled]": [
+        "0x10a940: stp\tx29, x30, [sp, #-0x10]!",
+        "0x10a944: bl\t#0x679dc",
+        "0x10a948: bl\t#0x132b80",
+        "0x10a94c: bl\t#0x10a958",
+        "0x10a950: bl\t#0x67b1c",
+        "0x10a954: b\t#0x132b60",
+        "0x10a958: adrp\tx0, #0x38f7000",
+        "0x10a95c: add\tx0, x0, #0x548",
+        "0x10a960: b\t#0x10aa18",
+        "0x10a964: stp\tx29, x30, [sp, #-0x10]!"
+      ],
+      "SharedModules(7) -[MediaAddMoreFilesystemHandler isEnabled]": [
+        "0x286b9c: stp\tx29, x30, [sp, #-0x10]!",
+        "0x286ba0: bl\t#0x679dc",
+        "0x286ba4: bl\t#0x132b80",
+        "0x286ba8: bl\t#0x286b74",
+        "0x286bac: bl\t#0x67b1c",
+        "0x286bb0: b\t#0x132b60",
+        "0x286bb4: stp\tx29, x30, [sp, #-0x10]!",
+        "0x286bb8: bl\t#0x6d930",
+        "0x286bbc: sub\tsp, sp, #0x10",
+        "0x286bc0: bl\t#0x286dc8"
+      ],
+      "SharedModules(7) -[MediaAddMoreHandler isEnabled]": [
+        "0x4a97ac: b\t#0x18ef100",
+        "0x4a97b0: stp\tx29, x30, [sp, #-0x10]!",
+        "0x4a97b4: bl\t#0x679f8",
+        "0x4a97b8: sub\tsp, sp, #0x50",
+        "0x4a97bc: mov\tx19, x0",
+        "0x4a97c0: add\tx0, x0, #0x40",
+        "0x4a97c4: bl\t#0x12b684",
+        "0x4a97c8: ldp\tx8, x19, [x19, #0x40]",
+        "0x4a97cc: stp\tx8, x19, [sp, #0x28]",
+        "0x4a97d0: bl\t#0x12d3fc"
+      ],
+      "SharedModules(7) +[WAServerProperties isInternalUser]": [
+        "0x2de968: stp\tx29, x30, [sp, #-0x10]!",
+        "0x2de96c: mov\tx29, sp",
+        "0x2de970: bl\t#0x2de978",
+        "0x2de974: b\t#0x1334b4",
+        "0x2de978: stp\tx29, x30, [sp, #-0x10]!",
+        "0x2de97c: bl\t#0x679dc",
+        "0x2de980: bl\t#0x2e3688",
+        "0x2de984: cbz\tx0, #0x2de9a0",
+        "0x2de988: mov\tx19, x0",
+        "0x2de98c: adrp\tx8, #0x38fa000"
+      ],
+      "SharedModules(7) -[WAChatLockConfigurationState isEnabled]": [
+        "0x52beac: adrp\tx2, #0x3bd2000",
+        "0x52beb0: add\tx2, x2, #8",
+        "0x52beb4: b\t#0x29e9c8",
+        "0x52beb8: adrp\tx0, #0x3bd2000",
+        "0x52bebc: add\tx0, x0, #8",
+        "0x52bec0: b\t#0x12d65c",
+        "0x52bec4: adrp\tx2, #0x3bd2000",
+        "0x52bec8: add\tx2, x2, #0x10",
+        "0x52becc: b\t#0x29e9c8",
+        "0x52bed0: adrp\tx0, #0x3bd2000"
+      ],
+      "SharedModules(7) -[WAChatLockConfiguration isEnabled]": [
+        "0x52c98c: stp\tx29, x30, [sp, #-0x10]!",
+        "0x52c990: bl\t#0x679dc",
+        "0x52c994: mov\tx20, x0",
+        "0x52c998: bl\t#0x52c9a0",
+        "0x52c99c: b\t#0x132c60",
+        "0x52c9a0: adrp\tx0, #0x3bd2000",
+        "0x52c9a4: add\tx0, x0, #0x30",
+        "0x52c9a8: b\t#0x100008",
+        "0x52c9ac: stp\tx29, x30, [sp, #-0x10]!",
+        "0x52c9b0: bl\t#0x679dc"
+      ],
+      "SharedModules(7) -[WAPAAPinConfiguration isEnabled]": [
+        "0x52e7d8: stp\tx29, x30, [sp, #-0x10]!",
+        "0x52e7dc: bl\t#0x679dc",
+        "0x52e7e0: bl\t#0x132b80",
+        "0x52e7e4: bl\t#0x52e7f0",
+        "0x52e7e8: bl\t#0x67b1c",
+        "0x52e7ec: b\t#0x132b60",
+        "0x52e7f0: adrp\tx0, #0x3ce5000",
+        "0x52e7f4: add\tx0, x0, #0xc30",
+        "0x52e7f8: adrp\tx1, #0x38fc000",
+        "0x52e7fc: add\tx1, x1, #0x748"
+      ],
+      "SharedModules(7) -[_TtC15UILibraryShared15WAPrimaryButton isEnabled]": [
+        "0xf5a28c: stp\tx29, x30, [sp, #-0x10]!",
+        "0xf5a290: bl\t#0x679dc",
+        "0xf5a294: bl\t#0x132b80",
+        "0xf5a298: bl\t#0xf5a2a4",
+        "0xf5a29c: bl\t#0x67b1c",
+        "0xf5a2a0: b\t#0x132b60",
+        "0xf5a2a4: adrp\tx0, #0x38f7000",
+        "0xf5a2a8: add\tx0, x0, #0x548",
+        "0xf5a2ac: b\t#0x1d9f8c",
+        "0xf5a2b0: stp\tx29, x30, [sp, #-0x10]!"
+      ],
+      "SharedModules(7) -[_TtC13WAChatStorage34ChatSessionMigrationBackgroundTask isEnabled]": [
+        "0xf97f2c: stp\tx29, x30, [sp, #-0x10]!",
+        "0xf97f30: bl\t#0x6811c",
+        "0xf97f34: sub\tsp, sp, #0x210",
+        "0xf97f38: bl\t#0x67b44",
+        "0xf97f3c: bl\t#0x2053ef4",
+        "0xf97f40: adrp\tx1, #0x31ad000",
+        "0xf97f44: add\tx1, x1, #0x208",
+        "0xf97f48: add\tx8, sp, #0x120",
+        "0xf97f4c: mov\tx20, x19",
+        "0xf97f50: bl\t#0xf99e4c"
+      ],
+      "SharedModules(7) -[FOAWAABPropertiesImpl stringForKey:defaultValue:]": [
+        "0xff938c: adr\tx4, #0xff929c",
+        "0xff9390: nop\t",
+        "0xff9394: b\t#0x520ae4",
+        "0xff9398: stp\tx29, x30, [sp, #-0x10]!",
+        "0xff939c: bl\t#0x679dc",
+        "0xff93a0: sub\tsp, sp, #0x50",
+        "0xff93a4: mov\tx19, x2",
+        "0xff93a8: bl\t#0xffc048",
+        "0xff93ac: ldr\tx8, [sp, #0x28]",
+        "0xff93b0: cbz\tx8, #0xff93e8"
+      ],
+      "SharedModules(7) -[FOAWAABPropertiesImpl boolForKey:defaultValue:]": [
+        "0xff93f4: adr\tx4, #0xff9398",
+        "0xff93f8: nop\t",
+        "0xff93fc: b\t#0x520c74",
+        "0xff9400: stp\tx29, x30, [sp, #-0x10]!",
+        "0xff9404: bl\t#0x679dc",
+        "0xff9408: sub\tsp, sp, #0x50",
+        "0xff940c: mov\tx19, x2",
+        "0xff9410: bl\t#0xffc048",
+        "0xff9414: ldr\tx8, [sp, #0x28]",
+        "0xff9418: cbz\tx8, #0xff9448"
+      ],
+      "SharedModules(7) -[FOAWAABPropertiesImpl integerForKey:defaultValue:]": [
+        "0xff9454: adr\tx4, #0xff9400",
+        "0xff9458: nop\t",
+        "0xff945c: b\t#0x520dcc",
+        "0xff9460: stp\tx29, x30, [sp, #-0x10]!",
+        "0xff9464: bl\t#0x8ef1c",
+        "0xff9468: sub\tsp, sp, #0x50",
+        "0xff946c: fmov\td8, d0",
+        "0xff9470: bl\t#0xffc048",
+        "0xff9474: ldr\tx8, [sp, #0x28]",
+        "0xff9478: cbz\tx8, #0xff94ac"
+      ],
+      "SharedModules(7) -[FOAWAABPropertiesImpl doubleForKey:defaultValue:]": [
+        "0xff94bc: adr\tx3, #0xff9460",
+        "0xff94c0: nop\t",
+        "0xff94c4: b\t#0x520ec4",
+        "0xff94c8: stp\tx29, x30, [sp, #-0x10]!",
+        "0xff94cc: mov\tx29, sp",
+        "0xff94d0: adrp\tx0, #0x2b43000",
+        "0xff94d4: add\tx0, x0, #0xa40",
+        "0xff94d8: bl\t#0x13dff8",
+        "0xff94dc: brk\t#1",
+        "0xff94e0: stp\tx29, x30, [sp, #-0x10]!"
+      ],
+      "SharedModules(7) +[_TtC22IGAdaptivePresentation22IGAdaptivePresentation isEnabled]": [
+        "0x14bade8: stp\tx29, x30, [sp, #-0x10]!",
+        "0x14badec: mov\tx29, sp",
+        "0x14badf0: bl\t#0x14badbc",
+        "0x14badf4: b\t#0x1334b4",
+        "0x14badf8: mov\tx8, #0x4059000000000000",
+        "0x14badfc: b\t#0x2446e4",
+        "0x14bae00: stp\tx29, x30, [sp, #-0x10]!",
+        "0x14bae04: bl\t#0x679f8",
+        "0x14bae08: bl\t#0x7c250",
+        "0x14bae0c: bl\t#0x14bf160"
+      ],
+      "SharedModules(7) -[WAAuraGating isEnabled]": [
+        "0x16eb234: stp\tx29, x30, [sp, #-0x10]!",
+        "0x16eb238: bl\t#0x679dc",
+        "0x16eb23c: bl\t#0x132b80",
+        "0x16eb240: bl\t#0x16eb24c",
+        "0x16eb244: bl\t#0x67b1c",
+        "0x16eb248: b\t#0x132b60",
+        "0x16eb24c: adrp\tx0, #0x38f7000",
+        "0x16eb250: add\tx0, x0, #0xb40",
+        "0x16eb254: adrp\tx1, #0x3912000",
+        "0x16eb258: add\tx1, x1, #0x7d0"
+      ],
+      "SharedModules(7) -[WAAuraGating isUserEligible]": [
+        "0x16eb260: stp\tx29, x30, [sp, #-0x10]!",
+        "0x16eb264: bl\t#0x679dc",
+        "0x16eb268: bl\t#0x132b80",
+        "0x16eb26c: bl\t#0x16eb278",
+        "0x16eb270: bl\t#0x67b1c",
+        "0x16eb274: b\t#0x132b60",
+        "0x16eb278: adrp\tx0, #0x38fc000",
+        "0x16eb27c: add\tx0, x0, #0x750",
+        "0x16eb280: adrp\tx1, #0x3912000",
+        "0x16eb284: add\tx1, x1, #0x7d8"
+      ],
+      "SharedModules(7) -[WAAuraGating isSettingsRowEnabled]": [
+        "0x16eb28c: stp\tx29, x30, [sp, #-0x10]!",
+        "0x16eb290: bl\t#0x679dc",
+        "0x16eb294: bl\t#0x132b80",
+        "0x16eb298: bl\t#0x16eb2a4",
+        "0x16eb29c: bl\t#0x67b1c",
+        "0x16eb2a0: b\t#0x132b60",
+        "0x16eb2a4: adrp\tx0, #0x38f7000",
+        "0x16eb2a8: add\tx0, x0, #0xb40",
+        "0x16eb2ac: adrp\tx1, #0x3912000",
+        "0x16eb2b0: add\tx1, x1, #0x7e0"
+      ],
+      "SharedModules(7) -[WAAuraGating isKillSwitchActive]": [
+        "0x16eb2e4: stp\tx29, x30, [sp, #-0x10]!",
+        "0x16eb2e8: bl\t#0x679dc",
+        "0x16eb2ec: bl\t#0x132b80",
+        "0x16eb2f0: bl\t#0x16eb2fc",
+        "0x16eb2f4: bl\t#0x67b1c",
+        "0x16eb2f8: b\t#0x132b60",
+        "0x16eb2fc: adrp\tx0, #0x38f7000",
+        "0x16eb300: add\tx0, x0, #0xb40",
+        "0x16eb304: adrp\tx1, #0x3912000",
+        "0x16eb308: add\tx1, x1, #0x7e8"
+      ],
+      "SharedModules(7) -[WDSActionTileConfiguration isEnabled]": [
+        "0x176c538: stp\tx29, x30, [sp, #-0x10]!",
+        "0x176c53c: bl\t#0x679dc",
+        "0x176c540: mov\tx20, x0",
+        "0x176c544: bl\t#0x176c54c",
+        "0x176c548: b\t#0x132c60",
+        "0x176c54c: adrp\tx0, #0x3c6b000",
+        "0x176c550: add\tx0, x0, #0x330",
+        "0x176c554: b\t#0x100008",
+        "0x176c558: stp\tx29, x30, [sp, #-0x10]!",
+        "0x176c55c: bl\t#0x679dc"
+      ],
+      "SharedModules(7) -[WDSControlConfiguration isEnabled]": [
+        "0x17772ec: stp\tx29, x30, [sp, #-0x10]!",
+        "0x17772f0: bl\t#0x679dc",
+        "0x17772f4: mov\tx20, x0",
+        "0x17772f8: bl\t#0x1777300",
+        "0x17772fc: b\t#0x132c60",
+        "0x1777300: adrp\tx0, #0x3c6b000",
+        "0x1777304: add\tx0, x0, #0x4c8",
+        "0x1777308: b\t#0x100008",
+        "0x177730c: stp\tx29, x30, [sp, #-0x10]!",
+        "0x1777310: bl\t#0x679dc"
+      ],
+      "SharedModules(7) -[WDSActionConfiguration isEnabled]": [
+        "0x17780a4: stp\tx29, x30, [sp, #-0x10]!",
+        "0x17780a8: bl\t#0x679dc",
+        "0x17780ac: mov\tx20, x0",
+        "0x17780b0: bl\t#0x17780b8",
+        "0x17780b4: b\t#0x132c60",
+        "0x17780b8: adrp\tx0, #0x3c6b000",
+        "0x17780bc: add\tx0, x0, #0x530",
+        "0x17780c0: b\t#0x100008",
+        "0x17780c4: stp\tx29, x30, [sp, #-0x10]!",
+        "0x17780c8: bl\t#0x679dc"
+      ],
+      "SharedModules(7) -[WDSBarButton isEnabled]": [
+        "0x177f6bc: stp\tx29, x30, [sp, #-0x10]!",
+        "0x177f6c0: bl\t#0x679dc",
+        "0x177f6c4: bl\t#0x132b80",
+        "0x177f6c8: bl\t#0xf5a2a4",
+        "0x177f6cc: bl\t#0x67b1c",
+        "0x177f6d0: b\t#0x132b60",
+        "0x177f6d4: stp\tx29, x30, [sp, #-0x10]!",
+        "0x177f6d8: bl\t#0x679dc",
+        "0x177f6dc: bl\t#0x12d2a0",
+        "0x177f6e0: mov\tx0, x19"
+      ],
+      "SharedModules(7) -[WDSButton isEnabled]": [
+        "0x178344c: stp\tx29, x30, [sp, #-0x10]!",
+        "0x1783450: bl\t#0x679dc",
+        "0x1783454: bl\t#0x132b80",
+        "0x1783458: bl\t#0x1783464",
+        "0x178345c: bl\t#0x67b1c",
+        "0x1783460: b\t#0x132b60",
+        "0x1783464: mov\tx3, x30",
+        "0x1783468: bl\t#0x1868120",
+        "0x178346c: mov\tx30, x3",
+        "0x1783470: b\t#0x187458c"
+      ],
+      "SharedModules(7) -[_TtCC3WDS9WDSButton12NativeButton isEnabled]": [
+        "0xf5a28c: stp\tx29, x30, [sp, #-0x10]!",
+        "0xf5a290: bl\t#0x679dc",
+        "0xf5a294: bl\t#0x132b80",
+        "0xf5a298: bl\t#0xf5a2a4",
+        "0xf5a29c: bl\t#0x67b1c",
+        "0xf5a2a0: b\t#0x132b60",
+        "0xf5a2a4: adrp\tx0, #0x38f7000",
+        "0xf5a2a8: add\tx0, x0, #0x548",
+        "0xf5a2ac: b\t#0x1d9f8c",
+        "0xf5a2b0: stp\tx29, x30, [sp, #-0x10]!"
+      ],
+      "SharedModules(7) -[WDSIconButton isEnabled]": [
+        "0x178d348: stp\tx29, x30, [sp, #-0x10]!",
+        "0x178d34c: bl\t#0x679dc",
+        "0x178d350: bl\t#0x132b80",
+        "0x178d354: bl\t#0x178d360",
+        "0x178d358: bl\t#0x67b1c",
+        "0x178d35c: b\t#0x132b60",
+        "0x178d360: mov\tx3, x30",
+        "0x178d364: bl\t#0x1871da4",
+        "0x178d368: mov\tx30, x3",
+        "0x178d36c: b\t#0x187458c"
+      ],
+      "SharedModules(7) -[_TtCC3WDS10IconButton12NativeButton isEnabled]": [
+        "0xf5a28c: stp\tx29, x30, [sp, #-0x10]!",
+        "0xf5a290: bl\t#0x679dc",
+        "0xf5a294: bl\t#0x132b80",
+        "0xf5a298: bl\t#0xf5a2a4",
+        "0xf5a29c: bl\t#0x67b1c",
+        "0xf5a2a0: b\t#0x132b60",
+        "0xf5a2a4: adrp\tx0, #0x38f7000",
+        "0xf5a2a8: add\tx0, x0, #0x548",
+        "0xf5a2ac: b\t#0x1d9f8c",
+        "0xf5a2b0: stp\tx29, x30, [sp, #-0x10]!"
+      ],
+      "SharedModules(7) -[WDSActionListItemConfiguration isEnabled]": [
+        "0x17ec90c: stp\tx29, x30, [sp, #-0x10]!",
+        "0x17ec910: bl\t#0x679dc",
+        "0x17ec914: mov\tx20, x0",
+        "0x17ec918: bl\t#0x17ec920",
+        "0x17ec91c: b\t#0x132c60",
+        "0x17ec920: adrp\tx0, #0x3c6b000",
+        "0x17ec924: add\tx0, x0, #0xb78",
+        "0x17ec928: b\t#0x100008",
+        "0x17ec92c: stp\tx29, x30, [sp, #-0x10]!",
+        "0x17ec930: bl\t#0x679dc"
+      ],
+      "SharedModules(7) -[WDSSettingsListItemConfiguration isEnabled]": [
+        "0x1805058: stp\tx29, x30, [sp, #-0x10]!",
+        "0x180505c: bl\t#0x679dc",
+        "0x1805060: mov\tx20, x0",
+        "0x1805064: bl\t#0x180506c",
+        "0x1805068: b\t#0x132c60",
+        "0x180506c: adrp\tx0, #0x3c6c000",
+        "0x1805070: add\tx0, x0, #0x170",
+        "0x1805074: b\t#0x100008",
+        "0x1805078: stp\tx29, x30, [sp, #-0x10]!",
+        "0x180507c: bl\t#0x679dc"
+      ],
+      "SharedModules(7) -[WDSBarButtonItem isEnabled]": [
+        "0x177f6bc: stp\tx29, x30, [sp, #-0x10]!",
+        "0x177f6c0: bl\t#0x679dc",
+        "0x177f6c4: bl\t#0x132b80",
+        "0x177f6c8: bl\t#0xf5a2a4",
+        "0x177f6cc: bl\t#0x67b1c",
+        "0x177f6d0: b\t#0x132b60",
+        "0x177f6d4: stp\tx29, x30, [sp, #-0x10]!",
+        "0x177f6d8: bl\t#0x679dc",
+        "0x177f6dc: bl\t#0x12d2a0",
+        "0x177f6e0: mov\tx0, x19"
+      ],
+      "SharedModules(7) -[WACanonicalUserManagerDailyTask isEnabled]": [
+        "0x1ea0848: stp\tx29, x30, [sp, #-0x10]!",
+        "0x1ea084c: bl\t#0x679dc",
+        "0x1ea0850: bl\t#0x132b80",
+        "0x1ea0854: bl\t#0x1ea0860",
+        "0x1ea0858: bl\t#0x67b1c",
+        "0x1ea085c: b\t#0x132b60",
+        "0x1ea0860: stp\tx29, x30, [sp, #-0x10]!",
+        "0x1ea0864: bl\t#0x679f8",
+        "0x1ea0868: bl\t#0x1eab46c",
+        "0x1ea086c: ldr\tx19, [x20, x8]"
+      ],
+      "SharedModules(7) -[WAABProperties(DeprecatedABProps) isMetaEmployeeOrInternalTester]": [
+        "0x2e05fc: stp\tx29, x30, [sp, #-0x10]!",
+        "0x2e0600: bl\t#0x679dc",
+        "0x2e0604: bl\t#0x132b80",
+        "0x2e0608: bl\t#0x2e0614",
+        "0x2e060c: bl\t#0x67b1c",
+        "0x2e0610: b\t#0x132b60",
+        "0x2e0614: stp\tx29, x30, [sp, #-0x10]!",
+        "0x2e0618: bl\t#0x679dc",
+        "0x2e061c: mov\tw0, #0x3731",
+        "0x2e0620: bl\t#0x2e3818",
+        "0x2e0624: bl\t#0x1cfe54",
+        "0x2e0628: bl\t#0x67b24"
+      ],
+      "SharedModules(7) -[WAPropertiesStore(WAPropertiesShared) stringForKey:defaultValue:]": [
+        "0x520b30: adr\tx4, #0x520ab8",
+        "0x520b34: nop\t",
+        "0x520b38: b\t#0x520ae4",
+        "0x520b3c: stp\tx29, x30, [sp, #-0x10]!",
+        "0x520b40: bl\t#0x679f8",
+        "0x520b44: bl\t#0x683b0",
+        "0x520b48: mov\tx2, x4",
+        "0x520b4c: bl\t#0x5208c4",
+        "0x520b50: cbnz\tx1, #0x520b5c",
+        "0x520b54: bl\t#0x132b20",
+        "0x520b58: b\t#0x520b60",
+        "0x520b5c: bl\t#0x133da0"
+      ],
+      "SharedModules(7) -[WAPropertiesStore(WAPropertiesShared) boolForKey:defaultValue:]": [
+        "0x520c9c: adr\tx4, #0x520c54",
+        "0x520ca0: nop\t",
+        "0x520ca4: b\t#0x520c74",
+        "0x520ca8: stp\tx29, x30, [sp, #-0x10]!",
+        "0x520cac: bl\t#0x679dc",
+        "0x520cb0: mov\tx19, x2",
+        "0x520cb4: mov\tx2, x3",
+        "0x520cb8: bl\t#0x520bc0",
+        "0x520cbc: bl\t#0x134fdc",
+        "0x520cc0: csel\tw8, w19, w8, eq",
+        "0x520cc4: b\t#0x526c5c",
+        "0x520cc8: stp\tx29, x30, [sp, #-0x10]!"
+      ],
+      "SharedModules(7) -[WAPropertiesStore(WAPropertiesShared) integerForKey:defaultValue:]": [
+        "0x520e00: adr\tx4, #0x520dac",
+        "0x520e04: nop\t",
+        "0x520e08: b\t#0x520dcc",
+        "0x520e0c: stp\tx29, x30, [sp, #-0x10]!",
+        "0x520e10: bl\t#0x679dc",
+        "0x520e14: mov\tx19, x2",
+        "0x520e18: mov\tx2, x3",
+        "0x520e1c: bl\t#0x520d0c",
+        "0x520e20: bl\t#0x133140",
+        "0x520e24: csel\tx0, x19, x0, eq",
+        "0x520e28: b\t#0x67a18",
+        "0x520e2c: stp\tx29, x30, [sp, #-0x10]!"
+      ],
+      "SharedModules(7) -[WAPropertiesStore(WAPropertiesShared) doubleForKey:defaultValue:]": [
+        "0x520ef4: adr\tx3, #0x520ea4",
+        "0x520ef8: nop\t",
+        "0x520efc: b\t#0x520ec4",
+        "0x520f00: stp\tx29, x30, [sp, #-0x10]!",
+        "0x520f04: bl\t#0x97d00",
+        "0x520f08: fmov\td8, d0",
+        "0x520f0c: bl\t#0x520e6c",
+        "0x520f10: bl\t#0x12f794",
+        "0x520f14: fcsel\td0, d8, d0, eq",
+        "0x520f18: b\t#0x97d0c",
+        "0x520f1c: stp\tx29, x30, [sp, #-0x10]!",
+        "0x520f20: bl\t#0x12941c"
+      ]
+    }
+  }
+]
