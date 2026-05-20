@@ -160,23 +160,20 @@ static NSString *WAGRSectionForEntry(WAGRSurfaceSpec *spec, WAGREntry *e) {
 - (UIView*)tableView:(UITableView*)tv viewForHeaderInSection:(NSInteger)s {
     NSString *cls=_sectionKeys[(NSUInteger)s];
     NSArray *rows=_byClass[cls];
-    NSUInteger on=0; for(WAGREntry*e in rows)if(WAGRHasOverride(e.overrideKey)&&WAGROverrideBool(e.overrideKey))on++;
-    UIView*v=[[UIView alloc]initWithFrame:CGRectMake(0,0,tv.bounds.size.width,34)];
+    NSUInteger on=0;
+    for(WAGREntry*e in rows)if(WAGRHasOverride(e.overrideKey)&&WAGROverrideBool(e.overrideKey))on++;
+    UIView*v=[[UIView alloc]initWithFrame:CGRectMake(0,0,tv.bounds.size.width,36)];
     v.backgroundColor=RBG();
-    UILabel*l=[[UILabel alloc]initWithFrame:CGRectMake(20,7,tv.bounds.size.width-80,20)];
-    l.text=cls; l.font=[UIFont boldSystemFontOfSize:12];
+    UILabel*l=[[UILabel alloc]initWithFrame:CGRectMake(20,7,MAX(10,tv.bounds.size.width-40),22)];
+    l.autoresizingMask=UIViewAutoresizingFlexibleWidth;
+    l.lineBreakMode=NSLineBreakByTruncatingTail;
+    l.text=on ? [NSString stringWithFormat:@"%@ · %lu ON", cls, (unsigned long)on] : cls;
+    l.font=[UIFont boldSystemFontOfSize:12];
     l.textColor=[UIColor colorWithWhite:.62 alpha:1];
     [v addSubview:l];
-    if(on){
-        UILabel*badge=[[UILabel alloc]initWithFrame:CGRectMake(tv.bounds.size.width-70,6,60,22)];
-        badge.text=[NSString stringWithFormat:@"%lu ON",(unsigned long)on];
-        badge.font=[UIFont boldSystemFontOfSize:11];
-        badge.textColor=RGRN(); badge.textAlignment=NSTextAlignmentRight;
-        [v addSubview:badge];
-    }
     return v;
 }
-- (CGFloat)tableView:(UITableView*)tv heightForHeaderInSection:(NSInteger)s{return 34;}
+- (CGFloat)tableView:(UITableView*)tv heightForHeaderInSection:(NSInteger)s{return 36;}
 - (WAGREntry*)entryAt:(NSIndexPath*)ip {
     NSArray*rows=_byClass[_sectionKeys[(NSUInteger)ip.section]];
     return(ip.row<(NSInteger)rows.count)?rows[(NSUInteger)ip.row]:nil;
@@ -198,7 +195,7 @@ static NSString *WAGRSectionForEntry(WAGRSurfaceSpec *spec, WAGREntry *e) {
     NSString *featureName = WAGRFeatureName(e);
     c.textLabel.text=featureName;
     c.textLabel.font=[UIFont monospacedSystemFontOfSize:12 weight:UIFontWeightRegular];
-    c.textLabel.textColor=hasOv?(effVal?RGRN():RRED()):UIColor.labelColor;
+    c.textLabel.textColor=UIColor.labelColor;
     c.textLabel.numberOfLines=0;
     c.textLabel.lineBreakMode=NSLineBreakByCharWrapping;
     c.textLabel.adjustsFontSizeToFitWidth=NO;
@@ -206,7 +203,7 @@ static NSString *WAGRSectionForEntry(WAGRSurfaceSpec *spec, WAGREntry *e) {
     NSString*pfx=e.isProperty?@"@prop":(e.isClassMethod?@"+":@"-");
     NSString *state = hasOv ? (effVal ? @"override 1" : @"override 0") : @"sys";
     c.detailTextLabel.text=[NSString stringWithFormat:@"%@ · %@", pfx, state];
-    c.detailTextLabel.textColor=hasOv?(effVal?RGRN():RRED()):RSUB();
+    c.detailTextLabel.textColor=hasOv?(effVal?RACC():RRED()):RSUB();
     c.detailTextLabel.font=[UIFont systemFontOfSize:11 weight:UIFontWeightRegular];
     c.detailTextLabel.numberOfLines=1;
 
