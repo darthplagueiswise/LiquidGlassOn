@@ -1,0 +1,163 @@
+// WAGRContextHooks.xm — hooks para WAContextMain BOOL gates que controlam
+// developer menu rows e settings rows ocultos.
+// Zero Logos. MSHookMessageEx. Startup-inert (instala só se algum gate está ON).
+// Sessão única: instala uma vez, toggle controla retorno.
+
+#import <Foundation/Foundation.h>
+#import <objc/runtime.h>
+#import <substrate.h>
+#import "../WAGramPrefix.h"
+
+// Pref keys
+#define kWAGRCtxDebugMenuEnabled   @"wagr_native_debug_menu_enabled"
+#define kWAGRCtxDebugBuild         @"wagr.ctx.isDebugBuild"
+#define kWAGRCtxDebugShortcut      @"wagr.ctx.isDebugMenuShortcutEnabled"
+#define kWAGRCtxBetaVerbose        @"wagr.ctx.isBetaOrMoreVerbose"
+#define kWAGRCtxTestFlight         @"wagr.ctx.isTestFlightApp"
+#define kWAGRCtxListsFeature       @"wagr.ctx.listsFeatureEnabled"
+#define kWAGRCtxSmbLists           @"wagr.ctx.smbListsFeatureEnabled"
+#define kWAGRCtxAvatar             @"wagr.ctx.avatarFeatureEnabled"
+#define kWAGRCtxVerifiedChannel    @"wagr.ctx.isVerifiedChannelFeatureFlagEnabled"
+
+typedef BOOL (*BoolIMP)(id, SEL);
+
+static BoolIMP orig_isDebugMenuAllowed = NULL;
+static BoolIMP orig_isDebugBuild = NULL;
+static BoolIMP orig_isDebugMenuShortcut = NULL;
+static BoolIMP orig_isBetaVerbose = NULL;
+static BoolIMP orig_isTestFlight = NULL;
+static BoolIMP orig_listsFeature = NULL;
+static BoolIMP orig_smbLists = NULL;
+static BoolIMP orig_avatar = NULL;
+static BoolIMP orig_verifiedChannel = NULL;
+
+// Generic: if pref ON return YES, else call original
+#define CTX_HOOK_IMPL(name, prefKey, origPtr) \
+static BOOL h_##name(id self, SEL _cmd) { \
+    if (WAGRPref(prefKey)) return YES; \
+    return origPtr ? origPtr(self, _cmd) : NO; \
+}
+
+CTX_HOOK_IMPL(isDebugMenuAllowed, kWAGRCtxDebugMenuEnabled, orig_isDebugMenuAllowed)
+CTX_HOOK_IMPL(isDebugBuild, kWAGRCtxDebugBuild, orig_isDebugBuild)
+CTX_HOOK_IMPL(isDebugMenuShortcut, kWAGRCtxDebugShortcut, orig_isDebugMenuShortcut)
+CTX_HOOK_IMPL(isBetaVerbose, kWAGRCtxBetaVerbose, orig_isBetaVerbose)
+CTX_HOOK_IMPL(isTestFlight, kWAGRCtxTestFlight, orig_isTestFlight)
+CTX_HOOK_IMPL(listsFeature, kWAGRCtxListsFeature, orig_listsFeature)
+CTX_HOOK_IMPL(smbLists, kWAGRCtxSmbLists, orig_smbLists)
+CTX_HOOK_IMPL(avatar, kWAGRCtxAvatar, orig_avatar)
+CTX_HOOK_IMPL(verifiedChannel, kWAGRCtxVerifiedChannel, orig_verifiedChannel)
+
+static BOOL gCtxInstalled = NO;
+static NSUInteger gCtxCount = 0;
+
+static void WAGRHookCtxSel(Class cls, BOOL meta, const char *selStr, IMP hook, BoolIMP *orig) {
+    if (!cls || !selStr || !hook || !orig) return;
+    SEL sel = sel_registerName(selStr);
+    Class target = meta ? object_getClass(cls) : cls;
+    // Only hook if this class DECLARES the method (not inherited)
+    unsigned int n=0; Method *ms=class_copyMethodList(target, &n);
+    for (unsigned int i=0;i<n;i++) {
+        if (method_getName(ms[i]) == sel) {
+            char ret[8]={0}; method_getReturnType(ms[i],ret,8);
+            if (ret[0]=='B'||ret[0]=='c') {
+                MSHookMessageEx(target, sel, hook, (IMP*)orig);
+                if (*orig) gCtxCount++;
+            }
+            break;
+        }
+    }
+    if (ms) free(ms);
+}
+
+static void WAGRCtxInstall(void) {
+    if (gCtxInstalled) return;
+
+    struct {
+        const char *className;
+        BOOL meta;
+        const char *sel;
+        IMP hook;
+        BoolIMP *orig;
+    } entries[] = {
+        // WAContextMain (Swift @objc — NSClassFromString works)
+        {"WAContextMain", NO, "isDebugMenuAllowed",        (IMP)h_isDebugMenuAllowed, &orig_isDebugMenuAllowed},
+        {"WAContextMain", NO, "isDebugBuild",              (IMP)h_isDebugBuild,        &orig_isDebugBuild},
+        {"WAContextMain", NO, "isDebugMenuShortcutEnabled",(IMP)h_isDebugMenuShortcut, &orig_isDebugMenuShortcut},
+        {"WAContextMain", NO, "isBetaOrMoreVerbose",       (IMP)h_isBetaVerbose,       &orig_isBetaVerbose},
+        {"WAContextMain", NO, "isTestFlightApp",           (IMP)h_isTestFlight,        &orig_isTestFlight},
+        {"WAContextMain", NO, "listsFeatureEnabled",       (IMP)h_listsFeature,        &orig_listsFeature},
+        {"WAContextMain", NO, "smbListsFeatureEnabled",    (IMP)h_smbLists,            &orig_smbLists},
+        {"WAContextMain", NO, "avatarFeatureEnabled",      (IMP)h_avatar,              &orig_avatar},
+        {"WAContextMain", NO, "isVerifiedChannelFeatureFlagEnabled", (IMP)h_verifiedChannel, &orig_verifiedChannel},
+        // Fallbacks: WASettingsViewController & WANewSettingsViewController for isDebugMenuAllowed
+        {"WASettingsViewController",    NO, "isDebugMenuAllowed", (IMP)h_isDebugMenuAllowed, &orig_isDebugMenuAllowed},
+        {"WANewSettingsViewController", NO, "isDebugMenuAllowed", (IMP)h_isDebugMenuAllowed, &orig_isDebugMenuAllowed},
+        // WAFeatureControlGateKeeper - isVerifiedChannelFeatureFlagEnabled
+        {"WAFeatureControlGateKeeper",  NO, "isVerifiedChannelFeatureFlagEnabled", (IMP)h_verifiedChannel, &orig_verifiedChannel},
+    };
+
+    for (size_t i=0; i<sizeof(entries)/sizeof(entries[0]); i++) {
+        Class cls = NSClassFromString(@(entries[i].className));
+        if (cls) WAGRHookCtxSel(cls, entries[i].meta, entries[i].sel, entries[i].hook, entries[i].orig);
+    }
+
+    // Broad scan for any other class declaring isDebugMenuAllowed
+    if (!orig_isDebugMenuAllowed) {
+        unsigned int total=0; Class *all=objc_copyClassList(&total);
+        if (all) {
+            SEL dbgSel = NSSelectorFromString(@"isDebugMenuAllowed");
+            for (unsigned int i=0;i<total;i++) {
+                if (orig_isDebugMenuAllowed) break;
+                WAGRHookCtxSel(all[i], NO,  "isDebugMenuAllowed", (IMP)h_isDebugMenuAllowed, &orig_isDebugMenuAllowed);
+                WAGRHookCtxSel(all[i], YES, "isDebugMenuAllowed", (IMP)h_isDebugMenuAllowed, &orig_isDebugMenuAllowed);
+                (void)dbgSel;
+            }
+            free(all);
+        }
+    }
+
+    gCtxInstalled = (gCtxCount > 0);
+    NSLog(@"[WAGram][CtxHooks] installed=%@ count=%lu",
+          gCtxInstalled?@"YES":@"NO", (unsigned long)gCtxCount);
+}
+
+static BOOL WAGRAnyCtxPrefEnabled(void) {
+    NSArray *keys = @[kWAGRCtxDebugMenuEnabled, kWAGRCtxDebugBuild, kWAGRCtxDebugShortcut,
+                      kWAGRCtxBetaVerbose, kWAGRCtxTestFlight, kWAGRCtxListsFeature,
+                      kWAGRCtxSmbLists, kWAGRCtxAvatar, kWAGRCtxVerifiedChannel];
+    for (NSString *k in keys) if (WAGRPref(k)) return YES;
+    return NO;
+}
+
+__attribute__((constructor))
+static void WAGRCtxCtor(void) {
+    @autoreleasepool {
+        // Startup-inert: only install if at least one pref is ON
+        if (!WAGRAnyCtxPrefEnabled()) {
+            NSLog(@"[WAGram][CtxHooks] inert startup");
+            return;
+        }
+        // 4-retry pattern
+        double delays[] = {0.2, 1.0, 3.0, 6.0};
+        for (int i=0;i<4;i++)
+            dispatch_after(dispatch_time(DISPATCH_TIME_NOW,(int64_t)(delays[i]*NSEC_PER_SEC)),
+                dispatch_get_main_queue(), ^{ WAGRCtxInstall(); });
+    }
+}
+
+// Called from menu when user toggles any pref
+extern "C" void WAGRContextHooksEnsureInstalled(void) { WAGRCtxInstall(); }
+extern "C" NSString *WAGRContextHooksDiagnostic(void) {
+    return [NSString stringWithFormat:
+        @"installed=%@ count=%lu\n"
+        @"debugMenuAllowed=%@ debugBuild=%@ shortcut=%@\n"
+        @"betaVerbose=%@ testFlight=%@\n"
+        @"lists=%@ smbLists=%@ avatar=%@ verifiedCh=%@",
+        gCtxInstalled?@"YES":@"NO", (unsigned long)gCtxCount,
+        orig_isDebugMenuAllowed?@"OK":@"MISS", orig_isDebugBuild?@"OK":@"MISS",
+        orig_isDebugMenuShortcut?@"OK":@"MISS", orig_isBetaVerbose?@"OK":@"MISS",
+        orig_isTestFlight?@"OK":@"MISS", orig_listsFeature?@"OK":@"MISS",
+        orig_smbLists?@"OK":@"MISS", orig_avatar?@"OK":@"MISS",
+        orig_verifiedChannel?@"OK":@"MISS"];
+}

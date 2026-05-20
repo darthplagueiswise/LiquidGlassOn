@@ -1,0 +1,176 @@
+// WAGRObjCHookRouter.xm — Zero Logos. MSHookMessageEx only.
+// FIX: class hierarchy lookup so subclass instances get the right overrideKey.
+// Key: hookID = "DeclaredClass.inst/class.selector" — always the INSTALLING class.
+
+#import <Foundation/Foundation.h>
+#import <objc/runtime.h>
+#import <substrate.h>
+#import "../WAGramPrefix.h"
+#import "../Runtime/WAGRSurface.h"
+
+static NSMutableDictionary<NSString*,NSValue*>  *gOriginals  = nil;
+// Maps hookID → overrideKey. hookID uses the INSTALLING class name.
+static NSMutableDictionary<NSString*,NSString*> *gKeyMap     = nil;
+// Maps SEL name → NSArray of hookIDs for that selector (for hierarchy lookup).
+static NSMutableDictionary<NSString*,NSArray*>  *gSelToHooks = nil;
+static NSMutableSet<NSString*>                  *gInstalled  = nil;
+static dispatch_once_t gOnce;
+
+static void WAGRHookEnsureStorage(void) {
+    dispatch_once(&gOnce, ^{
+        gOriginals   = [NSMutableDictionary dictionaryWithCapacity:256];
+        gKeyMap      = [NSMutableDictionary dictionaryWithCapacity:256];
+        gSelToHooks  = [NSMutableDictionary dictionaryWithCapacity:256];
+        gInstalled   = [NSMutableSet setWithCapacity:64];
+    });
+}
+
+// Resolve overrideKey: try exact class, then walk superclass chain.
+static NSString *WAGRResolveOverrideKey(NSString *cname, BOOL isMeta, NSString *sel) {
+    // 1. Exact match
+    NSString *hookID = [NSString stringWithFormat:@"%@.%@.%@", cname, isMeta?@"class":@"inst", sel];
+    NSString *key = gKeyMap[hookID];
+    if (key) return key;
+
+    // 2. Walk superclass chain
+    Class cls = NSClassFromString(cname);
+    if (cls) {
+        Class probe = isMeta ? object_getClass(cls) : cls;
+        while ((probe = class_getSuperclass(probe)) != nil) {
+            NSString *pname = NSStringFromClass(isMeta ? probe : probe);
+            // For metaclass walk: we want the regular class name
+            if (isMeta) {
+                // probe is a metaclass; get its non-meta name
+                // Metaclass's superclass is also a metaclass; we need to extract the regular name
+                // Simplest: just iterate gSelToHooks for this selector
+            }
+            NSString *pid = [NSString stringWithFormat:@"%@.%@.%@", pname, isMeta?@"class":@"inst", sel];
+            key = gKeyMap[pid];
+            if (key) return key;
+            if (probe == NSObject.class || probe == nil) break;
+        }
+    }
+
+    // 3. Fallback: search all hookIDs for this selector (catches any naming mismatch)
+    NSArray *candidates = gSelToHooks[sel];
+    NSString *suffix = [NSString stringWithFormat:@".%@.%@", isMeta?@"class":@"inst", sel];
+    for (NSString *hid in candidates) {
+        if ([hid hasSuffix:suffix]) {
+            key = gKeyMap[hid];
+            if (key) return key;
+        }
+    }
+    return nil;
+}
+
+static BOOL WAGRGenericBoolHook(id self, SEL _cmd) {
+    WAGRHookEnsureStorage();
+    BOOL isMeta = class_isMetaClass(object_getClass(self));
+    NSString *cname = isMeta ? NSStringFromClass((Class)self) : NSStringFromClass([self class]);
+    NSString *sel   = NSStringFromSelector(_cmd);
+
+    NSString *hookID     = [NSString stringWithFormat:@"%@.%@.%@", cname, isMeta?@"class":@"inst", sel];
+    NSString *overrideKey = WAGRResolveOverrideKey(cname, isMeta, sel);
+
+    typedef BOOL (*BoolIMP)(id, SEL);
+    BoolIMP orig = NULL;
+    NSValue *v = gOriginals[hookID];
+    if (!v) {
+        // Try any stored original for this selector (subclass may share IMP)
+        NSArray *candidates = gSelToHooks[sel];
+        for (NSString *hid in candidates) {
+            v = gOriginals[hid];
+            if (v) break;
+        }
+    }
+    if (v) orig = reinterpret_cast<BoolIMP>([v pointerValue]);
+    BOOL original = orig ? orig(self, _cmd) : NO;
+
+    if (overrideKey) WAGRRecordObserved(overrideKey, original);
+    if (overrideKey && WAGRHasOverride(overrideKey)) return WAGROverrideBool(overrideKey);
+    return original;
+}
+
+extern "C" BOOL WAGRInstallHookForEntry(WAGREntry *e) {
+    WAGRHookEnsureStorage();
+    if (!e.className.length || !e.selectorName.length) return NO;
+
+    NSString *hookID = [NSString stringWithFormat:@"%@.%@.%@",
+                        e.className, e.isClassMethod?@"class":@"inst", e.selectorName];
+
+    if ([gInstalled containsObject:hookID]) {
+        // Already hooked — update key map in case overrideKey changed
+        gKeyMap[hookID] = e.overrideKey;
+        return YES;
+    }
+
+    Class cls = NSClassFromString(e.className);
+    if (!cls) return NO;
+    SEL sel = NSSelectorFromString(e.selectorName);
+    if (!sel) return NO;
+    Class target = e.isClassMethod ? object_getClass(cls) : cls;
+    Method m = e.isClassMethod ? class_getClassMethod(cls, sel) : class_getInstanceMethod(cls, sel);
+    if (!m) return NO;
+    char ret[8]={0}; method_getReturnType(m, ret, 8);
+    if (ret[0]!='B' && ret[0]!='c') return NO;
+
+    IMP orig = NULL;
+    MSHookMessageEx(target, sel, (IMP)WAGRGenericBoolHook, &orig);
+    if (!orig) return NO;
+
+    gOriginals[hookID] = [NSValue valueWithPointer:reinterpret_cast<const void *>(orig)];
+    gKeyMap[hookID]    = e.overrideKey;
+
+    // Register in sel→hooks index for hierarchy lookup
+    NSMutableArray *arr = [NSMutableArray arrayWithArray:gSelToHooks[e.selectorName] ?: @[]];
+    [arr addObject:hookID];
+    gSelToHooks[e.selectorName] = arr.copy;
+
+    [gInstalled addObject:hookID];
+    NSLog(@"[WAGram][Router] hooked %@[%@ %@]",
+          e.isClassMethod?@"+":@"-", e.className, e.selectorName);
+    return YES;
+}
+
+extern "C" NSUInteger WAGRReinstallPersistedHooks(void) {
+    WAGRHookEnsureStorage();
+    NSDictionary *all = [[NSUserDefaults standardUserDefaults] dictionaryRepresentation];
+    NSUInteger installed = 0;
+    for (NSString *key in all) {
+        if (![key hasPrefix:@"wagr.override"]) continue;
+        // Parse pipe-separated: wagr.override|surfaceID|className|inst/class|selector
+        if (![key hasPrefix:@"wagr.override|"]) continue;
+        NSArray<NSString*>*p=[key componentsSeparatedByString:@"|"];
+        if (p.count < 5) continue;
+        NSString *surfaceID = p[1];
+        NSString *className = p[2];
+        BOOL isMeta = [p[3] isEqualToString:@"class"];
+        NSString *selName = [[p subarrayWithRange:NSMakeRange(4,p.count-4)] componentsJoinedByString:@"|"];
+        if (!className.length || !selName.length) continue;
+        WAGREntry *e = [WAGREntry new];
+        e.surfaceID    = surfaceID ?: @"runtime";
+        e.className    = className;
+        e.isClassMethod= isMeta;
+        e.selectorName = selName;
+        e.displayName  = selName;
+        e.category     = WAGRCategoryForSelector(selName);
+        e.returnType   = @"BOOL";
+        e.overrideKey  = key;
+        if (WAGRInstallHookForEntry(e)) installed++;
+    }
+    NSLog(@"[WAGram][Router] reinstalled %lu persisted hooks", (unsigned long)installed);
+    return installed;
+}
+
+extern "C" NSUInteger WAGRInstalledHookCount(void) {
+    WAGRHookEnsureStorage();
+    return gInstalled.count;
+}
+extern "C" NSString *WAGRHookRouterDiagnostic(void) {
+    WAGRHookEnsureStorage();
+    NSUInteger overrides=0;
+    for(NSString*k in [[NSUserDefaults standardUserDefaults]dictionaryRepresentation])
+        if([k hasPrefix:@"wagr.override|"])overrides++;
+    return [NSString stringWithFormat:@"installed=%lu active_overrides=%lu",
+        (unsigned long)gInstalled.count, (unsigned long)overrides];
+}
