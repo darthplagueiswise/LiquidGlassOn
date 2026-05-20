@@ -11,7 +11,7 @@ extern "C" void WAGRDogfoodEnsureHooksInstalled(void) {
 }
 
 extern "C" NSString *WAGRDogfoodDiagnosticText(void) {
-    NSString *native = WAGRNativeDeveloperDiagnostic ? WAGRNativeDeveloperDiagnostic() : @"native developer unavailable";
-    NSString *core = WAGRSharedModulesCoreDiagnostic ? WAGRSharedModulesCoreDiagnostic() : @"shared core unavailable";
-    return [NSString stringWithFormat:@"%@\n%@", native, core];
+    NSString *native = WAGRNativeDeveloperDiagnostic();
+    NSString *core = WAGRSharedModulesCoreDiagnostic();
+    return [NSString stringWithFormat:@"%@\n%@", native ?: @"native developer unavailable", core ?: @"shared core unavailable"];
 }
