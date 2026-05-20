@@ -1,4 +1,4 @@
-// WAGRSurfaceListVC.m — RyukGram-style WAGram root menu.
+// WAGRSurfaceListVC.m — RyukGram-style WATweaks root menu.
 // Long-press activation is kept in Tweak.x. This file only changes the UI hierarchy:
 // feature bundles first, raw runtime browser only under Avançado.
 
@@ -12,11 +12,8 @@
 #import "../Runtime/WAGRSurface.h"
 
 extern void WAGRWAABEnsureHooksInstalled(void);
-static UIColor *WAGRBG(void)     { return UIColor.systemGroupedBackgroundColor; }
-static UIColor *WAGRCell(void)   { return UIColor.secondarySystemGroupedBackgroundColor; }
 static UIColor *WAGRText(void)   { return UIColor.labelColor; }
 static UIColor *WAGRSub(void)    { return UIColor.secondaryLabelColor; }
-static UIColor *WAGRBlue(void)   { return UIColor.systemBlueColor; }
 static UIColor *WAGRRed(void)    { return UIColor.systemRedColor; }
 
 static UIViewController *WAGRTopController(void) {
@@ -47,7 +44,7 @@ static UIViewController *WAGRTopController(void) {
 
 static void WAGRAlert(NSString *title, NSString *message) {
     dispatch_async(dispatch_get_main_queue(), ^{
-        UIAlertController *a = [UIAlertController alertControllerWithTitle:title ?: @"WAGram"
+        UIAlertController *a = [UIAlertController alertControllerWithTitle:title ?: @"WATweaks"
                                                                    message:message ?: @""
                                                             preferredStyle:UIAlertControllerStyleAlert];
         [a addAction:[UIAlertAction actionWithTitle:@"Copiar" style:UIAlertActionStyleDefault handler:^(__unused id _) {
@@ -131,7 +128,7 @@ typedef NS_ENUM(NSInteger, WAGRAdvancedRow) {
 typedef NS_ENUM(NSInteger, WAGRSystemRow) {
     WAGRSystemRowRestart = 0,
     WAGRSystemRowResetOverrides,
-    WAGRSystemRowResetWAGramPrefs,
+    WAGRSystemRowResetWATweaksPrefs,
 };
 
 @interface WAGRSurfaceListVC () <UISearchResultsUpdating>
@@ -144,7 +141,7 @@ typedef NS_ENUM(NSInteger, WAGRSystemRow) {
 
 - (instancetype)init {
     if (!(self = [super initWithStyle:UITableViewStyleInsetGrouped])) return nil;
-    self.title = @"WAGram";
+    self.title = @"WATweaks";
     _bundles = [WAGRSurfaceSpec featureBundles];
     _filteredBundles = _bundles;
     return self;
@@ -220,7 +217,7 @@ typedef NS_ENUM(NSInteger, WAGRSystemRow) {
 - (UITableViewCell *)aboutCell {
     UITableViewCell *c = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleSubtitle reuseIdentifier:nil];
     c.backgroundColor = [UIColor colorWithRed:.13 green:.13 blue:.14 alpha:1];
-    c.textLabel.text = @"WAGram";
+    c.textLabel.text = @"WATweaks";
     c.textLabel.textColor = WAGRText();
     c.detailTextLabel.text = @"Runtime router · MSHookMessageEx · UI compacta";
     c.detailTextLabel.textColor = WAGRSub();
@@ -247,7 +244,7 @@ typedef NS_ENUM(NSInteger, WAGRSystemRow) {
 
 - (UITableViewCell *)advancedCellForRow:(NSInteger)row {
     NSString *titles[] = { @"Runtime Browser Avançado", @"Instalar hooks salvos", @"Diagnóstico" };
-    NSString *subs[] = { @"WAABProperties, WAContextMain, WAAuraGating etc.", @"Reinstala overrides persistidos", @"Router, LiquidGlass, Dogfood, Keychain" };
+    NSString *subs[] = { @"WAABProperties, WAContextMain, WAAuraGating etc.", @"Reinstala overrides persistidos", @"Router, LiquidGlass, Developer, Keychain" };
     NSString *icons[] = { @"terminal", @"arrow.triangle.2.circlepath", @"doc.text.magnifyingglass" };
 
     UITableViewCell *c = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleSubtitle reuseIdentifier:nil];
@@ -263,8 +260,8 @@ typedef NS_ENUM(NSInteger, WAGRSystemRow) {
 }
 
 - (UITableViewCell *)systemCellForRow:(NSInteger)row {
-    NSString *titles[] = { @"Reiniciar WhatsApp", @"Reset overrides", @"Reset WAGram prefs" };
-    NSString *subs[] = { @"Fecha o app", @"Remove wagr.override.* e wagr.observed.*", @"Remove preferências wagr*/wa* do tweak" };
+    NSString *titles[] = { @"Reiniciar WhatsApp", @"Reset overrides", @"Reset WATweaks prefs" };
+    NSString *subs[] = { @"Fecha o app", @"Remove apenas overrides por feature", @"Remove todas as preferências da tweak" };
     NSString *icons[] = { @"power", @"arrow.counterclockwise", @"trash" };
 
     UITableViewCell *c = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleSubtitle reuseIdentifier:nil];
@@ -292,7 +289,7 @@ typedef NS_ENUM(NSInteger, WAGRSystemRow) {
     NSString *msg = [NSString stringWithFormat:@"%@\n\n%@\n\n%@\n\nKeychain=%@",
                      WAGRHookRouterDiagnostic() ?: @"Router n/a",
                      WAGRLGDiagnosticText() ?: @"LiquidGlass n/a",
-                     WAGRDogfoodDiagnosticText() ?: @"Dogfood n/a",
+                     WAGRDogfoodDiagnosticText() ?: @"Developer n/a",
                      WAKeychainAccessGroupDiagnostic() ?: @"n/a"];
     WAGRAlert(@"Diagnóstico", msg);
 }
@@ -320,7 +317,7 @@ typedef NS_ENUM(NSInteger, WAGRSystemRow) {
     [tv deselectRowAtIndexPath:ip animated:YES];
 
     if (ip.section == WAGRRootSectionAbout) {
-        WAGRAlert(@"WAGram", @"Long press no item Ajuda/Developer do WhatsApp abre este menu. Esta build mantém o longpress original do router.");
+        WAGRAlert(@"WATweaks", @"Este é o menu da tweak. O Developer nativo do WhatsApp continua sendo aberto pela própria row Developer quando os gates nativos estão ativos.");
         return;
     }
 
@@ -353,7 +350,7 @@ typedef NS_ENUM(NSInteger, WAGRSystemRow) {
         } else {
             [self resetKeysMatching:^BOOL(NSString *key) {
                 return [key hasPrefix:@"wagr"] || [key hasPrefix:@"wa_"] || [key hasPrefix:@"WA"];
-            } title:@"Reset WAGram prefs" restart:YES];
+            } title:@"Reset WATweaks prefs" restart:YES];
         }
     }
 }
