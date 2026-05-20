@@ -1,15 +1,7 @@
 // WAGRNativeDeveloperRouter.xm
-// Native Developer router validated from WhatsApp(3) ObjC category scan.
-// Real hook points:
-//   _TtC15WADebugMenuMain17DebugMenuProvider (WADebugMenuMain category)
-//     -isDebugMenuAllowed
-//     -isDebugMenuShortcutEnabled
-//     -presentDebugControllerIfNeeded
-//     -debugViewController
-//   WAContext / WAContextMain via WADebugMenuBase category
-//     -resolveDebugMenuProviding
-//     -debugMenuProvider
-// This file does not use broad Employee/Dogfood runtime scanning.
+// Hooks the real native Developer gates, but the extra injected Settings row opens WATweaks.
+// The real WhatsApp Developer row can appear by native gates/overrides; this file should not add
+// a second fake Developer entry anymore.
 
 #import <UIKit/UIKit.h>
 #import <Foundation/Foundation.h>
@@ -17,6 +9,7 @@
 #import <objc/message.h>
 #import <substrate.h>
 #import "../WAGramPrefix.h"
+#import "../Menu/WAGRSurfaceListVC.h"
 
 static BOOL (*origProviderDebugAllowed)(id, SEL) = NULL;
 static BOOL (*origProviderShortcutAllowed)(id, SEL) = NULL;
@@ -24,15 +17,13 @@ static void (*origSettingsViewDidAppear)(id, SEL, BOOL) = NULL;
 
 static BOOL gNativeDevHooksInstalled = NO;
 static BOOL gSettingsFooterHookInstalled = NO;
-static BOOL gOpeningNativeDeveloper = NO;
-static const void *kWAGRNativeDeveloperFooterKey = &kWAGRNativeDeveloperFooterKey;
+static const void *kWAGRWATweaksFooterKey = &kWAGRWATweaksFooterKey;
 
 static BOOL WAGRNativeDeveloperEnabled(void) {
     return WAGRPref(kWAGRDebugMenuNative) ||
            WAGRPref(kWAGRDebugMode) ||
            WAGRPref(kWAGRInternalMaster) ||
-           WAGRPref(kWAGREmployeeMaster) ||
-           gOpeningNativeDeveloper;
+           WAGRPref(kWAGREmployeeMaster);
 }
 
 static BOOL hookProviderDebugAllowed(id self, SEL _cmd) {
@@ -45,51 +36,6 @@ static BOOL hookProviderShortcutAllowed(id self, SEL _cmd) {
     return origProviderShortcutAllowed ? origProviderShortcutAllowed(self, _cmd) : NO;
 }
 
-static id WAGRCallID0(id obj, SEL sel) {
-    if (!obj || !sel || ![obj respondsToSelector:sel]) return nil;
-    return ((id (*)(id, SEL))objc_msgSend)(obj, sel);
-}
-
-static void WAGRCallVoid0(id obj, SEL sel) {
-    if (!obj || !sel || ![obj respondsToSelector:sel]) return;
-    ((void (*)(id, SEL))objc_msgSend)(obj, sel);
-}
-
-static id WAGRUserContextFromSettings(id settingsVC) {
-    if (!settingsVC) return nil;
-    SEL userContextSel = NSSelectorFromString(@"userContext");
-    id ctx = WAGRCallID0(settingsVC, userContextSel);
-    if (ctx) return ctx;
-    @try { ctx = [settingsVC valueForKey:@"_userContext"]; } @catch (__unused NSException *e) {}
-    if (ctx) return ctx;
-
-    // WASettingsNavigationController also owns _userContext.  Walk parents/nav.
-    if ([settingsVC isKindOfClass:[UIViewController class]]) {
-        UIViewController *vc = (UIViewController *)settingsVC;
-        ctx = WAGRCallID0(vc.navigationController, userContextSel);
-        if (ctx) return ctx;
-        @try { ctx = [vc.navigationController valueForKey:@"_userContext"]; } @catch (__unused NSException *e) {}
-    }
-    return ctx;
-}
-
-static id WAGRDebugProviderFromContext(id userContext) {
-    if (!userContext) return nil;
-    SEL providerSel = NSSelectorFromString(@"debugMenuProvider");
-    SEL resolveSel = NSSelectorFromString(@"resolveDebugMenuProviding");
-
-    id provider = WAGRCallID0(userContext, providerSel);
-    if (provider) return provider;
-
-    // In the binary this selector is added to WAContext by WADebugMenuBase.
-    // Some builds return the provider, others lazily populate debugMenuProvider.
-    provider = WAGRCallID0(userContext, resolveSel);
-    if (provider) return provider;
-
-    provider = WAGRCallID0(userContext, providerSel);
-    return provider;
-}
-
 static UIViewController *WAGRNearestViewController(UIResponder *r) {
     while (r) {
         if ([r isKindOfClass:[UIViewController class]]) return (UIViewController *)r;
@@ -98,61 +44,62 @@ static UIViewController *WAGRNearestViewController(UIResponder *r) {
     return nil;
 }
 
-static void WAGROpenNativeDeveloperMenuFromSettings(id settingsVC) {
-    if (!settingsVC) return;
+static UIViewController *WAGRTopControllerFromResponder(id sender) {
+    UIViewController *vc = [sender isKindOfClass:[UIResponder class]] ? WAGRNearestViewController(sender) : nil;
+    if (vc) return vc;
 
+    UIViewController *c = nil;
+    for (UIScene *scene in UIApplication.sharedApplication.connectedScenes) {
+        if (![scene isKindOfClass:UIWindowScene.class]) continue;
+        for (UIWindow *w in ((UIWindowScene *)scene).windows) {
+            if (w.isKeyWindow) { c = w.rootViewController; break; }
+        }
+        if (c) break;
+    }
+    UIViewController *last = nil;
+    while (c && c != last) {
+        last = c;
+        if (c.presentedViewController) { c = c.presentedViewController; continue; }
+        if ([c isKindOfClass:UINavigationController.class]) {
+            UIViewController *v = ((UINavigationController *)c).visibleViewController;
+            if (v && v != c) { c = v; continue; }
+        }
+        if ([c isKindOfClass:UITabBarController.class]) {
+            UIViewController *v = ((UITabBarController *)c).selectedViewController;
+            if (v && v != c) { c = v; continue; }
+        }
+        break;
+    }
+    return c;
+}
+
+static void WAGRPresentWATweaksMenu(id sender) {
     dispatch_async(dispatch_get_main_queue(), ^{
-        gOpeningNativeDeveloper = YES;
-        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2.0 * NSEC_PER_SEC)),
-                       dispatch_get_main_queue(), ^{ gOpeningNativeDeveloper = NO; });
+        UIViewController *from = WAGRTopControllerFromResponder(sender);
+        if (!from) return;
+        if ([from isKindOfClass:NSClassFromString(@"WAGRSurfaceListVC")]) return;
 
-        id userContext = WAGRUserContextFromSettings(settingsVC);
-        id provider = WAGRDebugProviderFromContext(userContext);
-
-        SEL presentSel = NSSelectorFromString(@"presentDebugControllerIfNeeded");
-        if (provider && [provider respondsToSelector:presentSel]) {
-            WAGRCallVoid0(provider, presentSel);
-            return;
-        }
-
-        SEL debugVCSel = NSSelectorFromString(@"debugViewController");
-        id debugVC = provider ? WAGRCallID0(provider, debugVCSel) : nil;
-        if (!debugVC && userContext) {
-            Class dbg = NSClassFromString(@"WADebugViewController");
-            SEL initSel = @selector(initWithUserContext:);
-            if (dbg && [dbg instancesRespondToSelector:initSel]) {
-                debugVC = ((id (*)(id, SEL, id))objc_msgSend)([dbg alloc], initSel, userContext);
-            }
-        }
-
-        UIViewController *from = nil;
-        if ([settingsVC isKindOfClass:[UIViewController class]]) from = (UIViewController *)settingsVC;
-        if (!from && [settingsVC isKindOfClass:[UIResponder class]]) from = WAGRNearestViewController(settingsVC);
-
-        if ([debugVC isKindOfClass:[UIViewController class]]) {
-            UINavigationController *nav = from.navigationController;
-            if (nav) [nav pushViewController:(UIViewController *)debugVC animated:YES];
-            else [from presentViewController:(UIViewController *)debugVC animated:YES completion:nil];
-        }
+        WAGRSurfaceListVC *root = [WAGRSurfaceListVC new];
+        root.title = @"WATweaks";
+        UINavigationController *nav = [[UINavigationController alloc] initWithRootViewController:root];
+        nav.modalPresentationStyle = UIModalPresentationPageSheet;
+        [from presentViewController:nav animated:YES completion:nil];
     });
 }
 
-@interface WAGRNativeDeveloperButtonTarget : NSObject
+@interface WAGRWATweaksButtonTarget : NSObject
 + (instancetype)shared;
 - (void)open:(id)sender;
 @end
 
-@implementation WAGRNativeDeveloperButtonTarget
+@implementation WAGRWATweaksButtonTarget
 + (instancetype)shared {
-    static WAGRNativeDeveloperButtonTarget *s = nil;
+    static WAGRWATweaksButtonTarget *s = nil;
     static dispatch_once_t once;
     dispatch_once(&once, ^{ s = [self new]; });
     return s;
 }
-- (void)open:(id)sender {
-    UIViewController *vc = [sender isKindOfClass:[UIResponder class]] ? WAGRNearestViewController(sender) : nil;
-    WAGROpenNativeDeveloperMenuFromSettings(vc);
-}
+- (void)open:(id)sender { WAGRPresentWATweaksMenu(sender); }
 @end
 
 static UITableView *WAGRFindTableView(UIView *view) {
@@ -164,7 +111,7 @@ static UITableView *WAGRFindTableView(UIView *view) {
     return nil;
 }
 
-static void WAGRInjectNativeDeveloperFooter(id settingsVC) {
+static void WAGRInjectWATweaksFooter(id settingsVC) {
     if (![settingsVC isKindOfClass:[UIViewController class]]) return;
     UIViewController *vc = (UIViewController *)settingsVC;
     UITableView *table = nil;
@@ -172,12 +119,14 @@ static void WAGRInjectNativeDeveloperFooter(id settingsVC) {
         table = ((UITableView *(*)(id, SEL))objc_msgSend)(settingsVC, @selector(tableView));
     }
     if (!table) table = WAGRFindTableView(vc.view);
-    if (!table || objc_getAssociatedObject(table, kWAGRNativeDeveloperFooterKey)) return;
+    if (!table || objc_getAssociatedObject(table, kWAGRWATweaksFooterKey)) return;
 
     UIView *oldFooter = table.tableFooterView;
     CGFloat oldHeight = oldFooter ? MAX(oldFooter.frame.size.height, 1.0) : 0.0;
-    CGFloat rowHeight = 64.0;
-    UIView *container = [[UIView alloc] initWithFrame:CGRectMake(0, 0, table.bounds.size.width, oldHeight + rowHeight + 12.0)];
+    CGFloat rowHeight = 58.0;
+    CGFloat topPadding = 14.0;
+    UIView *container = [[UIView alloc] initWithFrame:CGRectMake(0, 0, table.bounds.size.width, oldHeight + rowHeight + topPadding + 14.0)];
+    container.autoresizingMask = UIViewAutoresizingFlexibleWidth;
     container.backgroundColor = UIColor.clearColor;
 
     if (oldFooter) {
@@ -185,49 +134,45 @@ static void WAGRInjectNativeDeveloperFooter(id settingsVC) {
         [container addSubview:oldFooter];
     }
 
-    UIControl *row = [[UIControl alloc] initWithFrame:CGRectMake(16, oldHeight + 8, table.bounds.size.width - 32, 54)];
+    UIControl *row = [[UIControl alloc] initWithFrame:CGRectMake(0, oldHeight + topPadding, table.bounds.size.width, rowHeight)];
     row.autoresizingMask = UIViewAutoresizingFlexibleWidth;
-    row.layer.cornerRadius = 14.0;
-    row.backgroundColor = [UIColor colorWithWhite:0.12 alpha:1.0];
-    [row addTarget:[WAGRNativeDeveloperButtonTarget shared]
+    row.layer.cornerRadius = 20.0;
+    row.clipsToBounds = YES;
+    row.backgroundColor = [UIColor colorWithRed:0.105 green:0.105 blue:0.110 alpha:1.0];
+    [row addTarget:[WAGRWATweaksButtonTarget shared]
             action:@selector(open:)
   forControlEvents:UIControlEventTouchUpInside];
 
-    UILabel *icon = [[UILabel alloc] initWithFrame:CGRectMake(16, 0, 42, 54)];
+    UILabel *icon = [[UILabel alloc] initWithFrame:CGRectMake(28, 0, 42, rowHeight)];
     icon.text = @"</>";
-    icon.font = [UIFont boldSystemFontOfSize:16];
+    icon.font = [UIFont systemFontOfSize:18 weight:UIFontWeightSemibold];
     icon.textColor = [UIColor colorWithRed:0.35 green:0.65 blue:1.0 alpha:1.0];
+    icon.textAlignment = NSTextAlignmentCenter;
     [row addSubview:icon];
 
-    UILabel *title = [[UILabel alloc] initWithFrame:CGRectMake(60, 8, row.bounds.size.width - 90, 22)];
+    UILabel *title = [[UILabel alloc] initWithFrame:CGRectMake(88, 0, row.bounds.size.width - 126, rowHeight)];
     title.autoresizingMask = UIViewAutoresizingFlexibleWidth;
-    title.text = @"Developer";
-    title.font = [UIFont systemFontOfSize:16 weight:UIFontWeightSemibold];
+    title.text = @"WATweaks";
+    title.font = [UIFont systemFontOfSize:17 weight:UIFontWeightRegular];
     title.textColor = UIColor.labelColor;
     [row addSubview:title];
 
-    UILabel *sub = [[UILabel alloc] initWithFrame:CGRectMake(60, 29, row.bounds.size.width - 90, 18)];
-    sub.autoresizingMask = UIViewAutoresizingFlexibleWidth;
-    sub.text = @"Menu nativo do WhatsApp";
-    sub.font = [UIFont systemFontOfSize:12 weight:UIFontWeightRegular];
-    sub.textColor = UIColor.secondaryLabelColor;
-    [row addSubview:sub];
-
-    UILabel *chev = [[UILabel alloc] initWithFrame:CGRectMake(row.bounds.size.width - 28, 0, 16, 54)];
+    UILabel *chev = [[UILabel alloc] initWithFrame:CGRectMake(row.bounds.size.width - 34, 0, 18, rowHeight)];
     chev.autoresizingMask = UIViewAutoresizingFlexibleLeftMargin;
     chev.text = @"›";
     chev.font = [UIFont systemFontOfSize:30 weight:UIFontWeightRegular];
     chev.textColor = UIColor.tertiaryLabelColor;
+    chev.textAlignment = NSTextAlignmentCenter;
     [row addSubview:chev];
 
     [container addSubview:row];
     table.tableFooterView = container;
-    objc_setAssociatedObject(table, kWAGRNativeDeveloperFooterKey, @YES, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    objc_setAssociatedObject(table, kWAGRWATweaksFooterKey, @YES, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
 }
 
 static void hookSettingsViewDidAppear(id self, SEL _cmd, BOOL animated) {
     if (origSettingsViewDidAppear) origSettingsViewDidAppear(self, _cmd, animated);
-    WAGRInjectNativeDeveloperFooter(self);
+    WAGRInjectWATweaksFooter(self);
 }
 
 extern "C" void WAGRNativeDeveloperEnsureHooksInstalled(void) {
@@ -261,7 +206,7 @@ extern "C" void WAGRNativeDeveloperEnsureHooksInstalled(void) {
 }
 
 extern "C" NSString *WAGRNativeDeveloperDiagnostic(void) {
-    return [NSString stringWithFormat:@"nativeDeveloperHooks=%@\nproviderAllowed=%@\nproviderShortcut=%@\nsettingsFooter=%@\npref=%@",
+    return [NSString stringWithFormat:@"nativeDeveloperHooks=%@\nproviderAllowed=%@\nproviderShortcut=%@\nsettingsWATweaksRow=%@\npref=%@",
             gNativeDevHooksInstalled ? @"YES" : @"NO",
             origProviderDebugAllowed ? @"YES" : @"NO",
             origProviderShortcutAllowed ? @"YES" : @"NO",
