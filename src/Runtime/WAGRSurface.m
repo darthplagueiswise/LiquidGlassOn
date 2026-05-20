@@ -5,6 +5,9 @@
 
 @implementation WAGREntry @end
 
+static NSString * const kWATRuntimeExecSurface   = @"runtime.exec";
+static NSString * const kWATRuntimeSharedSurface = @"runtime.sharedmodules";
+
 static WAGRSurfaceSpec *WAGRMakeSurface(NSString *sid,
                                         NSString *title,
                                         NSString *subtitle,
@@ -18,8 +21,8 @@ static WAGRSurfaceSpec *WAGRMakeSurface(NSString *sid,
                                         BOOL props,
                                         BOOL advanced) {
     WAGRSurfaceSpec *s = [WAGRSurfaceSpec new];
-    s.surfaceID = sid;
-    s.title = title;
+    s.surfaceID = sid ?: @"runtime";
+    s.title = title ?: @"Runtime";
     s.subtitle = subtitle ?: @"";
     s.icon = icon ?: @"circle";
     s.classNames = names ?: @[];
@@ -33,33 +36,85 @@ static WAGRSurfaceSpec *WAGRMakeSurface(NSString *sid,
     return s;
 }
 
-static BOOL WAGRPathIsWhatsAppOwned(NSString *path) {
+static BOOL WAGRPathIsWhatsAppExec(NSString *path) {
     if (!path.length) return NO;
     NSString *p = path.lowercaseString;
-    return [p containsString:@"/whatsapp.app/whatsapp"] ||
-           [p containsString:@"/frameworks/sharedmodules.framework/sharedmodules"];
+    return [p containsString:@"/whatsapp.app/whatsapp"] &&
+           ![p containsString:@".framework/"];
+}
+
+static BOOL WAGRPathIsSharedModules(NSString *path) {
+    if (!path.length) return NO;
+    NSString *p = path.lowercaseString;
+    return [p containsString:@"/frameworks/sharedmodules.framework/sharedmodules"];
+}
+
+static BOOL WAGRPathIsWhatsAppOwned(NSString *path) {
+    return WAGRPathIsWhatsAppExec(path) || WAGRPathIsSharedModules(path);
+}
+
+static NSString *WAGRImagePathForClass(Class cls) {
+    if (!cls) return nil;
+    const char *img = class_getImageName(cls);
+    return img ? @(img) : nil;
+}
+
+static NSString *WAGRImagePathForMethod(Method m) {
+    if (!m) return nil;
+    IMP imp = method_getImplementation(m);
+    if (!imp) return nil;
+    Dl_info info;
+    memset(&info, 0, sizeof(info));
+    if (!dladdr((const void *)imp, &info) || !info.dli_fname) return nil;
+    return @(info.dli_fname);
 }
 
 static BOOL WAGRClassIsWhatsAppOwned(Class cls) {
-    if (!cls) return NO;
-    const char *img = class_getImageName(cls);
-    return img ? WAGRPathIsWhatsAppOwned(@(img)) : NO;
+    return WAGRPathIsWhatsAppOwned(WAGRImagePathForClass(cls));
 }
 
 static BOOL WAGRMethodIsWhatsAppOwned(Method m) {
-    if (!m) return NO;
-    IMP imp = method_getImplementation(m);
-    if (!imp) return NO;
-    Dl_info info;
-    memset(&info, 0, sizeof(info));
-    if (!dladdr((const void *)imp, &info) || !info.dli_fname) return NO;
-    return WAGRPathIsWhatsAppOwned(@(info.dli_fname));
+    return WAGRPathIsWhatsAppOwned(WAGRImagePathForMethod(m));
+}
+
+static BOOL WAGRSpecWantsExec(WAGRSurfaceSpec *spec) {
+    return [spec.surfaceID isEqualToString:kWATRuntimeExecSurface];
+}
+
+static BOOL WAGRSpecWantsShared(WAGRSurfaceSpec *spec) {
+    return [spec.surfaceID isEqualToString:kWATRuntimeSharedSurface];
+}
+
+static BOOL WAGRSpecIsRawImageBrowser(WAGRSurfaceSpec *spec) {
+    return WAGRSpecWantsExec(spec) || WAGRSpecWantsShared(spec);
+}
+
+static BOOL WAGRClassMatchesSpecImage(Class cls, WAGRSurfaceSpec *spec) {
+    NSString *path = WAGRImagePathForClass(cls);
+    if (WAGRSpecWantsExec(spec)) return WAGRPathIsWhatsAppExec(path);
+    if (WAGRSpecWantsShared(spec)) return WAGRPathIsSharedModules(path);
+    return WAGRPathIsWhatsAppOwned(path);
+}
+
+static BOOL WAGRMethodMatchesSpecImage(Method m, WAGRSurfaceSpec *spec) {
+    NSString *path = WAGRImagePathForMethod(m);
+    if (WAGRSpecWantsExec(spec)) return WAGRPathIsWhatsAppExec(path);
+    if (WAGRSpecWantsShared(spec)) return WAGRPathIsSharedModules(path);
+    return WAGRPathIsWhatsAppOwned(path);
 }
 
 @implementation WAGRSurfaceSpec
 
 + (NSArray<WAGRSurfaceSpec *> *)allSurfaces {
     return @[
+        WAGRMakeSurface(kWATRuntimeExecSurface, @"WhatsApp Exec BOOL Browser",
+                        @"Todos os métodos/propriedades BOOL do executável principal, patcháveis por toggle",
+                        @"iphone", @[], @[], @[], @[], YES, YES, YES, YES),
+
+        WAGRMakeSurface(kWATRuntimeSharedSurface, @"SharedModules BOOL Browser",
+                        @"Todos os métodos/propriedades BOOL do SharedModules.framework, patcháveis por toggle",
+                        @"shippingbox", @[], @[], @[], @[], YES, YES, YES, YES),
+
         WAGRMakeSurface(kWAGRSurfaceWAAB, @"WAAB / AB Props",
                         @"WAABProperties and FOAWAABPropertiesImpl in SharedModules",
                         @"switch.2",
@@ -72,21 +127,20 @@ static BOOL WAGRMethodIsWhatsAppOwned(Method m) {
                         @"cube.transparent",
                         @[@"WAContextMain", @"WAContext"],
                         @[@"WAContextMain", @"WAContext"],
-                        @[@"debug", @"provider", @"verified", @"feature", @"subscription", @"blue"],
-                        @[], YES, YES, YES, YES),
+                        @[], @[], YES, YES, YES, YES),
 
         WAGRMakeSurface(kWAGRSurfaceGateKeep, @"Feature Gate Keepers",
                         @"WAFeatureControlGateKeeper and mobile config gating",
                         @"shield",
                         @[@"WAFeatureControlGateKeeper", @"MobileConfigGating", @"WAMobileConfigGating"],
-                        @[@"FeatureControlGateKeeper", @"MobileConfigGating", @"FeatureKeyManager"],
+                        @[@"FeatureControlGateKeeper", @"MobileConfigGating", @"FeatureKeyManager", @"GateKeeper", @"Gating"],
                         @[], @[], YES, YES, YES, YES),
 
         WAGRMakeSurface(kWAGRSurfaceAura, @"WAAuraGating",
                         @"WA Plus / Aura gates from SharedModules",
                         @"star",
                         @[@"WAAuraGating"],
-                        @[@"WAAuraGating", @"AuraGating", @"AuraBenefit", @"AuraSubscription"],
+                        @[@"WAAuraGating", @"AuraGating", @"AuraBenefit", @"AuraSubscription", @"Aura"],
                         @[], @[], YES, YES, YES, YES),
 
         WAGRMakeSurface(kWAGRSurfaceSettings, @"Native Settings / Developer",
@@ -97,17 +151,17 @@ static BOOL WAGRMethodIsWhatsAppOwned(Method m) {
                           @"WADebugViewController", @"_TtC15WADebugMenuMain17DebugMenuProvider",
                           @"WACustomBehaviorsTableView"],
                         @[@"WASettings", @"WANewSettings", @"WADebugViewController",
-                          @"DebugMenuProvider", @"WACustomBehaviors"],
+                          @"DebugMenuProvider", @"WACustomBehaviors", @"WADebugMenu", @"WADeveloper"],
                         @[], @[], YES, YES, YES, YES),
 
         WAGRMakeSurface(kWAGRSurfaceEmployee, @"Developer Native Gates",
-                        @"Only validated native Developer gates; no broad Employee scan",
+                        @"Validated native Developer gates; no Apple/System classes",
                         @"person.badge.key",
                         @[@"_TtC15WADebugMenuMain17DebugMenuProvider", @"WAContext", @"WAContextMain",
                           @"WADebugViewController", @"WAServerProperties", @"WAABProperties"],
-                        @[@"DebugMenuProvider", @"WADebugViewController", @"WAServerProperties", @"WAContext"],
-                        @[@"debug", @"developer", @"internal", @"employee", @"shortcut", @"provider", @"abprops"],
-                        @[], YES, YES, YES, YES),
+                        @[@"DebugMenuProvider", @"WADebugViewController", @"WAServerProperties", @"WAContext",
+                          @"Employee", @"Dogfood", @"Internal", @"DebugMenu", @"Developer"],
+                        @[], @[], YES, YES, YES, YES),
     ];
 }
 
@@ -117,8 +171,8 @@ static BOOL WAGRMethodIsWhatsAppOwned(Method m) {
                         @"Feature gates reais do WhatsApp/SharedModules",
                         @"gearshape",
                         @[@"WAABProperties", @"FOAWAABPropertiesImpl", @"WAContextMain", @"WAContext", @"WAFeatureControlGateKeeper", @"MobileConfigGating"],
-                        @[@"WAABProperties", @"ABProperties", @"WAContextMain", @"WAContext", @"FeatureControlGateKeeper", @"MobileConfigGating"],
-                        @[@"feature", @"enabled", @"gate", @"keeper", @"eligible"],
+                        @[@"WAABProperties", @"ABProperties", @"WAContextMain", @"WAContext", @"FeatureControlGateKeeper", @"MobileConfigGating", @"GateKeeper", @"Gating"],
+                        @[@"feature", @"enabled", @"gate", @"keeper", @"eligible", @"is"],
                         @[], YES, YES, YES, NO),
 
         WAGRMakeSurface(@"bundle_developer", @"Developer Nativo",
@@ -213,6 +267,15 @@ static BOOL WAGRMethodIsWhatsAppOwned(Method m) {
                           @"DebugMenuProvider", @"WAFeatureControl", @"WAContext"],
                         @[@"settings", @"row", @"cell", @"menu", @"developer", @"debug", @"internal", @"abprops"],
                         @[@"Settings Rows", @"Debug / Internal"], YES, YES, YES, NO),
+
+        WAGRMakeSurface(@"bundle_internal", @"Developer / Dogfood / Internal",
+                        @"Employee, dogfood, debug menu, internal gates",
+                        @"person.badge.key",
+                        @[@"WAABProperties", @"WAServerProperties", @"WAContextMain", @"WAContext",
+                          @"_TtC15WADebugMenuMain17DebugMenuProvider", @"WASettingsViewController"],
+                        @[@"Employee", @"Dogfood", @"Internal", @"DebugMenu", @"Developer", @"WAServerProperties", @"WAContext"],
+                        @[@"employee", @"dogfood", @"internal", @"debug", @"developer", @"tester", @"shortcut"],
+                        @[@"Debug / Internal"], YES, YES, YES, NO),
     ];
 }
 @end
@@ -304,6 +367,19 @@ static void WAGRAddEntry(NSMutableArray *out, NSMutableSet *seen, WAGRSurfaceSpe
     [out addObject:e];
 }
 
+static void WAGRCollectAllClassesForSpec(WAGRSurfaceSpec *spec, NSMutableArray *classesToScan) {
+    unsigned int total = 0;
+    Class *all = objc_copyClassList(&total);
+    if (!all) return;
+    for (unsigned int i = 0; i < total; i++) {
+        Class cls = all[i];
+        if (WAGRClassMatchesSpecImage(cls, spec) && ![classesToScan containsObject:cls]) {
+            [classesToScan addObject:cls];
+        }
+    }
+    free(all);
+}
+
 @implementation WAGRScanner
 + (NSArray<WAGREntry *> *)scanSurface:(WAGRSurfaceSpec *)spec {
     if (!spec) return @[];
@@ -311,27 +387,31 @@ static void WAGRAddEntry(NSMutableArray *out, NSMutableSet *seen, WAGRSurfaceSpe
     NSMutableSet *seen = [NSMutableSet set];
     NSMutableArray *classesToScan = [NSMutableArray array];
 
-    for (NSString *n in spec.classNames) {
-        Class c = NSClassFromString(n);
-        if (c && WAGRClassIsWhatsAppOwned(c) && ![classesToScan containsObject:c]) [classesToScan addObject:c];
-    }
+    if (WAGRSpecIsRawImageBrowser(spec)) {
+        WAGRCollectAllClassesForSpec(spec, classesToScan);
+    } else {
+        for (NSString *n in spec.classNames) {
+            Class c = NSClassFromString(n);
+            if (c && WAGRClassMatchesSpecImage(c, spec) && ![classesToScan containsObject:c]) [classesToScan addObject:c];
+        }
 
-    if (spec.classNameFragments.count) {
-        unsigned int total = 0;
-        Class *all = objc_copyClassList(&total);
-        if (all) {
-            for (unsigned int i = 0; i < total; i++) {
-                Class cls = all[i];
-                if (!WAGRClassIsWhatsAppOwned(cls)) continue;
-                NSString *n = NSStringFromClass(cls);
-                for (NSString *frag in spec.classNameFragments) {
-                    if (frag.length && [n rangeOfString:frag options:NSCaseInsensitiveSearch].location != NSNotFound) {
-                        if (![classesToScan containsObject:cls]) [classesToScan addObject:cls];
-                        break;
+        if (spec.classNameFragments.count) {
+            unsigned int total = 0;
+            Class *all = objc_copyClassList(&total);
+            if (all) {
+                for (unsigned int i = 0; i < total; i++) {
+                    Class cls = all[i];
+                    if (!WAGRClassMatchesSpecImage(cls, spec)) continue;
+                    NSString *n = NSStringFromClass(cls);
+                    for (NSString *frag in spec.classNameFragments) {
+                        if (frag.length && [n rangeOfString:frag options:NSCaseInsensitiveSearch].location != NSNotFound) {
+                            if (![classesToScan containsObject:cls]) [classesToScan addObject:cls];
+                            break;
+                        }
                     }
                 }
+                free(all);
             }
-            free(all);
         }
     }
 
@@ -349,7 +429,7 @@ static void WAGRAddEntry(NSMutableArray *out, NSMutableSet *seen, WAGRSurfaceSpe
                     NSString *sel = @(pn);
                     Method m = class_getInstanceMethod(cls, NSSelectorFromString(sel));
                     if (!m || method_getNumberOfArguments(m) != 2) continue;
-                    if (!WAGRMethodIsWhatsAppOwned(m)) continue;
+                    if (!WAGRMethodMatchesSpecImage(m, spec)) continue;
                     WAGRAddEntry(out, seen, spec, cls, NO, sel, YES, @"BOOL");
                 }
                 free(props);
@@ -365,7 +445,7 @@ static void WAGRAddEntry(NSMutableArray *out, NSMutableSet *seen, WAGRSurfaceSpe
             if (!ms) continue;
             for (unsigned int i = 0; i < n; i++) {
                 if (method_getNumberOfArguments(ms[i]) != 2) continue;
-                if (!WAGRMethodIsWhatsAppOwned(ms[i])) continue;
+                if (!WAGRMethodMatchesSpecImage(ms[i], spec)) continue;
                 char ret[8] = {0};
                 method_getReturnType(ms[i], ret, sizeof(ret));
                 if (!WAGRReturnIsBool(ret)) continue;
