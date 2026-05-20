@@ -126,9 +126,9 @@ static id WATSectionsByAddingWATweaks(id settingsVC, id sections) {
     if (![sections isKindOfClass:NSArray.class]) return sections;
     id section = WATCreateNativeSection(settingsVC);
     if (!section || WATArrayContainsPointer((NSArray *)sections, section)) return sections;
-    NSMutableArray *mutable = [(NSArray *)sections mutableCopy];
-    [mutable addObject:section];
-    return mutable;
+    NSMutableArray *sectionsCopy = [(NSArray *)sections mutableCopy];
+    [sectionsCopy addObject:section];
+    return sectionsCopy;
 }
 static id WATReadSections(id settingsVC) {
     id sections = nil;
