@@ -65,11 +65,7 @@ static inline void WAGRSet(NSString *flag, NSString *val) {
 // ── Quick bool read ───────────────────────────────────────────────────────────
 #define WAGRPref(key) [[NSUserDefaults standardUserDefaults] boolForKey:(key)]
 
-
-// ─────────────────────────────────────────────────────────────
-// WAGram gama runtime surface ids
-// Required by src/Runtime/WAGRSurface.m
-// ─────────────────────────────────────────────────────────────
+// ── Runtime surface ids ───────────────────────────────────────────────────────
 #ifndef WAGR_GAMA_SURFACE_IDS
 #define WAGR_GAMA_SURFACE_IDS 1
 static NSString * const kWAGRSurfaceWAAB     = @"waab";
@@ -80,18 +76,16 @@ static NSString * const kWAGRSurfaceSettings = @"settings";
 static NSString * const kWAGRSurfaceEmployee = @"employee";
 #endif
 
-
-// ─────────────────────────────────────────────────────────────
-// WAGram gama runtime override helpers
-// Required by WAGRSurfaceBrowserVC.m and WAGRSurface.m
-// ─────────────────────────────────────────────────────────────
+// ── Runtime override helpers ─────────────────────────────────────────────────
 #ifndef WAGR_GAMA_OVERRIDE_HELPERS
 #define WAGR_GAMA_OVERRIDE_HELPERS 1
 
 static inline NSString *WAGROverrideKey(NSString *surfaceID, NSString *className,
                                          BOOL isClassMethod, NSString *sel) {
-    return [NSString stringWithFormat:@"wagr.override|%@|%@|%@|%@",
-            surfaceID ?: @"runtime",
+    // Canonical key intentionally ignores surfaceID. The same class/selector can appear
+    // in Geral, Aura, Settings Rows and Runtime Avançado; it must share one override.
+    (void)surfaceID;
+    return [NSString stringWithFormat:@"wagr.override|objc|%@|%@|%@",
             className ?: @"",
             isClassMethod ? @"class" : @"inst",
             sel ?: @""];
