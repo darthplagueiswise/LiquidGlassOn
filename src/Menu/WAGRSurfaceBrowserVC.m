@@ -6,18 +6,19 @@
 extern BOOL WAGRInstallHookForEntry(WAGREntry *e);
 static const void *kEntryKey = &kEntryKey;
 
-// ── Ryukgram palette ─────────────────────────────────────────────────────────
-static UIColor *RBG(void)  { return [UIColor colorWithRed:.11 green:.11 blue:.12 alpha:1]; }
-static UIColor *RCELL(void){ return [UIColor colorWithRed:.17 green:.17 blue:.18 alpha:1]; }
+// ── Dark compact palette ─────────────────────────────────────────────────────
+static UIColor *RBG(void)  { return UIColor.blackColor; }
+static UIColor *RCELL(void){ return [UIColor colorWithRed:.055 green:.055 blue:.060 alpha:1]; }
 static UIColor *RACC(void) { return [UIColor colorWithRed:.23 green:.51 blue:.96 alpha:1]; }
 static UIColor *RGRN(void) { return [UIColor colorWithRed:.2  green:.78 blue:.35 alpha:1]; }
 static UIColor *RRED(void) { return [UIColor colorWithRed:.95 green:.23 blue:.21 alpha:1]; }
-static UIColor *RSUB(void) { return [UIColor colorWithWhite:.45 alpha:1]; }
+static UIColor *RSUB(void) { return [UIColor colorWithWhite:.52 alpha:1]; }
+static UIColor *RSEP(void) { return [UIColor colorWithWhite:.16 alpha:1]; }
 
 @interface WAGRSurfaceBrowserVC () <UISearchResultsUpdating>
 @property(nonatomic,strong) WAGRSurfaceSpec *spec;
 @property(nonatomic,strong) NSArray<WAGREntry*> *all;
-@property(nonatomic,strong) NSArray<NSString*> *sectionKeys; // className or "Search"
+@property(nonatomic,strong) NSArray<NSString*> *sectionKeys;
 @property(nonatomic,strong) NSDictionary<NSString*,NSArray<WAGREntry*>*> *byClass;
 @property(nonatomic,strong) UISearchController *search;
 @property(nonatomic,assign) BOOL hasScanned;
@@ -31,10 +32,14 @@ static UIColor *RSUB(void) { return [UIColor colorWithWhite:.45 alpha:1]; }
 }
 - (void)viewDidLoad {
     [super viewDidLoad];
+    self.view.backgroundColor=RBG();
     self.tableView.backgroundColor=RBG();
+    self.tableView.backgroundView=[UIView new];
+    self.tableView.backgroundView.backgroundColor=RBG();
     self.tableView.rowHeight=UITableViewAutomaticDimension;
-    self.tableView.estimatedRowHeight=50;
-    self.tableView.separatorColor=[UIColor colorWithWhite:.25 alpha:1];
+    self.tableView.estimatedRowHeight=78;
+    self.tableView.separatorColor=RSEP();
+    self.tableView.separatorInset=UIEdgeInsetsMake(0,54,0,16);
     _search=[[UISearchController alloc]initWithSearchResultsController:nil];
     _search.searchResultsUpdater=self;
     _search.obscuresBackgroundDuringPresentation=NO;
@@ -54,6 +59,8 @@ static UIColor *RSUB(void) { return [UIColor colorWithWhite:.45 alpha:1]; }
 - (void)viewWillAppear:(BOOL)a {
     [super viewWillAppear:a];
     self.navigationController.navigationBar.prefersLargeTitles=NO;
+    self.view.backgroundColor=RBG();
+    self.tableView.backgroundColor=RBG();
 }
 - (void)viewDidAppear:(BOOL)a {
     [super viewDidAppear:a];
@@ -63,7 +70,6 @@ static UIColor *RSUB(void) { return [UIColor colorWithWhite:.45 alpha:1]; }
     _hasScanned=YES;
     dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED,0),^{
         NSArray<WAGREntry*>*entries=[WAGRScanner scanSurface:self.spec];
-        // Sort: overridden first within each class
         entries=[entries sortedArrayUsingComparator:^NSComparisonResult(WAGREntry*a,WAGREntry*b){
             NSComparisonResult r=[a.className localizedCaseInsensitiveCompare:b.className];
             if(r!=NSOrderedSame)return r;
@@ -85,7 +91,6 @@ static UIColor *RSUB(void) { return [UIColor colorWithWhite:.45 alpha:1]; }
             return [hay containsString:q.lowercaseString];
         }]]
         :_all;
-    // Group by className
     NSMutableDictionary*map=[NSMutableDictionary dictionary];
     for(WAGREntry*e in base){
         if(!map[e.className])map[e.className]=[NSMutableArray array];
@@ -121,22 +126,22 @@ static UIColor *RSUB(void) { return [UIColor colorWithWhite:.45 alpha:1]; }
     NSString *cls=_sectionKeys[(NSUInteger)s];
     NSArray *rows=_byClass[cls];
     NSUInteger on=0; for(WAGREntry*e in rows)if(WAGRHasOverride(e.overrideKey)&&WAGROverrideBool(e.overrideKey))on++;
-    UIView*v=[[UIView alloc]initWithFrame:CGRectMake(0,0,tv.bounds.size.width,36)];
+    UIView*v=[[UIView alloc]initWithFrame:CGRectMake(0,0,tv.bounds.size.width,34)];
     v.backgroundColor=RBG();
-    UILabel*l=[[UILabel alloc]initWithFrame:CGRectMake(20,8,tv.bounds.size.width-80,20)];
-    l.text=cls; l.font=[UIFont boldSystemFontOfSize:12];
-    l.textColor=[UIColor colorWithWhite:.6 alpha:1];
+    UILabel*l=[[UILabel alloc]initWithFrame:CGRectMake(20,7,tv.bounds.size.width-80,20)];
+    l.text=cls; l.font=[UIFont boldSystemFontOfSize:11];
+    l.textColor=[UIColor colorWithWhite:.55 alpha:1];
     [v addSubview:l];
     if(on){
         UILabel*badge=[[UILabel alloc]initWithFrame:CGRectMake(tv.bounds.size.width-70,6,60,22)];
         badge.text=[NSString stringWithFormat:@"%lu ON",(unsigned long)on];
-        badge.font=[UIFont boldSystemFontOfSize:11];
+        badge.font=[UIFont boldSystemFontOfSize:10];
         badge.textColor=RGRN(); badge.textAlignment=NSTextAlignmentRight;
         [v addSubview:badge];
     }
     return v;
 }
-- (CGFloat)tableView:(UITableView*)tv heightForHeaderInSection:(NSInteger)s{return 36;}
+- (CGFloat)tableView:(UITableView*)tv heightForHeaderInSection:(NSInteger)s{return 34;}
 - (WAGREntry*)entryAt:(NSIndexPath*)ip {
     NSArray*rows=_byClass[_sectionKeys[(NSUInteger)ip.section]];
     return(ip.row<(NSInteger)rows.count)?rows[(NSUInteger)ip.row]:nil;
@@ -146,27 +151,33 @@ static UIColor *RSUB(void) { return [UIColor colorWithWhite:.45 alpha:1]; }
     if(!c)c=[[UITableViewCell alloc]initWithStyle:UITableViewCellStyleSubtitle reuseIdentifier:@"e"];
     WAGREntry*e=[self entryAt:ip]; if(!e)return c;
     c.backgroundColor=RCELL();
+    c.contentView.backgroundColor=RCELL();
     c.selectionStyle=UITableViewCellSelectionStyleDefault;
     BOOL hasOv=WAGRHasOverride(e.overrideKey);
     BOOL effVal=hasOv?WAGROverrideBool(e.overrideKey):NO;
-    // Row icon
+
     NSString*sfName=e.isProperty?@"doc.plaintext":@"switch.2";
     UIImageSymbolConfiguration*cfg=[UIImageSymbolConfiguration
-        configurationWithPointSize:13 weight:UIImageSymbolWeightMedium];
+        configurationWithPointSize:12 weight:UIImageSymbolWeightMedium];
     c.imageView.image=[[UIImage systemImageNamed:sfName withConfiguration:cfg]
         imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate];
     c.imageView.tintColor=hasOv?(effVal?RGRN():RRED()):RSUB();
-    // Selector name — monospace compact
+
+    NSString *featureName = e.displayName.length ? e.displayName : e.selectorName;
+    c.textLabel.text=featureName;
+    c.textLabel.font=[UIFont monospacedSystemFontOfSize:11 weight:UIFontWeightRegular];
+    c.textLabel.textColor=hasOv?(effVal?RGRN():RRED()):UIColor.labelColor;
+    c.textLabel.numberOfLines=0;
+    c.textLabel.lineBreakMode=NSLineBreakByCharWrapping;
+    c.textLabel.adjustsFontSizeToFitWidth=NO;
+
     NSString*pfx=e.isProperty?@"@prop":(e.isClassMethod?@"+":@"-");
-    c.textLabel.text=[NSString stringWithFormat:@"%@ %@",pfx,e.displayName?:e.selectorName];
-    c.textLabel.font=[UIFont monospacedSystemFontOfSize:12 weight:UIFontWeightRegular];
-    c.textLabel.textColor=hasOv?(effVal?RGRN():RRED()):[UIColor labelColor];
-    c.textLabel.numberOfLines=2;
-    // Subtitle: just BOOL type + override state
-    c.detailTextLabel.text=hasOv?(effVal?@"▲ override 1":@"▼ override 0"):@"sys";
+    NSString *state = hasOv ? (effVal ? @"override 1" : @"override 0") : @"sys";
+    c.detailTextLabel.text=[NSString stringWithFormat:@"%@ · %@", pfx, state];
     c.detailTextLabel.textColor=hasOv?(effVal?RGRN():RRED()):RSUB();
-    c.detailTextLabel.font=[UIFont systemFontOfSize:11];
-    // UISwitch — reflects override state (ON = force true, OFF = system/force false)
+    c.detailTextLabel.font=[UIFont systemFontOfSize:10 weight:UIFontWeightRegular];
+    c.detailTextLabel.numberOfLines=1;
+
     UISwitch*sw=(UISwitch*)objc_getAssociatedObject(c,kEntryKey);
     if(!sw){sw=[[UISwitch alloc]init];sw.onTintColor=RACC();
         [sw addTarget:self action:@selector(toggled:) forControlEvents:UIControlEventValueChanged];
