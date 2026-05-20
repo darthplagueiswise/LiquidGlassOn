@@ -68,7 +68,7 @@ static WAGRSurfaceSpec *WAGRMakeSurface(NSString *sid,
                         @"gearshape",
                         @[@"WASettingsViewController", @"WASettingsNavigationController",
                           @"WANewSettingsViewController", @"WASettingsTableViewController"],
-                        @[@"Settings", @"NavigationController", @"Developer", @"Debug"],
+                        @[@"WASettings", @"WANewSettings", @"WADebugMenu", @"WADeveloper"],
                         @[], @[], YES, YES, YES, YES),
 
         WAGRMakeSurface(kWAGRSurfaceEmployee, @"Employee / Dogfood",
@@ -170,7 +170,7 @@ static WAGRSurfaceSpec *WAGRMakeSurface(NSString *sid,
                         @[@"WASettingsViewController", @"WASettingsNavigationController",
                           @"WANewSettingsViewController", @"WASettingsTableViewController",
                           @"WAContextMain", @"WAFeatureControlGateKeeper"],
-                        @[@"Settings", @"NavigationController", @"Developer", @"Debug", @"FeatureControl"],
+                        @[@"WASettings", @"WANewSettings", @"WAContext", @"WAFeatureControl"],
                         @[@"settings", @"row", @"cell", @"menu", @"developer", @"debug", @"internal"],
                         @[@"Settings Rows", @"Debug / Internal"], YES, YES, YES, NO),
 
@@ -281,10 +281,9 @@ static void WAGRAddEntry(NSMutableArray *out,
     if (!WAGRTokenMatch(spec.selectorTokens, hay)) return;
     if (!WAGRCategoryAllowed(spec, cat)) return;
 
-    NSString *uid = [NSString stringWithFormat:@"%@.%@", meta ? @"class" : @"inst", selector];
-    // Deduplicate by selector+method-type — different classes may declare same BOOL getter
-    // (e.g. WAABProperties and FOAWAABPropertiesImpl both have ios_liquid_glass_enabled).
-    // We keep the FIRST class encountered (classNames order) to avoid duplicate UI rows.
+    // UID = class + meta + selector. The HOOK level handles subclass lookup.
+    // Avoids cross-class dedup (e.g. WAContextMain.isEnabled ≠ WAABProperties.isEnabled).
+    NSString *uid = [NSString stringWithFormat:@"%@.%d.%@", cname, meta, selector];
     if ([seen containsObject:uid]) return;
     [seen addObject:uid];
 

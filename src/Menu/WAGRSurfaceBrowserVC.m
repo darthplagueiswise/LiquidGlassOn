@@ -1,328 +1,207 @@
-// WAGRSurfaceBrowserVC.m — compact runtime scanner. UISwitch only.
-// Raw SYS/OFF/ON segmented control is intentionally removed from visual UI.
-// Long feature/getter names use a custom cell with char wrapping instead of truncation.
-
+// WAGRSurfaceBrowserVC.m — Ryukgram-style. Groups by className. UISwitch only.
 #import "WAGRSurfaceBrowserVC.h"
 #import "../WAGramPrefix.h"
 #import "../Runtime/WAGRSurface.h"
 #import <objc/runtime.h>
-
 extern BOOL WAGRInstallHookForEntry(WAGREntry *e);
-
 static const void *kEntryKey = &kEntryKey;
 
-static UITableViewCell *WAGRCellForControl(UIControl *control) {
-    UIView *v = control;
-    while (v && ![v isKindOfClass:UITableViewCell.class]) v = v.superview;
-    return (UITableViewCell *)v;
-}
-
-@interface WAGRFeatureEntryCell : UITableViewCell
-@property(nonatomic, strong) UIImageView *glyphView;
-@property(nonatomic, strong) UILabel *featureLabel;
-@property(nonatomic, strong) UILabel *metaLabel;
-@property(nonatomic, strong) UISwitch *toggle;
-- (void)configureWithEntry:(WAGREntry *)entry effective:(BOOL)effective hasOverride:(BOOL)hasOverride state:(NSString *)state;
-@end
-
-@implementation WAGRFeatureEntryCell
-
-- (instancetype)initWithStyle:(UITableViewCellStyle)style reuseIdentifier:(NSString *)reuseIdentifier {
-    if (!(self = [super initWithStyle:UITableViewCellStyleDefault reuseIdentifier:reuseIdentifier])) return nil;
-
-    self.backgroundColor = UIColor.secondarySystemGroupedBackgroundColor;
-    self.selectionStyle = UITableViewCellSelectionStyleDefault;
-
-    _glyphView = [[UIImageView alloc] initWithFrame:CGRectZero];
-    _glyphView.translatesAutoresizingMaskIntoConstraints = NO;
-    _glyphView.contentMode = UIViewContentModeScaleAspectFit;
-    _glyphView.tintColor = UIColor.labelColor;
-    [self.contentView addSubview:_glyphView];
-
-    _toggle = [[UISwitch alloc] initWithFrame:CGRectZero];
-    _toggle.translatesAutoresizingMaskIntoConstraints = NO;
-    _toggle.onTintColor = UIColor.systemBlueColor;
-    [_toggle setContentHuggingPriority:UILayoutPriorityRequired forAxis:UILayoutConstraintAxisHorizontal];
-    [_toggle setContentCompressionResistancePriority:UILayoutPriorityRequired forAxis:UILayoutConstraintAxisHorizontal];
-    [self.contentView addSubview:_toggle];
-
-    _featureLabel = [[UILabel alloc] initWithFrame:CGRectZero];
-    _featureLabel.translatesAutoresizingMaskIntoConstraints = NO;
-    _featureLabel.font = [UIFont monospacedSystemFontOfSize:12 weight:UIFontWeightRegular];
-    _featureLabel.numberOfLines = 0;
-    _featureLabel.lineBreakMode = NSLineBreakByCharWrapping;
-    _featureLabel.adjustsFontForContentSizeCategory = YES;
-    [_featureLabel setContentCompressionResistancePriority:UILayoutPriorityDefaultLow forAxis:UILayoutConstraintAxisHorizontal];
-    [_featureLabel setContentCompressionResistancePriority:UILayoutPriorityRequired forAxis:UILayoutConstraintAxisVertical];
-    [self.contentView addSubview:_featureLabel];
-
-    _metaLabel = [[UILabel alloc] initWithFrame:CGRectZero];
-    _metaLabel.translatesAutoresizingMaskIntoConstraints = NO;
-    _metaLabel.font = [UIFont systemFontOfSize:11 weight:UIFontWeightRegular];
-    _metaLabel.textColor = UIColor.secondaryLabelColor;
-    _metaLabel.numberOfLines = 2;
-    _metaLabel.lineBreakMode = NSLineBreakByTruncatingTail;
-    [_metaLabel setContentCompressionResistancePriority:UILayoutPriorityDefaultLow forAxis:UILayoutConstraintAxisHorizontal];
-    [_metaLabel setContentCompressionResistancePriority:UILayoutPriorityRequired forAxis:UILayoutConstraintAxisVertical];
-    [self.contentView addSubview:_metaLabel];
-
-    UILayoutGuide *margins = self.contentView.layoutMarginsGuide;
-    [NSLayoutConstraint activateConstraints:@[
-        [_glyphView.leadingAnchor constraintEqualToAnchor:margins.leadingAnchor],
-        [_glyphView.topAnchor constraintEqualToAnchor:margins.topAnchor constant:4.0],
-        [_glyphView.widthAnchor constraintEqualToConstant:18.0],
-        [_glyphView.heightAnchor constraintEqualToConstant:18.0],
-
-        [_toggle.trailingAnchor constraintEqualToAnchor:margins.trailingAnchor],
-        [_toggle.centerYAnchor constraintEqualToAnchor:self.contentView.centerYAnchor],
-
-        [_featureLabel.leadingAnchor constraintEqualToAnchor:_glyphView.trailingAnchor constant:12.0],
-        [_featureLabel.trailingAnchor constraintEqualToAnchor:_toggle.leadingAnchor constant:-12.0],
-        [_featureLabel.topAnchor constraintEqualToAnchor:margins.topAnchor],
-
-        [_metaLabel.leadingAnchor constraintEqualToAnchor:_featureLabel.leadingAnchor],
-        [_metaLabel.trailingAnchor constraintEqualToAnchor:_featureLabel.trailingAnchor],
-        [_metaLabel.topAnchor constraintEqualToAnchor:_featureLabel.bottomAnchor constant:3.0],
-        [_metaLabel.bottomAnchor constraintEqualToAnchor:margins.bottomAnchor],
-    ]];
-
-    return self;
-}
-
-- (void)prepareForReuse {
-    [super prepareForReuse];
-    [_toggle removeTarget:nil action:NULL forControlEvents:UIControlEventValueChanged];
-    objc_setAssociatedObject(_toggle, kEntryKey, nil, OBJC_ASSOCIATION_ASSIGN);
-    _featureLabel.text = nil;
-    _metaLabel.text = nil;
-    _glyphView.image = nil;
-}
-
-- (void)configureWithEntry:(WAGREntry *)entry effective:(BOOL)effective hasOverride:(BOOL)hasOverride state:(NSString *)state {
-    NSString *prefix = entry.isProperty ? @"@prop" : (entry.isClassMethod ? @"+" : @"-");
-    NSString *name = entry.displayName.length ? entry.displayName : entry.selectorName;
-    _featureLabel.text = [NSString stringWithFormat:@"%@ %@", prefix, name ?: @""];
-    _featureLabel.textColor = hasOverride ? (effective ? UIColor.systemGreenColor : UIColor.systemRedColor) : UIColor.labelColor;
-
-    _metaLabel.text = [NSString stringWithFormat:@"%@ · %@ · %@", entry.className ?: @"", entry.returnType ?: @"BOOL", state ?: @"sys"];
-
-    NSString *iconName = entry.isProperty ? @"doc.plaintext" : @"switch.2";
-    UIImageSymbolConfiguration *cfg = [UIImageSymbolConfiguration configurationWithPointSize:13 weight:UIImageSymbolWeightRegular];
-    UIImage *img = [UIImage systemImageNamed:iconName withConfiguration:cfg];
-    _glyphView.image = [img imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate];
-    _glyphView.tintColor = UIColor.labelColor;
-
-    _toggle.on = effective;
-}
-
-@end
+// ── Ryukgram palette ─────────────────────────────────────────────────────────
+static UIColor *RBG(void)  { return [UIColor colorWithRed:.11 green:.11 blue:.12 alpha:1]; }
+static UIColor *RCELL(void){ return [UIColor colorWithRed:.17 green:.17 blue:.18 alpha:1]; }
+static UIColor *RACC(void) { return [UIColor colorWithRed:.23 green:.51 blue:.96 alpha:1]; }
+static UIColor *RGRN(void) { return [UIColor colorWithRed:.2  green:.78 blue:.35 alpha:1]; }
+static UIColor *RRED(void) { return [UIColor colorWithRed:.95 green:.23 blue:.21 alpha:1]; }
+static UIColor *RSUB(void) { return [UIColor colorWithWhite:.45 alpha:1]; }
 
 @interface WAGRSurfaceBrowserVC () <UISearchResultsUpdating>
-@property(nonatomic, strong) WAGRSurfaceSpec *spec;
-@property(nonatomic, strong) NSArray<WAGREntry *> *all;
-@property(nonatomic, strong) NSArray<NSString *> *cats;
-@property(nonatomic, strong) NSDictionary<NSString *, NSArray<WAGREntry *> *> *byCat;
-@property(nonatomic, strong) UISearchController *search;
-@property(nonatomic, assign) BOOL hasScanned;
+@property(nonatomic,strong) WAGRSurfaceSpec *spec;
+@property(nonatomic,strong) NSArray<WAGREntry*> *all;
+@property(nonatomic,strong) NSArray<NSString*> *sectionKeys; // className or "Search"
+@property(nonatomic,strong) NSDictionary<NSString*,NSArray<WAGREntry*>*> *byClass;
+@property(nonatomic,strong) UISearchController *search;
+@property(nonatomic,assign) BOOL hasScanned;
 @end
 
 @implementation WAGRSurfaceBrowserVC
-
-- (instancetype)initWithSpec:(WAGRSurfaceSpec *)spec {
-    if (!(self = [super initWithStyle:UITableViewStyleInsetGrouped])) return nil;
-    _spec = spec;
-    _all = @[];
-    _byCat = @{};
-    _cats = @[];
-    self.title = spec.title;
-    return self;
+- (instancetype)initWithSpec:(WAGRSurfaceSpec*)spec {
+    if(!(self=[super initWithStyle:UITableViewStyleInsetGrouped]))return nil;
+    _spec=spec; _all=@[]; _byClass=@{}; _sectionKeys=@[];
+    self.title=spec.title; return self;
 }
-
 - (void)viewDidLoad {
     [super viewDidLoad];
-    self.tableView.backgroundColor = UIColor.systemGroupedBackgroundColor;
-    self.tableView.rowHeight = UITableViewAutomaticDimension;
-    self.tableView.estimatedRowHeight = 76.0;
-    self.tableView.separatorInset = UIEdgeInsetsMake(0, 56, 0, 0);
-    [self.tableView registerClass:WAGRFeatureEntryCell.class forCellReuseIdentifier:@"entry"];
-
-    _search = [[UISearchController alloc] initWithSearchResultsController:nil];
-    _search.searchResultsUpdater = self;
-    _search.obscuresBackgroundDuringPresentation = NO;
-    _search.searchBar.placeholder = @"Buscar features";
-    self.navigationItem.searchController = _search;
-    self.navigationItem.hidesSearchBarWhenScrolling = NO;
-
-    UIBarButtonItem *scan = [[UIBarButtonItem alloc] initWithTitle:@"Scan"
-                                                             style:UIBarButtonItemStylePlain
-                                                            target:self
-                                                            action:@selector(scan)];
-    UIBarButtonItem *reset = [[UIBarButtonItem alloc] initWithImage:[UIImage systemImageNamed:@"arrow.counterclockwise"]
-                                                              style:UIBarButtonItemStylePlain
-                                                             target:self
-                                                             action:@selector(resetVisibleOverrides)];
-    self.navigationItem.rightBarButtonItems = @[scan, reset];
+    self.tableView.backgroundColor=RBG();
+    self.tableView.rowHeight=UITableViewAutomaticDimension;
+    self.tableView.estimatedRowHeight=50;
+    self.tableView.separatorColor=[UIColor colorWithWhite:.25 alpha:1];
+    _search=[[UISearchController alloc]initWithSearchResultsController:nil];
+    _search.searchResultsUpdater=self;
+    _search.obscuresBackgroundDuringPresentation=NO;
+    _search.searchBar.placeholder=@"Buscar feature / classe";
+    _search.searchBar.tintColor=RACC();
+    self.navigationItem.searchController=_search;
+    self.navigationItem.hidesSearchBarWhenScrolling=NO;
+    UIBarButtonItem *scan=[[UIBarButtonItem alloc]initWithTitle:@"Scan"
+        style:UIBarButtonItemStylePlain target:self action:@selector(scan)];
+    scan.tintColor=RACC();
+    UIBarButtonItem *reset=[[UIBarButtonItem alloc]initWithImage:
+        [UIImage systemImageNamed:@"arrow.counterclockwise"]
+        style:UIBarButtonItemStylePlain target:self action:@selector(resetAll)];
+    reset.tintColor=RRED();
+    self.navigationItem.rightBarButtonItems=@[scan,reset];
 }
-
-- (void)viewDidAppear:(BOOL)animated {
-    [super viewDidAppear:animated];
-    if (!_hasScanned) [self scan];
+- (void)viewWillAppear:(BOOL)a {
+    [super viewWillAppear:a];
+    self.navigationController.navigationBar.prefersLargeTitles=NO;
 }
-
+- (void)viewDidAppear:(BOOL)a {
+    [super viewDidAppear:a];
+    if(!_hasScanned)[self scan];
+}
 - (void)scan {
-    _hasScanned = YES;
-    dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
-        NSArray<WAGREntry *> *entries = [WAGRScanner scanSurface:self.spec];
-        dispatch_async(dispatch_get_main_queue(), ^{
-            self.all = entries ?: @[];
-            [self applyFilter:self.search.searchBar.text ?: @""];
+    _hasScanned=YES;
+    dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED,0),^{
+        NSArray<WAGREntry*>*entries=[WAGRScanner scanSurface:self.spec];
+        // Sort: overridden first within each class
+        entries=[entries sortedArrayUsingComparator:^NSComparisonResult(WAGREntry*a,WAGREntry*b){
+            NSComparisonResult r=[a.className localizedCaseInsensitiveCompare:b.className];
+            if(r!=NSOrderedSame)return r;
+            BOOL ha=WAGRHasOverride(a.overrideKey),hb=WAGRHasOverride(b.overrideKey);
+            if(ha&&!hb)return NSOrderedAscending;
+            if(!ha&&hb)return NSOrderedDescending;
+            return [a.displayName localizedCaseInsensitiveCompare:b.displayName];
+        }];
+        dispatch_async(dispatch_get_main_queue(),^{
+            self.all=entries;
+            [self applyFilter:self.search.searchBar.text];
         });
     });
 }
-
-- (void)updateSearchResultsForSearchController:(UISearchController *)sc {
-    [self applyFilter:sc.searchBar.text ?: @""];
-}
-
-- (void)applyFilter:(NSString *)query {
-    NSString *lo = query.lowercaseString ?: @"";
-    NSArray<WAGREntry *> *base = lo.length ? [_all filteredArrayUsingPredicate:[NSPredicate predicateWithBlock:^BOOL(WAGREntry *e, NSDictionary *_) {
-        NSString *hay = [NSString stringWithFormat:@"%@ %@ %@ %@", e.className ?: @"", e.displayName ?: @"", e.selectorName ?: @"", e.category ?: @""].lowercaseString;
-        return [hay containsString:lo];
-    }]] : _all;
-
-    NSMutableDictionary *map = [NSMutableDictionary dictionary];
-    for (WAGREntry *e in base) {
-        NSString *cat = e.category.length ? e.category : @"Other";
-        if (!map[cat]) map[cat] = [NSMutableArray array];
-        [(NSMutableArray *)map[cat] addObject:e];
+- (void)applyFilter:(NSString*)q {
+    NSArray<WAGREntry*>*base=q.length
+        ?[_all filteredArrayUsingPredicate:[NSPredicate predicateWithBlock:^BOOL(WAGREntry*e,NSDictionary*_){
+            NSString*hay=[NSString stringWithFormat:@"%@ %@",e.className,e.displayName].lowercaseString;
+            return [hay containsString:q.lowercaseString];
+        }]]
+        :_all;
+    // Group by className
+    NSMutableDictionary*map=[NSMutableDictionary dictionary];
+    for(WAGREntry*e in base){
+        if(!map[e.className])map[e.className]=[NSMutableArray array];
+        [(NSMutableArray*)map[e.className] addObject:e];
     }
-    _cats = [map.allKeys sortedArrayUsingSelector:@selector(localizedCaseInsensitiveCompare:)];
-    _byCat = map;
-    self.title = [NSString stringWithFormat:@"%@ (%lu)", _spec.title ?: @"WAGram", (unsigned long)base.count];
+    _sectionKeys=[map.allKeys sortedArrayUsingSelector:@selector(localizedCaseInsensitiveCompare:)];
+    _byClass=map;
+    NSUInteger overrides=0;
+    for(WAGREntry*e in base)if(WAGRHasOverride(e.overrideKey))overrides++;
+    self.title=overrides
+        ?[NSString stringWithFormat:@"%@ (%lu ON)",_spec.title,(unsigned long)overrides]
+        :_spec.title;
     [self.tableView reloadData];
 }
-
-- (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView {
-    return (NSInteger)_cats.count;
+- (void)updateSearchResultsForSearchController:(UISearchController*)sc{
+    [self applyFilter:sc.searchBar.text];
 }
-
-- (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section {
-    NSArray *rows = _byCat[_cats[(NSUInteger)section]];
-    return (NSInteger)rows.count;
+- (void)resetAll {
+    NSUInteger n=0;
+    for(WAGREntry*e in _all)if(WAGRHasOverride(e.overrideKey)){WAGRClearOverride(e.overrideKey);n++;}
+    [self applyFilter:_search.searchBar.text];
+    if(n){UIAlertController*a=[UIAlertController alertControllerWithTitle:@"Reset"
+        message:[NSString stringWithFormat:@"%lu overrides removidos.",(unsigned long)n]
+        preferredStyle:UIAlertControllerStyleAlert];
+    [a addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleCancel handler:nil]];
+    [self presentViewController:a animated:YES completion:nil];}
 }
-
-- (NSString *)tableView:(UITableView *)tableView titleForHeaderInSection:(NSInteger)section {
-    return _cats[(NSUInteger)section];
+- (NSInteger)numberOfSectionsInTableView:(UITableView*)tv{return(NSInteger)_sectionKeys.count;}
+- (NSInteger)tableView:(UITableView*)tv numberOfRowsInSection:(NSInteger)s{
+    return(NSInteger)((NSArray*)_byClass[_sectionKeys[(NSUInteger)s]]).count;
 }
-
-- (WAGREntry *)entryAtIndexPath:(NSIndexPath *)ip {
-    if (ip.section >= (NSInteger)_cats.count) return nil;
-    NSArray *rows = _byCat[_cats[(NSUInteger)ip.section]];
-    if (ip.row >= (NSInteger)rows.count) return nil;
-    return rows[(NSUInteger)ip.row];
+- (UIView*)tableView:(UITableView*)tv viewForHeaderInSection:(NSInteger)s {
+    NSString *cls=_sectionKeys[(NSUInteger)s];
+    NSArray *rows=_byClass[cls];
+    NSUInteger on=0; for(WAGREntry*e in rows)if(WAGRHasOverride(e.overrideKey)&&WAGROverrideBool(e.overrideKey))on++;
+    UIView*v=[[UIView alloc]initWithFrame:CGRectMake(0,0,tv.bounds.size.width,36)];
+    v.backgroundColor=RBG();
+    UILabel*l=[[UILabel alloc]initWithFrame:CGRectMake(20,8,tv.bounds.size.width-80,20)];
+    l.text=cls; l.font=[UIFont boldSystemFontOfSize:12];
+    l.textColor=[UIColor colorWithWhite:.6 alpha:1];
+    [v addSubview:l];
+    if(on){
+        UILabel*badge=[[UILabel alloc]initWithFrame:CGRectMake(tv.bounds.size.width-70,6,60,22)];
+        badge.text=[NSString stringWithFormat:@"%lu ON",(unsigned long)on];
+        badge.font=[UIFont boldSystemFontOfSize:11];
+        badge.textColor=RGRN(); badge.textAlignment=NSTextAlignmentRight;
+        [v addSubview:badge];
+    }
+    return v;
 }
-
-- (UITableViewCell *)tableView:(UITableView *)tv cellForRowAtIndexPath:(NSIndexPath *)ip {
-    WAGRFeatureEntryCell *cell = [tv dequeueReusableCellWithIdentifier:@"entry" forIndexPath:ip];
-
-    WAGREntry *e = [self entryAtIndexPath:ip];
-    if (!e) return cell;
-
-    BOOL hasOverride = WAGRHasOverride(e.overrideKey);
-    BOOL known = NO;
-    BOOL observed = WAGRObservedValue(e.overrideKey, &known);
-    BOOL effective = hasOverride ? WAGROverrideBool(e.overrideKey) : (known ? observed : NO);
-    NSString *state = hasOverride ? (effective ? @"override 1" : @"override 0") : (known ? (observed ? @"sys 1" : @"sys 0") : @"sys");
-
-    [cell configureWithEntry:e effective:effective hasOverride:hasOverride state:state];
-    objc_setAssociatedObject(cell.toggle, kEntryKey, e, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-    [cell.toggle addTarget:self action:@selector(switchChanged:) forControlEvents:UIControlEventValueChanged];
-    return cell;
+- (CGFloat)tableView:(UITableView*)tv heightForHeaderInSection:(NSInteger)s{return 36;}
+- (WAGREntry*)entryAt:(NSIndexPath*)ip {
+    NSArray*rows=_byClass[_sectionKeys[(NSUInteger)ip.section]];
+    return(ip.row<(NSInteger)rows.count)?rows[(NSUInteger)ip.row]:nil;
 }
-
-- (void)switchChanged:(UISwitch *)sw {
-    WAGREntry *e = objc_getAssociatedObject(sw, kEntryKey);
-    if (!e) return;
-
-    if (sw.isOn) {
-        WAGRSetOverride(e.overrideKey, YES);
+- (UITableViewCell*)tableView:(UITableView*)tv cellForRowAtIndexPath:(NSIndexPath*)ip {
+    UITableViewCell*c=[tv dequeueReusableCellWithIdentifier:@"e"];
+    if(!c)c=[[UITableViewCell alloc]initWithStyle:UITableViewCellStyleSubtitle reuseIdentifier:@"e"];
+    WAGREntry*e=[self entryAt:ip]; if(!e)return c;
+    c.backgroundColor=RCELL();
+    c.selectionStyle=UITableViewCellSelectionStyleDefault;
+    BOOL hasOv=WAGRHasOverride(e.overrideKey);
+    BOOL effVal=hasOv?WAGROverrideBool(e.overrideKey):NO;
+    // Row icon
+    NSString*sfName=e.isProperty?@"doc.plaintext":@"switch.2";
+    UIImageSymbolConfiguration*cfg=[UIImageSymbolConfiguration
+        configurationWithPointSize:13 weight:UIImageSymbolWeightMedium];
+    c.imageView.image=[[UIImage systemImageNamed:sfName withConfiguration:cfg]
+        imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate];
+    c.imageView.tintColor=hasOv?(effVal?RGRN():RRED()):RSUB();
+    // Selector name — monospace compact
+    NSString*pfx=e.isProperty?@"@prop":(e.isClassMethod?@"+":@"-");
+    c.textLabel.text=[NSString stringWithFormat:@"%@ %@",pfx,e.displayName?:e.selectorName];
+    c.textLabel.font=[UIFont monospacedSystemFontOfSize:12 weight:UIFontWeightRegular];
+    c.textLabel.textColor=hasOv?(effVal?RGRN():RRED()):[UIColor labelColor];
+    c.textLabel.numberOfLines=2;
+    // Subtitle: just BOOL type + override state
+    c.detailTextLabel.text=hasOv?(effVal?@"▲ override 1":@"▼ override 0"):@"sys";
+    c.detailTextLabel.textColor=hasOv?(effVal?RGRN():RRED()):RSUB();
+    c.detailTextLabel.font=[UIFont systemFontOfSize:11];
+    // UISwitch — reflects override state (ON = force true, OFF = system/force false)
+    UISwitch*sw=(UISwitch*)objc_getAssociatedObject(c,kEntryKey);
+    if(!sw){sw=[[UISwitch alloc]init];sw.onTintColor=RACC();
+        [sw addTarget:self action:@selector(toggled:) forControlEvents:UIControlEventValueChanged];
+        objc_setAssociatedObject(c,kEntryKey,sw,OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+        c.accessoryView=sw;}
+    sw.on=effVal; sw.tag=ip.section*100000+ip.row;
+    return c;
+}
+- (void)toggled:(UISwitch*)sw {
+    NSInteger s=sw.tag/100000, r=sw.tag%100000;
+    WAGREntry*e=[self entryAt:[NSIndexPath indexPathForRow:r inSection:s]]; if(!e)return;
+    if(sw.isOn){
+        WAGRSetOverride(e.overrideKey,YES);
         WAGRInstallHookForEntry(e);
     } else {
-        // Visual switch OFF means "back to system" by default.
-        // Force FALSE remains available from row actions.
         WAGRClearOverride(e.overrideKey);
     }
-
-    UITableViewCell *cell = WAGRCellForControl(sw);
-    NSIndexPath *ip = cell ? [self.tableView indexPathForCell:cell] : nil;
-    if (ip) [self.tableView reloadRowsAtIndexPaths:@[ip] withRowAnimation:UITableViewRowAnimationNone];
+    [self applyFilter:_search.searchBar.text];
 }
-
-- (void)tableView:(UITableView *)tv didSelectRowAtIndexPath:(NSIndexPath *)ip {
+- (void)tableView:(UITableView*)tv didSelectRowAtIndexPath:(NSIndexPath*)ip {
     [tv deselectRowAtIndexPath:ip animated:YES];
-    WAGREntry *e = [self entryAtIndexPath:ip];
-    if (!e) return;
-
-    UIAlertController *a = [UIAlertController alertControllerWithTitle:e.displayName ?: e.selectorName
-                                                               message:e.className
-                                                        preferredStyle:UIAlertControllerStyleActionSheet];
-
-    [a addAction:[UIAlertAction actionWithTitle:@"Force TRUE"
-                                          style:UIAlertActionStyleDefault
-                                        handler:^(__unused id _) {
-        WAGRSetOverride(e.overrideKey, YES);
-        WAGRInstallHookForEntry(e);
-        [self.tableView reloadRowsAtIndexPaths:@[ip] withRowAnimation:UITableViewRowAnimationNone];
-    }]];
-
-    [a addAction:[UIAlertAction actionWithTitle:@"Force FALSE"
-                                          style:UIAlertActionStyleDefault
-                                        handler:^(__unused id _) {
-        WAGRSetOverride(e.overrideKey, NO);
-        WAGRInstallHookForEntry(e);
-        [self.tableView reloadRowsAtIndexPaths:@[ip] withRowAnimation:UITableViewRowAnimationNone];
-    }]];
-
-    [a addAction:[UIAlertAction actionWithTitle:@"Clear / SYS"
-                                          style:UIAlertActionStyleDefault
-                                        handler:^(__unused id _) {
+    WAGREntry*e=[self entryAt:ip]; if(!e)return;
+    UIAlertController*a=[UIAlertController alertControllerWithTitle:
+        [NSString stringWithFormat:@"%@",e.displayName]
+        message:e.className preferredStyle:UIAlertControllerStyleActionSheet];
+    [a addAction:[UIAlertAction actionWithTitle:@"Force TRUE (1)" style:UIAlertActionStyleDefault handler:^(id _){
+        WAGRSetOverride(e.overrideKey,YES); WAGRInstallHookForEntry(e);
+        [self applyFilter:self->_search.searchBar.text];}]];
+    [a addAction:[UIAlertAction actionWithTitle:@"Force FALSE (0)" style:UIAlertActionStyleDefault handler:^(id _){
+        WAGRSetOverride(e.overrideKey,NO); WAGRInstallHookForEntry(e);
+        [self applyFilter:self->_search.searchBar.text];}]];
+    [a addAction:[UIAlertAction actionWithTitle:@"Clear / System" style:UIAlertActionStyleDefault handler:^(id _){
         WAGRClearOverride(e.overrideKey);
-        [self.tableView reloadRowsAtIndexPaths:@[ip] withRowAnimation:UITableViewRowAnimationNone];
-    }]];
-
-    [a addAction:[UIAlertAction actionWithTitle:@"Install hook now"
-                                          style:UIAlertActionStyleDefault
-                                        handler:^(__unused id _) {
-        BOOL ok = WAGRInstallHookForEntry(e);
-        UIAlertController *r = [UIAlertController alertControllerWithTitle:ok ? @"OK" : @"Failed"
-                                                                   message:ok ? @"Hook installed." : @"Could not install hook."
-                                                            preferredStyle:UIAlertControllerStyleAlert];
-        [r addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleCancel handler:nil]];
-        [self presentViewController:r animated:YES completion:nil];
-    }]];
-
-    [a addAction:[UIAlertAction actionWithTitle:@"Cancel" style:UIAlertActionStyleCancel handler:nil]];
+        [self applyFilter:self->_search.searchBar.text];}]];
+    [a addAction:[UIAlertAction actionWithTitle:@"Cancelar" style:UIAlertActionStyleCancel handler:nil]];
     [self presentViewController:a animated:YES completion:nil];
 }
-
-- (void)resetVisibleOverrides {
-    NSUInteger n = 0;
-    for (NSString *cat in _cats) {
-        for (WAGREntry *e in _byCat[cat]) {
-            if (WAGRHasOverride(e.overrideKey)) {
-                WAGRClearOverride(e.overrideKey);
-                n++;
-            }
-        }
-    }
-    [self.tableView reloadData];
-
-    UIAlertController *a = [UIAlertController alertControllerWithTitle:@"Reset"
-                                                               message:[NSString stringWithFormat:@"%lu overrides cleared.", (unsigned long)n]
-                                                        preferredStyle:UIAlertControllerStyleAlert];
-    [a addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleCancel handler:nil]];
-    [self presentViewController:a animated:YES completion:nil];
-}
-
 @end

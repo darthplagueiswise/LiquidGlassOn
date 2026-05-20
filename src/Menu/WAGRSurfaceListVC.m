@@ -82,9 +82,16 @@ static NSUInteger WAGROverrideCountForSurfaceID(NSString *sid) {
 }
 - (void)viewDidLoad {
     [super viewDidLoad];
-    self.tableView.backgroundColor = WAGRBG();
+    self.tableView.backgroundColor = [UIColor colorWithRed:.07 green:.07 blue:.08 alpha:1];
 }
 - (NSInteger)tableView:(UITableView *)tv numberOfRowsInSection:(NSInteger)section { return (NSInteger)_surfaces.count; }
+- (void)tableView:(UITableView *)tv willDisplayHeaderView:(UIView *)view forSection:(NSInteger)section {
+    if ([view isKindOfClass:UITableViewHeaderFooterView.class]) {
+        UITableViewHeaderFooterView *h = (UITableViewHeaderFooterView *)view;
+        h.textLabel.font = [UIFont boldSystemFontOfSize:11];
+        h.textLabel.textColor = [UIColor colorWithWhite:.5 alpha:1];
+    }
+}
 - (NSString *)tableView:(UITableView *)tv titleForHeaderInSection:(NSInteger)section { return @"Surfaces técnicas"; }
 - (NSString *)tableView:(UITableView *)tv titleForFooterInSection:(NSInteger)section {
     return @"Browser bruto para debug. A UI principal usa bundles compactos.";
@@ -92,7 +99,7 @@ static NSUInteger WAGROverrideCountForSurfaceID(NSString *sid) {
 - (UITableViewCell *)tableView:(UITableView *)tv cellForRowAtIndexPath:(NSIndexPath *)ip {
     WAGRSurfaceSpec *s = _surfaces[(NSUInteger)ip.row];
     UITableViewCell *c = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleSubtitle reuseIdentifier:nil];
-    c.backgroundColor = WAGRCell();
+    c.backgroundColor = [UIColor colorWithRed:.13 green:.13 blue:.14 alpha:1];
     c.textLabel.text = s.title;
     c.textLabel.textColor = WAGRText();
     c.detailTextLabel.text = s.subtitle ?: @"";
@@ -146,7 +153,7 @@ typedef NS_ENUM(NSInteger, WAGRSystemRow) {
 
 - (void)viewDidLoad {
     [super viewDidLoad];
-    self.tableView.backgroundColor = WAGRBG();
+    self.tableView.backgroundColor = [UIColor colorWithRed:.07 green:.07 blue:.08 alpha:1];
     self.navigationItem.rightBarButtonItem = [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemDone
                                                                                            target:self
                                                                                            action:@selector(done)];
@@ -186,6 +193,13 @@ typedef NS_ENUM(NSInteger, WAGRSystemRow) {
     return 0;
 }
 
+- (void)tableView:(UITableView *)tv willDisplayHeaderView:(UIView *)view forSection:(NSInteger)section {
+    if ([view isKindOfClass:UITableViewHeaderFooterView.class]) {
+        UITableViewHeaderFooterView *h = (UITableViewHeaderFooterView *)view;
+        h.textLabel.font = [UIFont boldSystemFontOfSize:11];
+        h.textLabel.textColor = [UIColor colorWithWhite:.5 alpha:1];
+    }
+}
 - (NSString *)tableView:(UITableView *)tv titleForHeaderInSection:(NSInteger)section {
     switch ((WAGRRootSection)section) {
         case WAGRRootSectionAbout: return nil;
@@ -206,7 +220,7 @@ typedef NS_ENUM(NSInteger, WAGRSystemRow) {
 
 - (UITableViewCell *)aboutCell {
     UITableViewCell *c = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleSubtitle reuseIdentifier:nil];
-    c.backgroundColor = WAGRCell();
+    c.backgroundColor = [UIColor colorWithRed:.13 green:.13 blue:.14 alpha:1];
     c.textLabel.text = @"WAGram";
     c.textLabel.textColor = WAGRText();
     c.detailTextLabel.text = @"Runtime router · MSHookMessageEx · UI compacta";
@@ -221,7 +235,7 @@ typedef NS_ENUM(NSInteger, WAGRSystemRow) {
     WAGRSurfaceSpec *s = _filteredBundles[(NSUInteger)row];
     NSUInteger count = WAGROverrideCountForSurfaceID(s.surfaceID);
     UITableViewCell *c = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleSubtitle reuseIdentifier:nil];
-    c.backgroundColor = WAGRCell();
+    c.backgroundColor = [UIColor colorWithRed:.13 green:.13 blue:.14 alpha:1];
     c.textLabel.text = s.title;
     c.textLabel.textColor = WAGRText();
     c.detailTextLabel.text = count ? [NSString stringWithFormat:@"%lu overrides", (unsigned long)count] : (s.subtitle ?: @"");
@@ -238,7 +252,7 @@ typedef NS_ENUM(NSInteger, WAGRSystemRow) {
     NSString *icons[] = { @"terminal", @"arrow.triangle.2.circlepath", @"doc.text.magnifyingglass" };
 
     UITableViewCell *c = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleSubtitle reuseIdentifier:nil];
-    c.backgroundColor = WAGRCell();
+    c.backgroundColor = [UIColor colorWithRed:.13 green:.13 blue:.14 alpha:1];
     c.textLabel.text = titles[row];
     c.textLabel.textColor = WAGRText();
     c.detailTextLabel.text = subs[row];
@@ -255,7 +269,7 @@ typedef NS_ENUM(NSInteger, WAGRSystemRow) {
     NSString *icons[] = { @"power", @"arrow.counterclockwise", @"trash" };
 
     UITableViewCell *c = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleSubtitle reuseIdentifier:nil];
-    c.backgroundColor = WAGRCell();
+    c.backgroundColor = [UIColor colorWithRed:.13 green:.13 blue:.14 alpha:1];
     c.textLabel.text = titles[row];
     c.textLabel.textColor = row == WAGRSystemRowRestart ? WAGRRed() : WAGRText();
     c.detailTextLabel.text = subs[row];
