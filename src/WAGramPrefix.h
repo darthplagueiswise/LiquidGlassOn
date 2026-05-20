@@ -64,3 +64,82 @@ static inline void WAGRSet(NSString *flag, NSString *val) {
 
 // ── Quick bool read ───────────────────────────────────────────────────────────
 #define WAGRPref(key) [[NSUserDefaults standardUserDefaults] boolForKey:(key)]
+
+
+// ─────────────────────────────────────────────────────────────
+// WAGram gama runtime surface ids
+// Required by src/Runtime/WAGRSurface.m
+// ─────────────────────────────────────────────────────────────
+#ifndef WAGR_GAMA_SURFACE_IDS
+#define WAGR_GAMA_SURFACE_IDS 1
+static NSString * const kWAGRSurfaceWAAB     = @"waab";
+static NSString * const kWAGRSurfaceContext  = @"context";
+static NSString * const kWAGRSurfaceGateKeep = @"gatekeep";
+static NSString * const kWAGRSurfaceAura     = @"aura";
+static NSString * const kWAGRSurfaceSettings = @"settings";
+static NSString * const kWAGRSurfaceEmployee = @"employee";
+#endif
+
+
+// ─────────────────────────────────────────────────────────────
+// WAGram gama runtime override helpers
+// Required by WAGRSurfaceBrowserVC.m and WAGRSurface.m
+// ─────────────────────────────────────────────────────────────
+#ifndef WAGR_GAMA_OVERRIDE_HELPERS
+#define WAGR_GAMA_OVERRIDE_HELPERS 1
+
+static inline NSString *WAGROverrideKey(NSString *surfaceID, NSString *className,
+                                         BOOL isClassMethod, NSString *sel) {
+    return [NSString stringWithFormat:@"wagr.override|%@|%@|%@|%@",
+            surfaceID ?: @"runtime",
+            className ?: @"",
+            isClassMethod ? @"class" : @"inst",
+            sel ?: @""];
+}
+
+static inline NSString *WAGRObservedKey(NSString *overrideKey) {
+    if (!overrideKey.length) return @"";
+    if ([overrideKey hasPrefix:@"wagr.override|"]) {
+        return [overrideKey stringByReplacingOccurrencesOfString:@"wagr.override|"
+                                                      withString:@"wagr.observed|"];
+    }
+    return [overrideKey stringByReplacingOccurrencesOfString:@"wagr.override."
+                                                  withString:@"wagr.observed."];
+}
+
+static inline BOOL WAGRHasOverride(NSString *key) {
+    if (!key.length) return NO;
+    return [[NSUserDefaults standardUserDefaults] objectForKey:key] != nil;
+}
+
+static inline BOOL WAGROverrideBool(NSString *key) {
+    if (!key.length) return NO;
+    return [[NSUserDefaults standardUserDefaults] boolForKey:key];
+}
+
+static inline void WAGRSetOverride(NSString *key, BOOL value) {
+    if (!key.length) return;
+    [[NSUserDefaults standardUserDefaults] setBool:value forKey:key];
+    [[NSUserDefaults standardUserDefaults] synchronize];
+}
+
+static inline void WAGRClearOverride(NSString *key) {
+    if (!key.length) return;
+    [[NSUserDefaults standardUserDefaults] removeObjectForKey:key];
+    [[NSUserDefaults standardUserDefaults] synchronize];
+}
+
+static inline void WAGRRecordObserved(NSString *overrideKey, BOOL value) {
+    NSString *k = WAGRObservedKey(overrideKey);
+    if (!k.length) return;
+    [[NSUserDefaults standardUserDefaults] setBool:value forKey:k];
+}
+
+static inline BOOL WAGRObservedValue(NSString *overrideKey, BOOL *known) {
+    NSString *k = WAGRObservedKey(overrideKey);
+    id obj = k.length ? [[NSUserDefaults standardUserDefaults] objectForKey:k] : nil;
+    if (known) *known = obj != nil;
+    return obj ? [obj boolValue] : NO;
+}
+
+#endif
