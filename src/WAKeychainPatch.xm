@@ -1,3 +1,4 @@
+#import "WAGramPrefix.h"
 #import "WAKeychainPatch.h"
 #import "WAPrefix.h"
 #import "WAUtils.h"
@@ -15,11 +16,11 @@ static atomic_bool gWAKeychainHooksInstalled = false;
 static atomic_bool gWAKeychainProbeActive = false;
 
 static BOOL WAKeychainRewriteEnabled(void) {
-    return WAEnabled(WA_PREF_KEYCHAIN_REWRITE);
+    return WAEnabled(kWAGRKeychain);
 }
 
 static BOOL WAKeychainObserverEnabled(void) {
-    return WAEnabled(WA_PREF_KEYCHAIN_OBSERVER);
+    return WAEnabled(kWAGRKeychainObserver);
 }
 
 static NSString *WAProbeService(void) {

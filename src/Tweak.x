@@ -234,13 +234,13 @@ static void startup(void) {
         installSettingsHooks();
 
         // Do not install dynamic/runtime hooks at startup unless the user explicitly asked.
-        if (WAGRPref(@"wagr.startupHooksEnabled")) {
+        if (WATweaksHasSavedObjCOverrides()) {
             WAGRReinstallPersistedHooks();
         }
 
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
             installSettingsHooks();
-            if (WAGRPref(@"wagr.startupHooksEnabled")) WAGRReinstallPersistedHooks();
+            if (WATweaksHasSavedObjCOverrides()) WAGRReinstallPersistedHooks();
             if (WAGRNativeDebugAllowed()) WAGRDogfoodEnsureHooksInstalled();
         });
     }
@@ -248,4 +248,26 @@ static void startup(void) {
 
 %ctor {
     startup();
+}
+
+// WATweaks unified persistence startup.
+// This makes saved overrides self-applying without the removed hidden wagr.startupHooksEnabled toggle.
+#import "WAGramPrefix.h"
+extern NSUInteger WAGRReinstallPersistedHooks(void);
+
+__attribute__((constructor))
+static void WATweaksUnifiedStateCtor(void) {
+    @autoreleasepool {
+        WATweaksMigrateLegacyDefaults();
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.65 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+            if (WATweaksHasSavedObjCOverrides()) {
+                WAGRReinstallPersistedHooks();
+            }
+        });
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+            if (WATweaksHasSavedObjCOverrides()) {
+                WAGRReinstallPersistedHooks();
+            }
+        });
+    }
 }

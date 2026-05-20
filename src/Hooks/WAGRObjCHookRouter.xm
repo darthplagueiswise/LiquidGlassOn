@@ -1,194 +1,202 @@
-// WAGRObjCHookRouter.xm — Zero Logos. MSHookMessageEx only.
-// Install ONE generic hook per class. All entries for the same class share it.
-// Toggle = NSUserDefaults setBool/removeObject. No uninstall.
+// WAGRObjCHookRouter.xm — dynamic ObjC BOOL hook router.
+// Uses the unified WATweaks persistence namespace.
+// Only installs exact saved/toggled selectors; no broad runtime scan.
 
 #import <Foundation/Foundation.h>
 #import <objc/runtime.h>
+#import <dlfcn.h>
 #import <substrate.h>
 #import "../WAGramPrefix.h"
 #import "../Runtime/WAGRSurface.h"
 
-// ── Installed hooks registry ──────────────────────────────────────────────────
-// key: "ClassName.inst/class.selector" → NSValue(orig IMP)
-static NSMutableDictionary<NSString*,NSValue*> *gOriginals  = nil;
-static NSMutableDictionary<NSString*,NSString*> *gKeyMap    = nil; // selName→overrideKey
-static NSMutableSet<NSString*>                  *gInstalled = nil;
-static dispatch_once_t gOnce;
+typedef BOOL (*WAGRBoolIMP)(id, SEL);
 
-static void WAGRHookEnsureStorage(void) {
-    dispatch_once(&gOnce, ^{
-        gOriginals = [NSMutableDictionary dictionaryWithCapacity:256];
-        gKeyMap    = [NSMutableDictionary dictionaryWithCapacity:256];
-        gInstalled = [NSMutableSet setWithCapacity:64];
+static NSMutableDictionary<NSString *, NSValue *> *gOriginals;
+static NSMutableDictionary<NSString *, NSString *> *gKeyMap;
+static NSMutableSet<NSString *> *gInstalled;
+static NSUInteger gSkippedMissingClass = 0;
+static NSUInteger gSkippedMissingMethod = 0;
+static NSUInteger gSkippedBadSignature = 0;
+static NSUInteger gSkippedBadImage = 0;
+
+static void WAGRRouterInit(void) {
+    static dispatch_once_t once;
+    dispatch_once(&once, ^{
+        gOriginals = [NSMutableDictionary dictionary];
+        gKeyMap = [NSMutableDictionary dictionary];
+        gInstalled = [NSMutableSet set];
     });
 }
 
-static NSString *WAGRHookIDFor(Class cls, BOOL classMethod, SEL sel) {
-    return [NSString stringWithFormat:@"%@.%@.%@",
-            NSStringFromClass(cls),
-            classMethod ? @"class" : @"inst",
-            NSStringFromSelector(sel)];
+static BOOL WAGRPathIsAllowed(NSString *path) {
+    if (!path.length) return NO;
+    NSString *p = path.lowercaseString;
+    return [p containsString:@"/whatsapp.app/whatsapp"] ||
+           [p containsString:@"/frameworks/sharedmodules.framework/sharedmodules"];
+}
+
+static BOOL WAGRMethodImageAllowed(Method m) {
+    if (!m) return NO;
+    IMP imp = method_getImplementation(m);
+    if (!imp) return NO;
+    Dl_info info;
+    memset(&info, 0, sizeof(info));
+    if (!dladdr((const void *)imp, &info) || !info.dli_fname) return NO;
+    return WAGRPathIsAllowed(@(info.dli_fname));
+}
+
+static BOOL WAGRReturnIsBool(Method m) {
+    if (!m) return NO;
+    char ret[16] = {0};
+    method_getReturnType(m, ret, sizeof(ret));
+    return ret[0] == 'B' || ret[0] == 'c';
+}
+
+static NSString *WAGRHookIDForParts(NSString *className, NSString *kind, NSString *selectorName) {
+    return [NSString stringWithFormat:@"%@.%@.%@", className ?: @"", kind ?: @"inst", selectorName ?: @""];
+}
+
+static BOOL WAGRParseObjCOverrideKey(NSString *key, NSString **className, BOOL *isClassMethod, NSString **selectorName) {
+    if (![key hasPrefix:kWATweaksOverrideObjCPrefix]) return NO;
+    NSString *suffix = [key substringFromIndex:kWATweaksOverrideObjCPrefix.length];
+    NSArray<NSString *> *parts = [suffix componentsSeparatedByString:@"|"];
+    if (parts.count < 3) return NO;
+    NSString *cls = parts[0];
+    NSString *kind = parts[1];
+    NSString *sel = [[parts subarrayWithRange:NSMakeRange(2, parts.count - 2)] componentsJoinedByString:@"|"];
+    if (!cls.length || !sel.length) return NO;
+    if (className) *className = cls;
+    if (isClassMethod) *isClassMethod = [kind isEqualToString:@"class"];
+    if (selectorName) *selectorName = sel;
+    return YES;
 }
 
 static NSString *WAGRFindHookID(id self, SEL _cmd) {
-    Class cls = object_getClass(self);
+    WAGRRouterInit();
     NSString *sel = NSStringFromSelector(_cmd);
     NSMutableArray<NSString *> *candidates = [NSMutableArray array];
 
-    if (class_isMetaClass(cls)) {
+    Class runtimeClass = object_getClass(self);
+    if (runtimeClass && class_isMetaClass(runtimeClass)) {
         Class realClass = (Class)self;
-        if (realClass) {
-            [candidates addObject:[NSString stringWithFormat:@"%@.class.%@", NSStringFromClass(realClass), sel]];
-        }
+        [candidates addObject:WAGRHookIDForParts(NSStringFromClass(realClass), @"class", sel)];
     }
 
     Class instanceClass = [self class];
     if (instanceClass) {
-        [candidates addObject:[NSString stringWithFormat:@"%@.inst.%@", NSStringFromClass(instanceClass), sel]];
-        [candidates addObject:[NSString stringWithFormat:@"%@.class.%@", NSStringFromClass(instanceClass), sel]];
+        [candidates addObject:WAGRHookIDForParts(NSStringFromClass(instanceClass), @"inst", sel)];
+        [candidates addObject:WAGRHookIDForParts(NSStringFromClass(instanceClass), @"class", sel)];
     }
 
     for (NSString *hookID in candidates) {
-        if (gOriginals[hookID] || gKeyMap[hookID].length) return hookID;
-    }
-    return candidates.firstObject;
-}
-
-static NSString *WAGRFindOverrideKey(id self, SEL _cmd) {
-    Class cls = object_getClass(self);
-    NSString *sel = NSStringFromSelector(_cmd);
-    NSMutableArray<NSString *> *candidates = [NSMutableArray array];
-
-    if (class_isMetaClass(cls)) {
-        Class realClass = (Class)self;
-        if (realClass) {
-            [candidates addObject:[NSString stringWithFormat:@"%@.class.%@", NSStringFromClass(realClass), sel]];
-        }
-    }
-
-    Class instanceClass = [self class];
-    if (instanceClass) {
-        [candidates addObject:[NSString stringWithFormat:@"%@.inst.%@", NSStringFromClass(instanceClass), sel]];
-        [candidates addObject:[NSString stringWithFormat:@"%@.class.%@", NSStringFromClass(instanceClass), sel]];
-    }
-
-    for (NSString *hookID in candidates) {
-        NSString *key = gKeyMap[hookID];
-        if (key.length) return key;
+        if (gKeyMap[hookID].length) return hookID;
     }
     return nil;
 }
 
-// ── Generic BOOL hook — shared IMP for all hookable methods ──────────────────
 static BOOL WAGRGenericBoolHook(id self, SEL _cmd) {
+    WAGRRouterInit();
     NSString *hookID = WAGRFindHookID(self, _cmd);
-    NSString *overrideKey = WAGRFindOverrideKey(self, _cmd);
+    NSString *overrideKey = hookID.length ? gKeyMap[hookID] : nil;
 
-    typedef BOOL (*BoolIMP)(id, SEL);
-    BoolIMP orig = NULL;
+    WAGRBoolIMP orig = NULL;
     NSValue *v = hookID.length ? gOriginals[hookID] : nil;
-    if (v) orig = reinterpret_cast<BoolIMP>([v pointerValue]);
+    if (v) orig = reinterpret_cast<WAGRBoolIMP>([v pointerValue]);
 
     BOOL original = orig ? orig(self, _cmd) : NO;
     if (overrideKey.length) WAGRRecordObserved(overrideKey, original);
 
-    if (overrideKey.length && WAGRHasOverride(overrideKey)) {
-        return WAGROverrideBool(overrideKey);
-    }
+    if (overrideKey.length && WAGRHasOverride(overrideKey)) return WAGROverrideBool(overrideKey);
     return original;
 }
 
-// ── Install hook for one entry ─────────────────────────────────────────────────
-extern "C" BOOL WAGRInstallHookForEntry(WAGREntry *e) {
-    WAGRHookEnsureStorage();
-    if (!e) return NO;
-    Class cls = NSClassFromString(e.className);
-    if (!cls) return NO;
-    SEL sel = NSSelectorFromString(e.selectorName);
+static BOOL WAGRInstallObjCOverrideByParts(NSString *overrideKey, NSString *className, BOOL isClassMethod, NSString *selectorName) {
+    WAGRRouterInit();
 
-    NSString *hookID = WAGRHookIDFor(cls, e.isClassMethod, sel);
-    NSString *altHookID = WAGRHookIDFor(cls, !e.isClassMethod, sel);
+    Class cls = NSClassFromString(className);
+    if (!cls) { gSkippedMissingClass++; return NO; }
 
-    if ([gInstalled containsObject:hookID]) {
-        // Already hooked — just make sure key map has both aliases.
-        gKeyMap[hookID] = e.overrideKey;
-        gKeyMap[altHookID] = e.overrideKey;
-        return YES;
+    SEL sel = NSSelectorFromString(selectorName);
+    Class target = isClassMethod ? object_getClass(cls) : cls;
+    Method m = class_getInstanceMethod(target, sel);
+    if (!m) { gSkippedMissingMethod++; return NO; }
+
+    if (method_getNumberOfArguments(m) != 2 || !WAGRReturnIsBool(m)) {
+        gSkippedBadSignature++;
+        return NO;
     }
 
-    Class target = e.isClassMethod ? object_getClass(cls) : cls;
-    Method m = e.isClassMethod ? class_getClassMethod(cls, sel) : class_getInstanceMethod(cls, sel);
-    if (!m) return NO;
-    char ret[8]={0}; method_getReturnType(m, ret, 8);
-    if (ret[0]!='B' && ret[0]!='c') return NO;
-    IMP orig = NULL;
-    MSHookMessageEx(target, sel, (IMP)WAGRGenericBoolHook, &orig);
-    if (!orig) return NO;
-    gOriginals[hookID] = [NSValue valueWithPointer:reinterpret_cast<const void *>(orig)];
-    // Alias both ids because metaclass / Swift bridge / runtime dispatch may report
-    // self differently inside the generic IMP than the install-time Method lookup.
-    gKeyMap[hookID] = e.overrideKey;
-    gKeyMap[altHookID] = e.overrideKey;
+    if (!WAGRMethodImageAllowed(m)) {
+        gSkippedBadImage++;
+        return NO;
+    }
+
+    NSString *kind = isClassMethod ? @"class" : @"inst";
+    NSString *hookID = WAGRHookIDForParts(className, kind, selectorName);
+    gKeyMap[hookID] = overrideKey ?: @"";
+
+    if ([gInstalled containsObject:hookID]) return YES;
+
+    IMP old = NULL;
+    MSHookMessageEx(target, sel, (IMP)WAGRGenericBoolHook, &old);
+    if (!old) return NO;
+
+    gOriginals[hookID] = [NSValue valueWithPointer:reinterpret_cast<const void *>(old)];
     [gInstalled addObject:hookID];
     return YES;
 }
 
-// ── Reinstall all persisted overrides ─────────────────────────────────────────
-// Called on startup — scans NSUserDefaults for wagr.override.* and hooks those classes.
+extern "C" BOOL WAGRInstallHookForEntry(WAGREntry *entry) {
+    if (!entry || !entry.overrideKey.length) return NO;
+    if (WATweaksIsWAABOverrideKey(entry.overrideKey)) return YES; // handled by FOAWAABPropertiesImpl core hook
+    NSString *className = entry.className ?: @"";
+    NSString *selectorName = entry.selectorName ?: @"";
+    return WAGRInstallObjCOverrideByParts(entry.overrideKey, className, entry.isClassMethod, selectorName);
+}
+
 extern "C" NSUInteger WAGRReinstallPersistedHooks(void) {
-    WAGRHookEnsureStorage();
-    NSDictionary *all = [[NSUserDefaults standardUserDefaults] dictionaryRepresentation];
+    WAGRRouterInit();
+    WATweaksMigrateLegacyDefaults();
+
     NSUInteger installed = 0;
-    for (NSString *key in all) {
-        if (![key hasPrefix:@"wagr.override"]) continue;
-
-        NSString *surfaceID = nil;
+    NSDictionary *all = [[NSUserDefaults standardUserDefaults] dictionaryRepresentation];
+    for (NSString *key in all.allKeys) {
         NSString *className = nil;
-        NSString *mode = nil;
-        NSString *selName = nil;
-
-        if ([key hasPrefix:@"wagr.override|"]) {
-            NSArray<NSString *> *parts = [key componentsSeparatedByString:@"|"];
-            if (parts.count < 5) continue;
-            surfaceID = parts[1];
-            className = parts[2];
-            mode = parts[3];
-            selName = [[parts subarrayWithRange:NSMakeRange(4, parts.count - 4)] componentsJoinedByString:@"|"];
-        } else {
-            // Legacy dot-separated key. Kept only for old installs.
-            NSArray<NSString *> *parts = [key componentsSeparatedByString:@"."];
-            if (parts.count < 6) continue;
-            surfaceID = parts[2];
-            className = parts[3];
-            mode = parts[4];
-            selName = [[parts subarrayWithRange:NSMakeRange(5, parts.count - 5)] componentsJoinedByString:@"."];
-        }
-
-        if (!className.length || !selName.length) continue;
-        WAGREntry *e = [WAGREntry new];
-        e.surfaceID = surfaceID ?: @"runtime";
-        e.className = className;
-        e.isClassMethod = [mode isEqualToString:@"class"];
-        e.selectorName = selName;
-        e.displayName = selName;
-        e.category = WAGRCategoryForSelector(selName);
-        e.returnType = @"BOOL";
-        e.overrideKey = key;
-        if (WAGRInstallHookForEntry(e)) installed++;
+        NSString *selectorName = nil;
+        BOOL isClassMethod = NO;
+        if (!WAGRParseObjCOverrideKey(key, &className, &isClassMethod, &selectorName)) continue;
+        if (WAGRInstallObjCOverrideByParts(key, className, isClassMethod, selectorName)) installed++;
     }
-    NSLog(@"[WAGram][Router] reinstalled %lu persisted hooks", (unsigned long)installed);
     return installed;
 }
 
-extern "C" NSUInteger WAGRInstalledHookCount(void) {
-    WAGRHookEnsureStorage();
-    return gInstalled.count;
-}
 extern "C" NSString *WAGRHookRouterDiagnostic(void) {
-    WAGRHookEnsureStorage();
-    NSUInteger overrides=0;
-    for(NSString*k in [[NSUserDefaults standardUserDefaults]dictionaryRepresentation])
-        if([k hasPrefix:@"wagr.override."])overrides++;
-    return [NSString stringWithFormat:@"installed hooks = %lu\nactive overrides = %lu",
-        (unsigned long)gInstalled.count, (unsigned long)overrides];
+    WAGRRouterInit();
+    NSUInteger objcOverrides = WATweaksObjCOverrideCount();
+    NSUInteger waabOverrides = WATweaksWAABOverrideCount();
+    NSUInteger legacy = 0;
+    for (NSString *k in [NSUserDefaults standardUserDefaults].dictionaryRepresentation.allKeys) {
+        if ([k hasPrefix:@"wagr."] || [k hasPrefix:@"wagr_"]) legacy++;
+    }
+
+    return [NSString stringWithFormat:
+            @"dynamic router hooks installed = %lu\n"
+             "unique overrides = %lu\n"
+             "objc overrides = %lu\n"
+             "waab overrides = %lu\n"
+             "legacy keys = %lu\n"
+             "auto startup apply = automatic\n"
+             "skipped missing class = %lu\n"
+             "skipped missing method = %lu\n"
+             "skipped bad signature = %lu\n"
+             "skipped bad image = %lu",
+            (unsigned long)gInstalled.count,
+            (unsigned long)(objcOverrides + waabOverrides),
+            (unsigned long)objcOverrides,
+            (unsigned long)waabOverrides,
+            (unsigned long)legacy,
+            (unsigned long)gSkippedMissingClass,
+            (unsigned long)gSkippedMissingMethod,
+            (unsigned long)gSkippedBadSignature,
+            (unsigned long)gSkippedBadImage];
 }
