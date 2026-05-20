@@ -1,4 +1,4 @@
-// WAGRSurfaceBrowserVC.m — Ryukgram-style. Groups by className. UISwitch only.
+// WAGRSurfaceBrowserVC.m — Ryukgram-style. Groups by class/prefix. UISwitch only.
 #import "WAGRSurfaceBrowserVC.h"
 #import "../WAGramPrefix.h"
 #import "../Runtime/WAGRSurface.h"
@@ -6,14 +6,14 @@
 extern BOOL WAGRInstallHookForEntry(WAGREntry *e);
 static const void *kEntryKey = &kEntryKey;
 
-// ── Dark compact palette ─────────────────────────────────────────────────────
-static UIColor *RBG(void)  { return UIColor.blackColor; }
-static UIColor *RCELL(void){ return [UIColor colorWithRed:.055 green:.055 blue:.060 alpha:1]; }
+// ── Dark Ryuk-style palette ──────────────────────────────────────────────────
+static UIColor *RBG(void)  { return [UIColor colorWithRed:.010 green:.010 blue:.012 alpha:1]; }
+static UIColor *RCELL(void){ return [UIColor colorWithRed:.120 green:.120 blue:.130 alpha:1]; }
 static UIColor *RACC(void) { return [UIColor colorWithRed:.23 green:.51 blue:.96 alpha:1]; }
 static UIColor *RGRN(void) { return [UIColor colorWithRed:.2  green:.78 blue:.35 alpha:1]; }
 static UIColor *RRED(void) { return [UIColor colorWithRed:.95 green:.23 blue:.21 alpha:1]; }
-static UIColor *RSUB(void) { return [UIColor colorWithWhite:.52 alpha:1]; }
-static UIColor *RSEP(void) { return [UIColor colorWithWhite:.16 alpha:1]; }
+static UIColor *RSUB(void) { return [UIColor colorWithWhite:.58 alpha:1]; }
+static UIColor *RSEP(void) { return [UIColor colorWithWhite:.22 alpha:1]; }
 
 @interface WAGRSurfaceBrowserVC () <UISearchResultsUpdating>
 @property(nonatomic,strong) WAGRSurfaceSpec *spec;
@@ -23,6 +23,38 @@ static UIColor *RSEP(void) { return [UIColor colorWithWhite:.16 alpha:1]; }
 @property(nonatomic,strong) UISearchController *search;
 @property(nonatomic,assign) BOOL hasScanned;
 @end
+
+static NSString *WAGRFeatureName(WAGREntry *e) {
+    NSString *n = e.displayName.length ? e.displayName : e.selectorName;
+    if (!n.length) return @"";
+    while ([n hasPrefix:@"@property "]) n = [n substringFromIndex:10];
+    while ([n hasPrefix:@"@prop "]) n = [n substringFromIndex:6];
+    while ([n hasPrefix:@"- "] || [n hasPrefix:@"+ "]) n = [n substringFromIndex:2];
+    return n;
+}
+
+static NSString *WAGRPrefixSectionForName(NSString *name) {
+    if (!name.length) return @"Other";
+    NSString *n = name;
+    NSCharacterSet *seps = [NSCharacterSet characterSetWithCharactersInString:@"_-.:"];
+    NSRange r = [n rangeOfCharacterFromSet:seps];
+    NSString *p = (r.location != NSNotFound && r.location > 0) ? [n substringToIndex:r.location] : nil;
+    if (!p.length) {
+        NSMutableString *m = [NSMutableString string];
+        for (NSUInteger i = 0; i < n.length; i++) {
+            unichar c = [n characterAtIndex:i];
+            if (i > 0 && [[NSCharacterSet uppercaseLetterCharacterSet] characterIsMember:c]) break;
+            if ([[NSCharacterSet alphanumericCharacterSet] characterIsMember:c]) [m appendFormat:@"%C", c];
+        }
+        p = m.length ? m : @"Other";
+    }
+    return p.length ? p.lowercaseString : @"Other";
+}
+
+static NSString *WAGRSectionForEntry(WAGRSurfaceSpec *spec, WAGREntry *e) {
+    if ([spec.surfaceID isEqualToString:@"bundle_general"]) return WAGRPrefixSectionForName(WAGRFeatureName(e));
+    return e.className.length ? e.className : @"Other";
+}
 
 @implementation WAGRSurfaceBrowserVC
 - (instancetype)initWithSpec:(WAGRSurfaceSpec*)spec {
@@ -37,9 +69,9 @@ static UIColor *RSEP(void) { return [UIColor colorWithWhite:.16 alpha:1]; }
     self.tableView.backgroundView=[UIView new];
     self.tableView.backgroundView.backgroundColor=RBG();
     self.tableView.rowHeight=UITableViewAutomaticDimension;
-    self.tableView.estimatedRowHeight=78;
+    self.tableView.estimatedRowHeight=76;
     self.tableView.separatorColor=RSEP();
-    self.tableView.separatorInset=UIEdgeInsetsMake(0,54,0,16);
+    self.tableView.separatorInset=UIEdgeInsetsMake(0,16,0,16);
     _search=[[UISearchController alloc]initWithSearchResultsController:nil];
     _search.searchResultsUpdater=self;
     _search.obscuresBackgroundDuringPresentation=NO;
@@ -71,12 +103,14 @@ static UIColor *RSEP(void) { return [UIColor colorWithWhite:.16 alpha:1]; }
     dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED,0),^{
         NSArray<WAGREntry*>*entries=[WAGRScanner scanSurface:self.spec];
         entries=[entries sortedArrayUsingComparator:^NSComparisonResult(WAGREntry*a,WAGREntry*b){
-            NSComparisonResult r=[a.className localizedCaseInsensitiveCompare:b.className];
+            NSString *sa = WAGRSectionForEntry(self.spec, a);
+            NSString *sb = WAGRSectionForEntry(self.spec, b);
+            NSComparisonResult r=[sa localizedCaseInsensitiveCompare:sb];
             if(r!=NSOrderedSame)return r;
             BOOL ha=WAGRHasOverride(a.overrideKey),hb=WAGRHasOverride(b.overrideKey);
             if(ha&&!hb)return NSOrderedAscending;
             if(!ha&&hb)return NSOrderedDescending;
-            return [a.displayName localizedCaseInsensitiveCompare:b.displayName];
+            return [WAGRFeatureName(a) localizedCaseInsensitiveCompare:WAGRFeatureName(b)];
         }];
         dispatch_async(dispatch_get_main_queue(),^{
             self.all=entries;
@@ -87,14 +121,15 @@ static UIColor *RSEP(void) { return [UIColor colorWithWhite:.16 alpha:1]; }
 - (void)applyFilter:(NSString*)q {
     NSArray<WAGREntry*>*base=q.length
         ?[_all filteredArrayUsingPredicate:[NSPredicate predicateWithBlock:^BOOL(WAGREntry*e,NSDictionary*_){
-            NSString*hay=[NSString stringWithFormat:@"%@ %@",e.className,e.displayName].lowercaseString;
+            NSString*hay=[NSString stringWithFormat:@"%@ %@ %@",e.className,WAGRFeatureName(e),e.category].lowercaseString;
             return [hay containsString:q.lowercaseString];
         }]]
         :_all;
     NSMutableDictionary*map=[NSMutableDictionary dictionary];
     for(WAGREntry*e in base){
-        if(!map[e.className])map[e.className]=[NSMutableArray array];
-        [(NSMutableArray*)map[e.className] addObject:e];
+        NSString *section = WAGRSectionForEntry(_spec, e);
+        if(!map[section])map[section]=[NSMutableArray array];
+        [(NSMutableArray*)map[section] addObject:e];
     }
     _sectionKeys=[map.allKeys sortedArrayUsingSelector:@selector(localizedCaseInsensitiveCompare:)];
     _byClass=map;
@@ -129,13 +164,13 @@ static UIColor *RSEP(void) { return [UIColor colorWithWhite:.16 alpha:1]; }
     UIView*v=[[UIView alloc]initWithFrame:CGRectMake(0,0,tv.bounds.size.width,34)];
     v.backgroundColor=RBG();
     UILabel*l=[[UILabel alloc]initWithFrame:CGRectMake(20,7,tv.bounds.size.width-80,20)];
-    l.text=cls; l.font=[UIFont boldSystemFontOfSize:11];
-    l.textColor=[UIColor colorWithWhite:.55 alpha:1];
+    l.text=cls; l.font=[UIFont boldSystemFontOfSize:12];
+    l.textColor=[UIColor colorWithWhite:.62 alpha:1];
     [v addSubview:l];
     if(on){
         UILabel*badge=[[UILabel alloc]initWithFrame:CGRectMake(tv.bounds.size.width-70,6,60,22)];
         badge.text=[NSString stringWithFormat:@"%lu ON",(unsigned long)on];
-        badge.font=[UIFont boldSystemFontOfSize:10];
+        badge.font=[UIFont boldSystemFontOfSize:11];
         badge.textColor=RGRN(); badge.textAlignment=NSTextAlignmentRight;
         [v addSubview:badge];
     }
@@ -153,19 +188,16 @@ static UIColor *RSEP(void) { return [UIColor colorWithWhite:.16 alpha:1]; }
     c.backgroundColor=RCELL();
     c.contentView.backgroundColor=RCELL();
     c.selectionStyle=UITableViewCellSelectionStyleDefault;
+    c.imageView.image=nil;
+    c.imageView.hidden=YES;
+    c.indentationLevel=0;
+    c.indentationWidth=0;
     BOOL hasOv=WAGRHasOverride(e.overrideKey);
     BOOL effVal=hasOv?WAGROverrideBool(e.overrideKey):NO;
 
-    NSString*sfName=e.isProperty?@"doc.plaintext":@"switch.2";
-    UIImageSymbolConfiguration*cfg=[UIImageSymbolConfiguration
-        configurationWithPointSize:12 weight:UIImageSymbolWeightMedium];
-    c.imageView.image=[[UIImage systemImageNamed:sfName withConfiguration:cfg]
-        imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate];
-    c.imageView.tintColor=hasOv?(effVal?RGRN():RRED()):RSUB();
-
-    NSString *featureName = e.displayName.length ? e.displayName : e.selectorName;
+    NSString *featureName = WAGRFeatureName(e);
     c.textLabel.text=featureName;
-    c.textLabel.font=[UIFont monospacedSystemFontOfSize:11 weight:UIFontWeightRegular];
+    c.textLabel.font=[UIFont monospacedSystemFontOfSize:12 weight:UIFontWeightRegular];
     c.textLabel.textColor=hasOv?(effVal?RGRN():RRED()):UIColor.labelColor;
     c.textLabel.numberOfLines=0;
     c.textLabel.lineBreakMode=NSLineBreakByCharWrapping;
@@ -175,7 +207,7 @@ static UIColor *RSEP(void) { return [UIColor colorWithWhite:.16 alpha:1]; }
     NSString *state = hasOv ? (effVal ? @"override 1" : @"override 0") : @"sys";
     c.detailTextLabel.text=[NSString stringWithFormat:@"%@ · %@", pfx, state];
     c.detailTextLabel.textColor=hasOv?(effVal?RGRN():RRED()):RSUB();
-    c.detailTextLabel.font=[UIFont systemFontOfSize:10 weight:UIFontWeightRegular];
+    c.detailTextLabel.font=[UIFont systemFontOfSize:11 weight:UIFontWeightRegular];
     c.detailTextLabel.numberOfLines=1;
 
     UISwitch*sw=(UISwitch*)objc_getAssociatedObject(c,kEntryKey);
@@ -201,7 +233,7 @@ static UIColor *RSEP(void) { return [UIColor colorWithWhite:.16 alpha:1]; }
     [tv deselectRowAtIndexPath:ip animated:YES];
     WAGREntry*e=[self entryAt:ip]; if(!e)return;
     UIAlertController*a=[UIAlertController alertControllerWithTitle:
-        [NSString stringWithFormat:@"%@",e.displayName]
+        [NSString stringWithFormat:@"%@",WAGRFeatureName(e)]
         message:e.className preferredStyle:UIAlertControllerStyleActionSheet];
     [a addAction:[UIAlertAction actionWithTitle:@"Force TRUE (1)" style:UIAlertActionStyleDefault handler:^(id _){
         WAGRSetOverride(e.overrideKey,YES); WAGRInstallHookForEntry(e);
