@@ -23,30 +23,78 @@ static void WAGRHookEnsureStorage(void) {
     });
 }
 
+static NSString *WAGRHookIDFor(Class cls, BOOL classMethod, SEL sel) {
+    return [NSString stringWithFormat:@"%@.%@.%@",
+            NSStringFromClass(cls),
+            classMethod ? @"class" : @"inst",
+            NSStringFromSelector(sel)];
+}
+
+static NSString *WAGRFindHookID(id self, SEL _cmd) {
+    Class cls = object_getClass(self);
+    NSString *sel = NSStringFromSelector(_cmd);
+    NSMutableArray<NSString *> *candidates = [NSMutableArray array];
+
+    if (class_isMetaClass(cls)) {
+        Class realClass = (Class)self;
+        if (realClass) {
+            [candidates addObject:[NSString stringWithFormat:@"%@.class.%@", NSStringFromClass(realClass), sel]];
+        }
+    }
+
+    Class instanceClass = [self class];
+    if (instanceClass) {
+        [candidates addObject:[NSString stringWithFormat:@"%@.inst.%@", NSStringFromClass(instanceClass), sel]];
+        [candidates addObject:[NSString stringWithFormat:@"%@.class.%@", NSStringFromClass(instanceClass), sel]];
+    }
+
+    for (NSString *hookID in candidates) {
+        if (gOriginals[hookID] || gKeyMap[hookID].length) return hookID;
+    }
+    return candidates.firstObject;
+}
+
+static NSString *WAGRFindOverrideKey(id self, SEL _cmd) {
+    Class cls = object_getClass(self);
+    NSString *sel = NSStringFromSelector(_cmd);
+    NSMutableArray<NSString *> *candidates = [NSMutableArray array];
+
+    if (class_isMetaClass(cls)) {
+        Class realClass = (Class)self;
+        if (realClass) {
+            [candidates addObject:[NSString stringWithFormat:@"%@.class.%@", NSStringFromClass(realClass), sel]];
+        }
+    }
+
+    Class instanceClass = [self class];
+    if (instanceClass) {
+        [candidates addObject:[NSString stringWithFormat:@"%@.inst.%@", NSStringFromClass(instanceClass), sel]];
+        [candidates addObject:[NSString stringWithFormat:@"%@.class.%@", NSStringFromClass(instanceClass), sel]];
+    }
+
+    for (NSString *hookID in candidates) {
+        NSString *key = gKeyMap[hookID];
+        if (key.length) return key;
+    }
+    return nil;
+}
+
 // ── Generic BOOL hook — shared IMP for all hookable methods ──────────────────
 static BOOL WAGRGenericBoolHook(id self, SEL _cmd) {
-    NSString *cname = NSStringFromClass(
-        class_isMetaClass(object_getClass(self))
-            ? (Class)self
-            : [self class]
-    );
-    BOOL isMeta = class_isMetaClass(object_getClass(self));
-    NSString *sel = NSStringFromSelector(_cmd);
+    NSString *hookID = WAGRFindHookID(self, _cmd);
+    NSString *overrideKey = WAGRFindOverrideKey(self, _cmd);
 
-    // Build storage key — search registry for a matching surface
-    NSString *hookID = [NSString stringWithFormat:@"%@.%@.%@", cname, isMeta?@"class":@"inst", sel];
-    NSString *overrideKey = gKeyMap[hookID];
-
-    // Call original first — record observed
     typedef BOOL (*BoolIMP)(id, SEL);
     BoolIMP orig = NULL;
-    NSValue *v = gOriginals[hookID];
+    NSValue *v = hookID.length ? gOriginals[hookID] : nil;
     if (v) orig = reinterpret_cast<BoolIMP>([v pointerValue]);
-    BOOL original = orig ? orig(self, _cmd) : NO;
-    if (overrideKey) WAGRRecordObserved(overrideKey, original);
 
-    if (overrideKey && WAGRHasOverride(overrideKey))
+    BOOL original = orig ? orig(self, _cmd) : NO;
+    if (overrideKey.length) WAGRRecordObserved(overrideKey, original);
+
+    if (overrideKey.length && WAGRHasOverride(overrideKey)) {
         return WAGROverrideBool(overrideKey);
+    }
     return original;
 }
 
@@ -54,16 +102,20 @@ static BOOL WAGRGenericBoolHook(id self, SEL _cmd) {
 extern "C" BOOL WAGRInstallHookForEntry(WAGREntry *e) {
     WAGRHookEnsureStorage();
     if (!e) return NO;
-    NSString *hookID = [NSString stringWithFormat:@"%@.%@.%@",
-                        e.className, e.isClassMethod?@"class":@"inst", e.selectorName];
-    if ([gInstalled containsObject:hookID]) {
-        // Already hooked — just make sure key map has it
-        gKeyMap[hookID] = e.overrideKey;
-        return YES;
-    }
     Class cls = NSClassFromString(e.className);
     if (!cls) return NO;
     SEL sel = NSSelectorFromString(e.selectorName);
+
+    NSString *hookID = WAGRHookIDFor(cls, e.isClassMethod, sel);
+    NSString *altHookID = WAGRHookIDFor(cls, !e.isClassMethod, sel);
+
+    if ([gInstalled containsObject:hookID]) {
+        // Already hooked — just make sure key map has both aliases.
+        gKeyMap[hookID] = e.overrideKey;
+        gKeyMap[altHookID] = e.overrideKey;
+        return YES;
+    }
+
     Class target = e.isClassMethod ? object_getClass(cls) : cls;
     Method m = e.isClassMethod ? class_getClassMethod(cls, sel) : class_getInstanceMethod(cls, sel);
     if (!m) return NO;
@@ -73,7 +125,10 @@ extern "C" BOOL WAGRInstallHookForEntry(WAGREntry *e) {
     MSHookMessageEx(target, sel, (IMP)WAGRGenericBoolHook, &orig);
     if (!orig) return NO;
     gOriginals[hookID] = [NSValue valueWithPointer:reinterpret_cast<const void *>(orig)];
+    // Alias both ids because metaclass / Swift bridge / runtime dispatch may report
+    // self differently inside the generic IMP than the install-time Method lookup.
     gKeyMap[hookID] = e.overrideKey;
+    gKeyMap[altHookID] = e.overrideKey;
     [gInstalled addObject:hookID];
     return YES;
 }
