@@ -1,8 +1,7 @@
-// Tweak.x — entry point. Zero Logos hooks here.
-// Preserves the working long-press trigger, but removes the crashy viewDidAppear: hook.
-// Crash reason from IPS: LiquidGlassOn.dylib recursively re-entered hookVDA/orig_vda
-// during UIViewController appearance. We now attach the recognizer from UITableView
-// didMoveToWindow instead of UIViewController viewDidAppear:.
+// Tweak.x — stable entry point.
+// Startup must be inert: no dynamic/runtime override reinstall, no Settings row mutation,
+// no broad developer/native hooks. The only startup hook kept here is the proven
+// passive long-press UITableView trigger.
 
 #import <UIKit/UIKit.h>
 #import <Foundation/Foundation.h>
@@ -11,21 +10,11 @@
 #import "Menu/WAGRSurfaceListVC.h"
 #import "WAGramPrefix.h"
 
-extern NSUInteger WAGRReinstallPersistedHooks(void);
-extern void WAGRDogfoodEnsureHooksInstalled(void);
-extern void WAGRLGPrefsDidChange(void);
 extern NSString *WAGRHookRouterDiagnostic(void);
 
 static const char *kLP = "wagr.lp.ok";
-static BOOL (*orig_debugMenuAllowed)(id,SEL) = NULL;
-static void (*orig_tableDidMoveToWindow)(id,SEL) = NULL;
-static BOOL gSettingsHooked = NO;
+static void (*orig_tableDidMoveToWindow)(id, SEL) = NULL;
 static BOOL gTableHooked = NO;
-
-static BOOL WAGRNativeDebugAllowed(void) {
-    return WAGRPref(kWAGRDebugMenuNative) || WAGRPref(kWAGRInternalMaster) ||
-           WAGRPref(kWAGREmployeeMaster) || WAGRPref(kWAGRDebugMode);
-}
 
 static void WAGRPresent(UIViewController *from) {
     if (!from) return;
@@ -91,9 +80,7 @@ static UIViewController *vcForView(UIView *v) {
 + (instancetype)shared {
     static WAGRLP *s = nil;
     static dispatch_once_t once;
-    dispatch_once(&once, ^{
-        s = [self new];
-    });
+    dispatch_once(&once, ^{ s = [self new]; });
     return s;
 }
 
@@ -120,7 +107,6 @@ static void attachLP(UITableView *tv) {
     UILongPressGestureRecognizer *lp = [[UILongPressGestureRecognizer alloc]
         initWithTarget:[WAGRLP shared]
                 action:@selector(lp:)];
-
     lp.minimumPressDuration = 0.65;
     lp.cancelsTouchesInView = NO;
 
@@ -130,144 +116,38 @@ static void attachLP(UITableView *tv) {
 
 static void hookTableDidMoveToWindow(id self, SEL _cmd) {
     if (orig_tableDidMoveToWindow) orig_tableDidMoveToWindow(self, _cmd);
-
     if (![self isKindOfClass:UITableView.class]) return;
     UITableView *tv = (UITableView *)self;
-
-    // Attach only when the table is on-screen. No reloadData here; this hook must be passive.
     if (tv.window) attachLP(tv);
-}
-
-static BOOL hookDebug(id self, SEL _cmd) {
-    if (WAGRNativeDebugAllowed()) return YES;
-    return orig_debugMenuAllowed ? orig_debugMenuAllowed(self, _cmd) : NO;
 }
 
 static void installLongPressTableHook(void) {
     if (gTableHooked) return;
-
     Class cls = UITableView.class;
     SEL sel = @selector(didMoveToWindow);
     Method m = class_getInstanceMethod(cls, sel);
     if (!m) return;
-
     MSHookMessageEx(cls, sel, (IMP)hookTableDidMoveToWindow, (IMP *)&orig_tableDidMoveToWindow);
     gTableHooked = (orig_tableDidMoveToWindow != NULL);
 }
 
-static BOOL classDeclaresInstanceMethod(Class cls, SEL sel) {
-    unsigned int count = 0;
-    Method *methods = class_copyMethodList(cls, &count);
-    BOOL found = NO;
-
-    for (unsigned int i = 0; i < count; i++) {
-        if (method_getName(methods[i]) == sel) {
-            found = YES;
-            break;
-        }
-    }
-
-    if (methods) free(methods);
-    return found;
-}
-
-static BOOL classDeclaresClassMethod(Class cls, SEL sel) {
-    Class meta = object_getClass(cls);
-    return meta ? classDeclaresInstanceMethod(meta, sel) : NO;
-}
-
-static void installSettingsHooks(void) {
-    installLongPressTableHook();
-
-    if (gSettingsHooked) return;
-
-    NSArray *names = @[
-        @"WASettingsViewController",
-        @"WASettingsTableViewController",
-        @"WANewSettingsViewController",
-        @"WASettingsNavTableViewController",
-        @"WASettingsNavigationController"
-    ];
-
-    SEL dbgSel = NSSelectorFromString(@"isDebugMenuAllowed");
-
-    for (NSString *n in names) {
-        Class cls = NSClassFromString(n);
-        if (!cls) continue;
-
-        if (!orig_debugMenuAllowed && classDeclaresInstanceMethod(cls, dbgSel)) {
-            MSHookMessageEx(cls, dbgSel, (IMP)hookDebug, (IMP *)&orig_debugMenuAllowed);
-        }
-
-        if (!orig_debugMenuAllowed && classDeclaresClassMethod(cls, dbgSel)) {
-            MSHookMessageEx(object_getClass(cls), dbgSel, (IMP)hookDebug, (IMP *)&orig_debugMenuAllowed);
-        }
-
-        if (orig_debugMenuAllowed) {
-            gSettingsHooked = YES;
-            break;
-        }
-    }
-}
-
 void WAGRDebugMenuEnsureHooksInstalled(void) {
-    installSettingsHooks();
+    installLongPressTableHook();
 }
 
 NSString *WAGRDebugMenuDiagnosticText(void) {
-    return [NSString stringWithFormat:@"nativeDebug=%@\nsettingsHook=%@\ntableHook=%@\nrouter=%@",
-            WAGRNativeDebugAllowed() ? @"ON" : @"OFF",
-            gSettingsHooked ? @"YES" : @"NO",
+    return [NSString stringWithFormat:@"startup=inert\ntableHook=%@\nautoRuntimeHooks=OFF\nrouter=%@",
             gTableHooked ? @"YES" : @"NO",
-            WAGRHookRouterDiagnostic()];
+            WAGRHookRouterDiagnostic() ?: @"n/a"];
 }
 
 static void startup(void) {
     @autoreleasepool {
-        // Keep LiquidGlass state refresh, but keep menu activation passive.
-        WAGRLGPrefsDidChange();
-
-        // Safe longpress activation path. No UIViewController viewDidAppear: hook.
+        WATweaksMigrateLegacyDefaults();
         installLongPressTableHook();
-
-        // Native debug selector hook is cheap and does not reload UI.
-        installSettingsHooks();
-
-        // Do not install dynamic/runtime hooks at startup unless the user explicitly asked.
-        if (WATweaksHasSavedObjCOverrides()) {
-            WAGRReinstallPersistedHooks();
-        }
-
-        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-            installSettingsHooks();
-            if (WATweaksHasSavedObjCOverrides()) WAGRReinstallPersistedHooks();
-            if (WAGRNativeDebugAllowed()) WAGRDogfoodEnsureHooksInstalled();
-        });
     }
 }
 
 %ctor {
     startup();
-}
-
-// WATweaks unified persistence startup.
-// This makes saved overrides self-applying without the removed hidden wagr.startupHooksEnabled toggle.
-#import "WAGramPrefix.h"
-extern NSUInteger WAGRReinstallPersistedHooks(void);
-
-__attribute__((constructor))
-static void WATweaksUnifiedStateCtor(void) {
-    @autoreleasepool {
-        WATweaksMigrateLegacyDefaults();
-        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.65 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-            if (WATweaksHasSavedObjCOverrides()) {
-                WAGRReinstallPersistedHooks();
-            }
-        });
-        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-            if (WATweaksHasSavedObjCOverrides()) {
-                WAGRReinstallPersistedHooks();
-            }
-        });
-    }
 }
