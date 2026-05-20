@@ -11,8 +11,7 @@
 #import "../WAUtils.h"
 #import "../Runtime/WAGRSurface.h"
 
-void WAGRWAABEnsureHooksInstalled(void) { WAGRReinstallPersistedHooks(); }
-
+extern void WAGRWAABEnsureHooksInstalled(void);
 static UIColor *WAGRBG(void)     { return UIColor.systemGroupedBackgroundColor; }
 static UIColor *WAGRCell(void)   { return UIColor.secondarySystemGroupedBackgroundColor; }
 static UIColor *WAGRText(void)   { return UIColor.labelColor; }
