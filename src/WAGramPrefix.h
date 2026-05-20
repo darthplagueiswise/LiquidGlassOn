@@ -1,6 +1,6 @@
 // WAGramPrefix.h — WAGram unified prefix
-// Storage: wagr.waab.<flag_key> = @"on" | @"off"  (absent = system/no override)
-// No .mode suffix, no NSInteger — just plain strings.
+// WAAB storage: wagr.waab.<flag_key> = @"on" | @"off"  (absent = system/no override)
+// Runtime ObjC storage: wagr.override|objc|<Class>|inst/class|<selector> = BOOL
 
 #pragma once
 #ifdef __OBJC__
@@ -91,6 +91,22 @@ static inline NSString *WAGROverrideKey(NSString *surfaceID, NSString *className
             sel ?: @""];
 }
 
+static inline NSString *WAGRWAABFlagFromOverrideKey(NSString *key) {
+    if (!key.length || ![key hasPrefix:@"wagr.override|"]) return nil;
+    NSArray<NSString *> *parts = [key componentsSeparatedByString:@"|"];
+    if (parts.count < 5) return nil;
+    NSString *className = parts[2];
+    NSString *selector = [[parts subarrayWithRange:NSMakeRange(4, parts.count - 4)] componentsJoinedByString:@"|"];
+    if (!selector.length) return nil;
+    if ([className isEqualToString:@"WAABProperties"] ||
+        [className isEqualToString:@"FOAWAABPropertiesImpl"] ||
+        [className containsString:@"WAABProperties"] ||
+        [className containsString:@"ABProperties"]) {
+        return selector;
+    }
+    return nil;
+}
+
 static inline NSString *WAGRObservedKey(NSString *overrideKey) {
     if (!overrideKey.length) return @"";
     if ([overrideKey hasPrefix:@"wagr.override|"]) {
@@ -103,23 +119,40 @@ static inline NSString *WAGRObservedKey(NSString *overrideKey) {
 
 static inline BOOL WAGRHasOverride(NSString *key) {
     if (!key.length) return NO;
-    return [[NSUserDefaults standardUserDefaults] objectForKey:key] != nil;
+    if ([[NSUserDefaults standardUserDefaults] objectForKey:key] != nil) return YES;
+    NSString *waabFlag = WAGRWAABFlagFromOverrideKey(key);
+    if (waabFlag.length) {
+        return [[NSUserDefaults standardUserDefaults] stringForKey:WAGRKey(waabFlag)].length > 0;
+    }
+    return NO;
 }
 
 static inline BOOL WAGROverrideBool(NSString *key) {
     if (!key.length) return NO;
-    return [[NSUserDefaults standardUserDefaults] boolForKey:key];
+    id obj = [[NSUserDefaults standardUserDefaults] objectForKey:key];
+    if (obj) return [obj boolValue];
+    NSString *waabFlag = WAGRWAABFlagFromOverrideKey(key);
+    if (waabFlag.length) {
+        NSString *stored = [[NSUserDefaults standardUserDefaults] stringForKey:WAGRKey(waabFlag)];
+        if ([stored isEqualToString:@"on"]) return YES;
+        if ([stored isEqualToString:@"off"]) return NO;
+    }
+    return NO;
 }
 
 static inline void WAGRSetOverride(NSString *key, BOOL value) {
     if (!key.length) return;
     [[NSUserDefaults standardUserDefaults] setBool:value forKey:key];
+    NSString *waabFlag = WAGRWAABFlagFromOverrideKey(key);
+    if (waabFlag.length) WAGRSet(waabFlag, value ? @"on" : @"off");
     [[NSUserDefaults standardUserDefaults] synchronize];
 }
 
 static inline void WAGRClearOverride(NSString *key) {
     if (!key.length) return;
     [[NSUserDefaults standardUserDefaults] removeObjectForKey:key];
+    NSString *waabFlag = WAGRWAABFlagFromOverrideKey(key);
+    if (waabFlag.length) WAGRSet(waabFlag, nil);
     [[NSUserDefaults standardUserDefaults] synchronize];
 }
 
