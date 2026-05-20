@@ -46,23 +46,18 @@ static NSString *WAGRKeyString(id key) {
     return nil;
 }
 
-static BOOL WAGRHasWAABOverrideForKey(NSString *key, NSString **storedOut) {
+static BOOL WAGRHasWAABOverrideForKey(NSString *key, BOOL *valueOut) {
     if (!key.length) return NO;
-    NSString *stored = [[NSUserDefaults standardUserDefaults] stringForKey:WAGRKey(key)];
-    if (stored.length) {
-        if (storedOut) *storedOut = stored;
-        return YES;
-    }
-    return NO;
+    id obj = [[NSUserDefaults standardUserDefaults] objectForKey:WAGRKey(key)];
+    if (!obj) return NO;
+    if (valueOut) *valueOut = [obj boolValue];
+    return YES;
 }
 
 static BOOL hookBoolForKey(id self, SEL _cmd, id keyObj, BOOL defaultValue) {
     NSString *key = WAGRKeyString(keyObj);
-    NSString *stored = nil;
-    if (WAGRHasWAABOverrideForKey(key, &stored)) {
-        if ([stored isEqualToString:@"on"]) return YES;
-        if ([stored isEqualToString:@"off"]) return NO;
-    }
+    BOOL stored = NO;
+    if (WAGRHasWAABOverrideForKey(key, &stored)) return stored;
     typedef BOOL (*Orig)(id, SEL, id, BOOL);
     Orig orig = (Orig)[gBoolOrig[WAGRImpKey(self, _cmd)] pointerValue];
     return orig ? orig(self, _cmd, keyObj, defaultValue) : defaultValue;
@@ -70,11 +65,8 @@ static BOOL hookBoolForKey(id self, SEL _cmd, id keyObj, BOOL defaultValue) {
 
 static id hookStringForKey(id self, SEL _cmd, id keyObj, id defaultValue) {
     NSString *key = WAGRKeyString(keyObj);
-    NSString *stored = nil;
-    if (WAGRHasWAABOverrideForKey(key, &stored)) {
-        if ([stored isEqualToString:@"on"]) return @"enabled";
-        if ([stored isEqualToString:@"off"]) return @"";
-    }
+    BOOL stored = NO;
+    if (WAGRHasWAABOverrideForKey(key, &stored)) return stored ? @"enabled" : @"";
     typedef id (*Orig)(id, SEL, id, id);
     Orig orig = (Orig)[gStringOrig[WAGRImpKey(self, _cmd)] pointerValue];
     return orig ? orig(self, _cmd, keyObj, defaultValue) : defaultValue;
@@ -82,11 +74,8 @@ static id hookStringForKey(id self, SEL _cmd, id keyObj, id defaultValue) {
 
 static NSInteger hookIntegerForKey(id self, SEL _cmd, id keyObj, NSInteger defaultValue) {
     NSString *key = WAGRKeyString(keyObj);
-    NSString *stored = nil;
-    if (WAGRHasWAABOverrideForKey(key, &stored)) {
-        if ([stored isEqualToString:@"on"]) return 1;
-        if ([stored isEqualToString:@"off"]) return 0;
-    }
+    BOOL stored = NO;
+    if (WAGRHasWAABOverrideForKey(key, &stored)) return stored ? 1 : 0;
     typedef NSInteger (*Orig)(id, SEL, id, NSInteger);
     Orig orig = (Orig)[gIntegerOrig[WAGRImpKey(self, _cmd)] pointerValue];
     return orig ? orig(self, _cmd, keyObj, defaultValue) : defaultValue;
@@ -94,11 +83,8 @@ static NSInteger hookIntegerForKey(id self, SEL _cmd, id keyObj, NSInteger defau
 
 static double hookDoubleForKey(id self, SEL _cmd, id keyObj, double defaultValue) {
     NSString *key = WAGRKeyString(keyObj);
-    NSString *stored = nil;
-    if (WAGRHasWAABOverrideForKey(key, &stored)) {
-        if ([stored isEqualToString:@"on"]) return 1.0;
-        if ([stored isEqualToString:@"off"]) return 0.0;
-    }
+    BOOL stored = NO;
+    if (WAGRHasWAABOverrideForKey(key, &stored)) return stored ? 1.0 : 0.0;
     typedef double (*Orig)(id, SEL, id, double);
     Orig orig = (Orig)[gDoubleOrig[WAGRImpKey(self, _cmd)] pointerValue];
     return orig ? orig(self, _cmd, keyObj, defaultValue) : defaultValue;
@@ -129,9 +115,9 @@ static BOOL WAGRAuraShouldOverride(SEL sel, BOOL *value) {
         if (value) *value = WAGROverrideBool(key);
         return YES;
     }
-    NSString *stored = [[NSUserDefaults standardUserDefaults] stringForKey:WAGRKey(name)];
-    if ([stored isEqualToString:@"on"] || [stored isEqualToString:@"off"]) {
-        if (value) *value = [stored isEqualToString:@"on"];
+    id stored = [[NSUserDefaults standardUserDefaults] objectForKey:WAGRKey(name)];
+    if (stored) {
+        if (value) *value = [stored boolValue];
         return YES;
     }
     return NO;
