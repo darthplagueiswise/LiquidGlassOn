@@ -298,8 +298,14 @@ static inline BOOL WATweaksHasSavedObjCOverrides(void) {
     return WATweaksObjCOverrideCount() > 0;
 }
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 extern NSUInteger WAGRReinstallPersistedHooks(void);
 extern NSString *WAGRHookRouterDiagnostic(void);
 extern NSString *WAGRLGDiagnosticText(void);
 extern NSString *WAGRDogfoodDiagnosticText(void);
 extern NSString *WAKeychainAccessGroupDiagnostic(void);
+#ifdef __cplusplus
+}
+#endif
