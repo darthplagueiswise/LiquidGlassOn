@@ -5,7 +5,7 @@
 #import <objc/runtime.h>
 #import <objc/message.h>
 
-#define WALog(fmt, ...) NSLog(@"[LiquidGlassOn] " fmt, ##__VA_ARGS__)
+#define WALog(fmt, ...) NSLog(@"[WATweaks] " fmt, ##__VA_ARGS__)
 
 #define WA_PREF_KEYCHAIN_REWRITE @"wa_sideload_keychain_rewrite_enabled"
 #define WA_PREF_KEYCHAIN_OBSERVER @"wa_keychain_observer_enabled"

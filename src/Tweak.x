@@ -1,8 +1,29 @@
 // Tweak.x — entry point. Zero Logos hooks here.
-// Preserves the working long-press trigger, but removes the crashy viewDidAppear: hook.
-// Crash reason from IPS: LiquidGlassOn.dylib recursively re-entered hookVDA/orig_vda
-// during UIViewController appearance. We now attach the recognizer from UITableView
-// didMoveToWindow instead of UIViewController viewDidAppear:.
+// ─────────────────────────────────────────────────────────────────────────────
+// What this file owns now (post-refactor):
+//
+//   • The long-press gesture recognizer attached to every UITableView, which
+//     is the activation path for the WATweaks (formerly WAGram) menu when
+//     the user presses-and-holds the Help / Developer / WATweaks cells in
+//     Settings. This must stay here because the wagr_validate_sources.py
+//     script enforces the presence of UILongPressGestureRecognizer, WAGRLP,
+//     attachLP, isTrigger and WAGRPresent tokens in this file.
+//
+//   • The UITableView -didMoveToWindow swizzle, which is the single hook
+//     surface used to:
+//       (a) attach the long-press recognizer (existing behavior);
+//       (b) ask WAGRWATweaksSettingsRow.xm whether to attach the native
+//           "WATweaks" footer row to this table (new behavior).
+//
+//   • Diagnostic and ensure-installed shim functions that delegate to the
+//     dedicated hook files. Tweak.x is the orchestrator; specific hooks
+//     live in src/Hooks/.
+//
+// Crash-history note: the previous viewDidAppear: swizzle on UIViewController
+// caused recursive reentry into a global hook. That code path was removed in
+// favor of the table-centric didMoveToWindow path you see below. Do not
+// reintroduce a base-class viewDidAppear: hook here.
+// ─────────────────────────────────────────────────────────────────────────────
 
 #import <UIKit/UIKit.h>
 #import <Foundation/Foundation.h>
@@ -11,22 +32,42 @@
 #import "Menu/WAGRSurfaceListVC.h"
 #import "WAGramPrefix.h"
 
+// ── External entry points provided by dedicated hook files ──────────────────
 extern NSUInteger WAGRReinstallPersistedHooks(void);
-extern void WAGRDogfoodEnsureHooksInstalled(void);
-extern void WAGRLGPrefsDidChange(void);
-extern NSString *WAGRHookRouterDiagnostic(void);
+extern void       WAGRDogfoodEnsureHooksInstalled(void);
+extern void       WAGRLGPrefsDidChange(void);
+extern NSString  *WAGRHookRouterDiagnostic(void);
 
+// Native developer menu surface — moved out of Tweak.x into a dedicated file.
+extern void       WAGRNativeDevMenuEnsureHooksInstalled(void);
+extern NSString  *WAGRNativeDevMenuDiagnosticText(void);
+
+// "WATweaks" native settings row — the new entry below the Developer row.
+extern void       WAGRMaybeAttachWATweaksFooter(UITableView *tv);
+extern NSString  *WAGRWATweaksRowDiagnosticText(void);
+
+// ── Long-press setup ─────────────────────────────────────────────────────────
+// kLP is the associated-object key used to mark a UITableView as "long-press
+// already attached", so we never double-attach when -didMoveToWindow fires
+// repeatedly during the table's lifetime.
 static const char *kLP = "wagr.lp.ok";
-static BOOL (*orig_debugMenuAllowed)(id,SEL) = NULL;
-static void (*orig_tableDidMoveToWindow)(id,SEL) = NULL;
-static BOOL gSettingsHooked = NO;
+
+static void (*orig_tableDidMoveToWindow)(id, SEL) = NULL;
 static BOOL gTableHooked = NO;
 
+// Master gate: any of these prefs being ON is enough to unlock all the
+// "native developer menu" gating behavior throughout the tweak. The list is
+// historical — older builds used different keys — and we OR them so users
+// who already had any one of them set don't need to reconfigure.
 static BOOL WAGRNativeDebugAllowed(void) {
     return WAGRPref(kWAGRDebugMenuNative) || WAGRPref(kWAGRInternalMaster) ||
-           WAGRPref(kWAGREmployeeMaster) || WAGRPref(kWAGRDebugMode);
+           WAGRPref(kWAGREmployeeMaster)  || WAGRPref(kWAGRDebugMode);
 }
 
+// ── Modal presentation of the WATweaks menu ──────────────────────────────────
+// Used by the long-press path. The settings-row path uses its own internal
+// presenter in WAGRWATweaksSettingsRow.xm; both end up presenting the same
+// WAGRSurfaceListVC.
 static void WAGRPresent(UIViewController *from) {
     if (!from) return;
     dispatch_async(dispatch_get_main_queue(), ^{
@@ -47,6 +88,10 @@ static void WAGRPresent(UIViewController *from) {
     });
 }
 
+// ── Long-press trigger detection ────────────────────────────────────────────
+// We accept several cell texts as triggers: the user-facing "Ajuda" / "Help"
+// or "Developer" cells, plus the new "WATweaks" cell. Lowercase comparison
+// avoids locale surprises.
 static NSString *cellText(UITableViewCell *c) {
     NSMutableArray *parts = [NSMutableArray array];
 
@@ -70,7 +115,8 @@ static BOOL isTrigger(UITableViewCell *c) {
     return [s containsString:@"help"] ||
            [s containsString:@"ajuda"] ||
            [s containsString:@"developer"] ||
-           [s containsString:@"desenvolvedor"];
+           [s containsString:@"desenvolvedor"] ||
+           [s containsString:@"watweaks"];
 }
 
 static UIViewController *vcForView(UIView *v) {
@@ -82,6 +128,7 @@ static UIViewController *vcForView(UIView *v) {
     return nil;
 }
 
+// ── Long-press target object ────────────────────────────────────────────────
 @interface WAGRLP : NSObject
 + (instancetype)shared;
 - (void)lp:(UILongPressGestureRecognizer *)g;
@@ -113,6 +160,9 @@ static UIViewController *vcForView(UIView *v) {
 }
 @end
 
+// ── Long-press attachment ───────────────────────────────────────────────────
+// 0.65s press duration matches the iOS system "long press" feel. We set
+// cancelsTouchesInView to NO so normal taps on the cell still work.
 static void attachLP(UITableView *tv) {
     if (!tv) return;
     if ([objc_getAssociatedObject(tv, kLP) boolValue]) return;
@@ -128,19 +178,26 @@ static void attachLP(UITableView *tv) {
     [tv addGestureRecognizer:lp];
 }
 
+// ── The single hook surface ──────────────────────────────────────────────────
+// Every UITableView calls -didMoveToWindow when it lands on screen (and when
+// it's removed). We use that one moment to:
+//   1) attach the long-press recognizer (so the WATweaks menu opens on long
+//      press of Help/Developer/WATweaks cells), and
+//   2) ask the settings-row helper whether to attach the native footer that
+//      shows the WATweaks entry below the Developer row.
+//
+// Both operations are idempotent (each guarded by its own associated-object
+// flag), so repeated -didMoveToWindow firings cost only a few pointer reads.
 static void hookTableDidMoveToWindow(id self, SEL _cmd) {
     if (orig_tableDidMoveToWindow) orig_tableDidMoveToWindow(self, _cmd);
 
     if (![self isKindOfClass:UITableView.class]) return;
     UITableView *tv = (UITableView *)self;
 
-    // Attach only when the table is on-screen. No reloadData here; this hook must be passive.
-    if (tv.window) attachLP(tv);
-}
-
-static BOOL hookDebug(id self, SEL _cmd) {
-    if (WAGRNativeDebugAllowed()) return YES;
-    return orig_debugMenuAllowed ? orig_debugMenuAllowed(self, _cmd) : NO;
+    if (tv.window) {
+        attachLP(tv);
+        WAGRMaybeAttachWATweaksFooter(tv);
+    }
 }
 
 static void installLongPressTableHook(void) {
@@ -155,91 +212,46 @@ static void installLongPressTableHook(void) {
     gTableHooked = (orig_tableDidMoveToWindow != NULL);
 }
 
-static BOOL classDeclaresInstanceMethod(Class cls, SEL sel) {
-    unsigned int count = 0;
-    Method *methods = class_copyMethodList(cls, &count);
-    BOOL found = NO;
-
-    for (unsigned int i = 0; i < count; i++) {
-        if (method_getName(methods[i]) == sel) {
-            found = YES;
-            break;
-        }
-    }
-
-    if (methods) free(methods);
-    return found;
-}
-
-static BOOL classDeclaresClassMethod(Class cls, SEL sel) {
-    Class meta = object_getClass(cls);
-    return meta ? classDeclaresInstanceMethod(meta, sel) : NO;
-}
-
-static void installSettingsHooks(void) {
-    installLongPressTableHook();
-
-    if (gSettingsHooked) return;
-
-    NSArray *names = @[
-        @"WASettingsViewController",
-        @"WASettingsTableViewController",
-        @"WANewSettingsViewController",
-        @"WASettingsNavTableViewController",
-        @"WASettingsNavigationController"
-    ];
-
-    SEL dbgSel = NSSelectorFromString(@"isDebugMenuAllowed");
-
-    for (NSString *n in names) {
-        Class cls = NSClassFromString(n);
-        if (!cls) continue;
-
-        if (!orig_debugMenuAllowed && classDeclaresInstanceMethod(cls, dbgSel)) {
-            MSHookMessageEx(cls, dbgSel, (IMP)hookDebug, (IMP *)&orig_debugMenuAllowed);
-        }
-
-        if (!orig_debugMenuAllowed && classDeclaresClassMethod(cls, dbgSel)) {
-            MSHookMessageEx(object_getClass(cls), dbgSel, (IMP)hookDebug, (IMP *)&orig_debugMenuAllowed);
-        }
-
-        if (orig_debugMenuAllowed) {
-            gSettingsHooked = YES;
-            break;
-        }
-    }
-}
-
+// ── Diagnostic shim ──────────────────────────────────────────────────────────
+// Tweak.x doesn't own any gating hooks anymore, so its diagnostic just
+// summarizes the table-level state and forwards to the specialized files.
 void WAGRDebugMenuEnsureHooksInstalled(void) {
-    installSettingsHooks();
+    // Convenience: ensure both the dev-menu gates and the WATweaks row hook
+    // are in place. Each ensure-call is idempotent so this is safe to call
+    // multiple times (e.g. when the menu is opened).
+    installLongPressTableHook();
+    WAGRNativeDevMenuEnsureHooksInstalled();
 }
 
 NSString *WAGRDebugMenuDiagnosticText(void) {
-    return [NSString stringWithFormat:@"nativeDebug=%@\nsettingsHook=%@\ntableHook=%@\nrouter=%@",
-            WAGRNativeDebugAllowed() ? @"ON" : @"OFF",
-            gSettingsHooked ? @"YES" : @"NO",
-            gTableHooked ? @"YES" : @"NO",
-            WAGRHookRouterDiagnostic()];
+    return [NSString stringWithFormat:
+        @"nativeDebug=%@\ntableHook=%@\n\n[NativeDevMenu]\n%@\n\n[WATweaksRow]\n%@\n\n[Router]\n%@",
+        WAGRNativeDebugAllowed() ? @"ON" : @"OFF",
+        gTableHooked ? @"YES" : @"NO",
+        WAGRNativeDevMenuDiagnosticText() ?: @"n/a",
+        WAGRWATweaksRowDiagnosticText()   ?: @"n/a",
+        WAGRHookRouterDiagnostic()        ?: @"n/a"];
 }
 
+// ── Startup ──────────────────────────────────────────────────────────────────
+// Stays intentionally light. Heavy initializations live inside the dedicated
+// hook files' own __attribute__((constructor)) blocks, which run after this
+// %ctor in dyld order. The work here is the part Tweak.x specifically owns:
+// the table hook, plus a delayed nudge so any late-loaded Swift classes get
+// picked up.
 static void startup(void) {
     @autoreleasepool {
-        // Keep LiquidGlass state refresh, but keep menu activation passive.
         WAGRLGPrefsDidChange();
-
-        // Safe longpress activation path. No UIViewController viewDidAppear: hook.
         installLongPressTableHook();
+        WAGRNativeDevMenuEnsureHooksInstalled();
 
-        // Native debug selector hook is cheap and does not reload UI.
-        installSettingsHooks();
-
-        // Do not install dynamic/runtime hooks at startup unless the user explicitly asked.
         if (WAGRPref(@"wagr.startupHooksEnabled")) {
             WAGRReinstallPersistedHooks();
         }
 
-        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-            installSettingsHooks();
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.0 * NSEC_PER_SEC)),
+                       dispatch_get_main_queue(), ^{
+            WAGRNativeDevMenuEnsureHooksInstalled();
             if (WAGRPref(@"wagr.startupHooksEnabled")) WAGRReinstallPersistedHooks();
             if (WAGRNativeDebugAllowed()) WAGRDogfoodEnsureHooksInstalled();
         });

@@ -23,7 +23,7 @@ static BOOL WAKeychainObserverEnabled(void) {
 }
 
 static NSString *WAProbeService(void) {
-    return @"LiquidGlassOn.WAKeychainProbe";
+    return @"WATweaks.WAKeychainProbe";
 }
 
 static NSString *WAProbeAccount(void) {
@@ -74,7 +74,7 @@ static NSString *WADetectAccessGroup(void) {
 
     NSString *service = WAProbeService();
     NSString *account = WAProbeAccount();
-    NSData *data = [@"LiquidGlassOn" dataUsingEncoding:NSUTF8StringEncoding];
+    NSData *data = [@"WATweaks" dataUsingEncoding:NSUTF8StringEncoding];
 
     NSDictionary *deleteQuery = @{
         (__bridge id)kSecClass: (__bridge id)kSecClassGenericPassword,

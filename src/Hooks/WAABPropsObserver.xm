@@ -157,7 +157,7 @@ static void WAGRHookWAABProperties(Class cls) {
 
         IMP orig = NULL;
         MSHookMessageEx(cls, sel, (IMP)WAGRWAABGenericBoolHook, &orig);
-        if (orig) gWAABOrigImps[selName] = [NSValue valueWithPointer:(void *)orig];
+        if (orig) gWAABOrigImps[selName] = [NSValue valueWithPointer:(const void *)orig];
         gWAABHookedCount++;
     }
     free(methods);

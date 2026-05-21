@@ -4,12 +4,12 @@ ARCHS = arm64
 
 include $(THEOS)/makefiles/common.mk
 
-TWEAK_NAME = LiquidGlassOn
+TWEAK_NAME = WATweaks
 
 # ── Source discovery (mirrors RyukGram-Fork/dev2 pattern) ─────────────────────
-LIQUIDGLASSON_SRC_FILES := $(shell find src -type f \( -iname \*.x -o -iname \*.xm -o -iname \*.m \))
+WATWEAKS_SRC_FILES := $(shell find src -type f \( -iname \*.x -o -iname \*.xm -o -iname \*.m \))
 
-$(TWEAK_NAME)_FILES  = $(LIQUIDGLASSON_SRC_FILES) modules/fishhook/fishhook.c
+$(TWEAK_NAME)_FILES  = $(WATWEAKS_SRC_FILES) modules/fishhook/fishhook.c
 
 # SideStore-only: sideload keychain / app-group compat patch (fishhook-based).
 ifdef SIDESTORE
@@ -20,6 +20,7 @@ $(TWEAK_NAME)_FRAMEWORKS = \
 	UIKit \
 	Foundation \
 	CoreGraphics \
+	QuartzCore \
 	Security
 
 $(TWEAK_NAME)_PRIVATE_FRAMEWORKS = Preferences

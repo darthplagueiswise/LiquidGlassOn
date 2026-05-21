@@ -17,7 +17,7 @@ for rel in [
     "Makefile",
     "build.sh",
     "control",
-    "LiquidGlassOn.plist",
+    "WATweaks.plist",
     "src/Tweak.x",
     "src/Menu/WAGRSurfaceListVC.m",
     "src/Menu/WAGRSurfaceBrowserVC.m",

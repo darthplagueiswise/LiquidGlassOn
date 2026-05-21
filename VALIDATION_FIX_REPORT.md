@@ -1,6 +1,6 @@
-# LiquidGlassOn dev2 ZIP revisão
+# WATweaks dev2 ZIP revisão
 
-Origem: `/mnt/data/LiquidGlassOndev2(1).zip`
+Origem: `/mnt/data/WATweaksdev2(1).zip`
 
 ## Revisão realizada
 

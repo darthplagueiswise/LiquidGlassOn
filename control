@@ -1,9 +1,9 @@
-Package: com.darthplagueiswise.liquidglasson
-Name: LiquidGlassOn
+Package: com.darthplagueiswise.watweaks
+Name: WATweaks
 Version: 1.1.0
 Architecture: iphoneos-arm
-Description: WAABProperties feature-flag research tweak for WhatsApp — Liquid Glass, Dogfood gates, 156 curated flags, Keychain observer.
-Homepage: https://github.com/darthplagueiswise/LiquidGlassOn
+Description: WATweaks feature-flag research tweak for WhatsApp — native Developer menu row, Dogfood gates, Liquid Glass, WAABProperties, and Keychain observer.
+Homepage: https://github.com/darthplagueiswise/WATweaks
 Maintainer: Radan
 Author: Radan
 Section: Tweaks

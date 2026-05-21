@@ -1,6 +1,6 @@
 # GAMA / WAGram router rebuild checklist
 
-Base used: uploaded `LiquidGlassOn-router.zip`.
+Base used: uploaded `WATweaks-router.zip`.
 
 This rebuild keeps the existing working long-press activation from `src/Tweak.x`. The long-press code was not replaced with the later broken activation scheme.
 

@@ -44,7 +44,7 @@ wrapper/
 
 # Source packaging
 zip-src.sh
-LiquidGlassOn-src-*.zip
+WATweaks-src-*.zip
 *.zip
 *_diff.txt
 

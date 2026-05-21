@@ -2,7 +2,7 @@
 # build-fast.sh — reuse prebuilt dylib, only repackage the IPA
 # Adapted from RyukGram-Fork/dev2/build-fast.sh
 #
-# Pre-req:  ./build.sh dylib      (produces packages/LiquidGlassOn.dylib)
+# Pre-req:  ./build.sh dylib      (produces packages/WATweaks.dylib)
 # Then:     ./build-fast.sh       (or ./build-fast.sh sidestore)
 
 set -e
@@ -12,7 +12,7 @@ if [ -z "$THEOS" ]; then
 	else echo -e '\033[1m\033[0;31mTHEOS not set.\033[0m' >&2; exit 1; fi
 fi
 
-OUT_IPA="packages/LiquidGlassOn-sideloaded-debug.ipa"
+OUT_IPA="packages/WATweaks-sideloaded-debug.ipa"
 COMPRESSION=9
 
 # ── arg parse ────────────────────────────────────────────────────────────────
@@ -26,12 +26,12 @@ for arg in "$@"; do
 done
 
 if [ "$MODE" = "sidestore" ]; then
-	OUT_IPA="packages/LiquidGlassOn-sidestore-debug.ipa"
+	OUT_IPA="packages/WATweaks-sidestore-debug.ipa"
 fi
 
 # ── pre-req checks ────────────────────────────────────────────────────────────
-if [ ! -f "packages/LiquidGlassOn.dylib" ]; then
-	echo -e '\033[1m\033[0;31mpackages/LiquidGlassOn.dylib missing.\033[0m'
+if [ ! -f "packages/WATweaks.dylib" ]; then
+	echo -e '\033[1m\033[0;31mpackages/WATweaks.dylib missing.\033[0m'
 	echo -e '\033[0;33mRun ./build.sh dylib first.\033[0m'
 	exit 1
 fi
@@ -48,7 +48,7 @@ ipaFile="$(find ./packages/ -maxdepth 1 -type f \( \
 	-iname '*net.whatsapp.WhatsApp*.ipa' -o \
 	-iname 'WhatsApp*.ipa' -o \
 	-iname '[0-9]*.ipa' \
-\) ! -iname 'LiquidGlassOn*.ipa' -exec basename {} \; 2>/dev/null | head -1)"
+\) ! -iname 'WATweaks*.ipa' -exec basename {} \; 2>/dev/null | head -1)"
 
 if [ -z "${ipaFile}" ]; then
 	cwdIpa="$(find . -maxdepth 1 -type f \( \
@@ -71,7 +71,7 @@ echo -e '\033[1m\033[32mPackaging IPA (cyan)\033[0m'
 rm -f "$OUT_IPA"
 cyan -i "packages/${ipaFile}" \
 	-o "$OUT_IPA" \
-	-f packages/LiquidGlassOn.dylib \
+	-f packages/WATweaks.dylib \
 	-c $COMPRESSION \
 	-m 16.0 \
 	-du

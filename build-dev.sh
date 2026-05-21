@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# build-dev.sh — fast dev loop for LiquidGlassOn
+# build-dev.sh — fast dev loop for WATweaks
 # Adapted from RyukGram-Fork/dev2/build-dev.sh
 
 set -e
@@ -20,7 +20,7 @@ make DEV=1
 install_name_tool \
 	-change "/Library/Frameworks/CydiaSubstrate.framework/CydiaSubstrate" \
 	"@rpath/CydiaSubstrate.framework/CydiaSubstrate" \
-	".theos/obj/debug/LiquidGlassOn.dylib" 2>/dev/null || true
+	".theos/obj/debug/WATweaks.dylib" 2>/dev/null || true
 
 echo -e "\033[1m\033[32mDev build done.\033[0m"
-echo "Dylib at: $(pwd)/.theos/obj/debug/LiquidGlassOn.dylib"
+echo "Dylib at: $(pwd)/.theos/obj/debug/WATweaks.dylib"

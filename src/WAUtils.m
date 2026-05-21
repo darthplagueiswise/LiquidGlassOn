@@ -47,7 +47,7 @@ NSString *WAStringFromObject(id value) {
 void WAPresentAlert(UIViewController *presenter, NSString *title, NSString *message) {
     if (!presenter) return;
     dispatch_async(dispatch_get_main_queue(), ^{
-        UIAlertController *alert = [UIAlertController alertControllerWithTitle:title ?: @"LiquidGlassOn" message:message ?: @"" preferredStyle:UIAlertControllerStyleAlert];
+        UIAlertController *alert = [UIAlertController alertControllerWithTitle:title ?: @"WATweaks" message:message ?: @"" preferredStyle:UIAlertControllerStyleAlert];
         [alert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault handler:nil]];
         [presenter presentViewController:alert animated:YES completion:nil];
     });

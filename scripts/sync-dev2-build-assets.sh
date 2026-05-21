@@ -18,4 +18,4 @@ fi
 cp -f "$VENDOR/modules/fishhook/fishhook.c" "$ROOT/modules/fishhook/fishhook.c"
 cp -f "$VENDOR/modules/fishhook/fishhook.h" "$ROOT/modules/fishhook/fishhook.h"
 
-echo "[LiquidGlassOn] synced fishhook from Ryukgram-Fork/dev2"
+echo "[WATweaks] synced fishhook from Ryukgram-Fork/dev2"
