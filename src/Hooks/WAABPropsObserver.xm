@@ -163,10 +163,7 @@ static void WAGRHookWAABProperties(Class cls) {
     free(methods);
 }
 
-// Internal installer only. The public WAGRWAABEnsureHooksInstalled shim is owned
-// by the menu/router layer in this branch; exporting it here too creates a
-// duplicate linker symbol when the real observer is compiled.
-static void WAGRWAABObserverEnsureHooksInstalled(void) {
+extern "C" void WAGRWAABEnsureHooksInstalled(void) {
     WAGRLogEnsure();
     if (gWAABHooksInstalled) return;
     gWAABHooksInstalled = YES;
@@ -225,9 +222,9 @@ static void WAGRABInit(void) {
         WAGRLogEnsure();
         // Install immediately for pre-loaded classes
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.5 * NSEC_PER_SEC)),
-                       dispatch_get_main_queue(), ^{ WAGRWAABObserverEnsureHooksInstalled(); });
+                       dispatch_get_main_queue(), ^{ WAGRWAABEnsureHooksInstalled(); });
         // Retry after app fully loads
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2.5 * NSEC_PER_SEC)),
-                       dispatch_get_main_queue(), ^{ WAGRWAABObserverEnsureHooksInstalled(); });
+                       dispatch_get_main_queue(), ^{ WAGRWAABEnsureHooksInstalled(); });
     }
 }
